@@ -4,19 +4,9 @@
 import Image from 'next/image';
 import { Heart, Search, MessageCircle, ShieldCheck, LogIn, LogOut, HeartHandshake, User, Crown, UserRound, Settings, Bot, BadgeCheck } from 'lucide-react';
 import { useLogout } from '@/lib/hooks/useLogout';
-import { ViewType } from '@/lib/types';
+import { AppView, ViewType } from '@/lib/types';
 
-interface HeaderProps {
-  onAssistantClick: () => void;
-  currentView: ViewType;
-  onNavigate: (view: ViewType) => void;
-  assistantOpen: boolean;
-  isLoggedIn?: boolean;
-  tokens?: number;
-  userName?: string;
-}
-
-const NAV_ITEMS: { id: ViewType | 'admin'; icon: React.ReactNode; label: string; adminOnly?: boolean; userOnly?: boolean }[] = [
+const NAV_ITEMS: { id: ViewType; icon: React.ReactNode; label: string }[] = [
   { id: 'home',     icon: <Heart size={20} />,         label: 'Start' },
   { id: 'discover', icon: <HeartHandshake size={20} />, label: 'Szybkie Randki' },
   { id: 'search',   icon: <Search size={20} />,        label: 'Szukaj' },
@@ -24,10 +14,9 @@ const NAV_ITEMS: { id: ViewType | 'admin'; icon: React.ReactNode; label: string;
   { id: 'safety',   icon: <ShieldCheck size={20} />,   label: 'Bezpiecznie' },
 ];
 
-// Dodajemy prop isAdmin do HeaderProps
 interface HeaderProps {
   onAssistantClick: () => void;
-  currentView: ViewType | 'admin';
+  currentView: AppView;
   onNavigate: (view: ViewType | 'admin') => void;
   assistantOpen: boolean;
   isLoggedIn?: boolean;
@@ -56,18 +45,14 @@ export default function Header({ onAssistantClick, currentView, onNavigate, assi
         <div className="w-px h-6 bg-slate-200 shrink-0" />
         {/* Nawigacja — środek, tylko ikony, tooltip na hover */}
         <nav className="flex items-center flex-1 justify-center gap-2 min-w-0">
-          {(isAdmin
-            ? NAV_ITEMS // admin widzi wszystkie zakładki, w tym Admin
-            : NAV_ITEMS.filter(item => !item.adminOnly) // user nie widzi Admin
-          ).map((item) => {
+          {NAV_ITEMS.map((item) => {
             const active = currentView === item.id;
-            const isAdminTab = item.id === 'admin';
             return (
               <button
                 key={item.id}
-                onClick={() => onNavigate(item.id as any)}
+                onClick={() => onNavigate(item.id)}
                 className={`relative group flex flex-col items-center justify-center px-2 h-14 w-12 transition-all border-b-2
-                  ${active ? (isAdminTab ? 'border-yellow-400 text-yellow-600 bg-yellow-50' : 'border-rose-500 text-rose-500 bg-rose-50') : (isAdminTab ? 'border-transparent text-yellow-600 hover:text-yellow-700 hover:bg-yellow-50/60' : 'border-transparent text-slate-500 hover:text-rose-500 hover:bg-rose-50/60')}`}
+                  ${active ? 'border-rose-500 text-rose-500 bg-rose-50' : 'border-transparent text-slate-500 hover:text-rose-500 hover:bg-rose-50/60'}`}
                 title={item.label}
               >
                 {item.icon}

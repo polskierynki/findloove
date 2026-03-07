@@ -1,4 +1,19 @@
-export type ViewType = 'home' | 'discover' | 'profile' | 'messages' | 'safety' | 'likes' | 'search' | 'auth' | 'register' | 'terms' | 'privacy' | 'cookies';
+export type ViewType =
+  | 'home'
+  | 'discover'
+  | 'profile'
+  | 'messages'
+  | 'safety'
+  | 'likes'
+  | 'search'
+  | 'auth'
+  | 'register'
+  | 'terms'
+  | 'privacy'
+  | 'cookies';
+
+// App-level views include internal/admin screens that are not part of public nav contracts.
+export type AppView = ViewType | 'admin' | 'myprofile';
 
 export type LookingForCategory = 'miłość' | 'przyjaźń' | 'przygoda';
 

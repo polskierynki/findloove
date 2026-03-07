@@ -4,6 +4,21 @@
 :root {
   --background: #FDFCF9;
   --foreground: #0f172a;
+
+  /* Brand accent sampled from logo wordmark: #c05868 */
+  --color-rose-50: #f9eef1;
+  --color-rose-100: #f3dde3;
+  --color-rose-200: #eabec8;
+  --color-rose-300: #dd95a5;
+  --color-rose-400: #cf7488;
+  --color-rose-500: #c05868;
+  --color-rose-600: #b14e5e;
+  --color-rose-700: #943f4d;
+
+  --color-pink-50: #faeff2;
+  --color-pink-100: #f4dfe6;
+  --color-pink-500: #c4687a;
+  --color-pink-600: #b15a6c;
 }
 
 @theme inline {

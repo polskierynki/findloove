@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import type { Session } from '@supabase/supabase-js';
 
-import { ViewType, Profile, LookingForCategory, SupabaseProfile, mapSupabaseProfile } from '@/lib/types';
+import { AppView, ViewType, Profile, LookingForCategory, SupabaseProfile, mapSupabaseProfile } from '@/lib/types';
 import { useProfiles } from '@/lib/hooks/useProfiles';
 import { useLikes } from '@/lib/hooks/useLikes';
 import { useGuestRestrictions } from '@/lib/hooks/useGuestRestrictions';
@@ -54,7 +54,7 @@ function isPremiumActiveFromProfile(profile: {
 }
 
 export default function App() {
-  const [view, setView] = useState<ViewType | 'admin' | 'myprofile'>('home');
+  const [view, setView] = useState<AppView>('home');
   const [showAdminDashboard, setShowAdminDashboard] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   // Premium i limity randek
@@ -343,11 +343,7 @@ export default function App() {
         currentView={view}
         onNavigate={(v) => {
           setShowPremiumView(false);
-          if (v === 'admin') {
-            setView('admin');
-          } else {
-            setView(v as ViewType);
-          }
+          setView(v);
         }}
         isLoggedIn={isLoggedIn}
         tokens={tokens}
@@ -439,7 +435,7 @@ export default function App() {
               />
             )}
             {view === 'myprofile' && (
-              <MyProfileView onBack={() => setView('home')} />
+              <MyProfileView />
             )}
             {view === 'messages' && (
               <MessagesView
