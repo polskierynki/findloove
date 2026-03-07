@@ -1,0 +1,137 @@
+export type ViewType = 'home' | 'discover' | 'profile' | 'messages' | 'safety' | 'likes' | 'search' | 'auth' | 'register' | 'terms' | 'privacy' | 'cookies';
+
+export type LookingForCategory = 'miłość' | 'przyjaźń' | 'przygoda';
+
+export const LOOKING_FOR_OPTIONS: { id: LookingForCategory; label: string; description: string; emoji: string; color: string }[] = [
+  { id: 'miłość',   label: 'Miłości',   description: 'Szukasz poważnego związku i partnera na całe życie', emoji: '❤️', color: 'rose' },
+  { id: 'przyjaźń', label: 'Przyjaźni', description: 'Zależy Ci na szczerych relacjach i wspólnym spędzaniu czasu',  emoji: '🤝', color: 'amber' },
+  { id: 'przygoda', label: 'Przygody',   description: 'Cenisz spontaniczność, nowe miejsca i nowe znajomości',          emoji: '✨', color: 'violet' },
+];
+
+export function getLookingFor(status: string): LookingForCategory | null {
+  const s = status.toLowerCase();
+  if (s.includes('miło') || s.includes('partner')) return 'miłość';
+  if (s.includes('przyja')) return 'przyjaźń';
+  if (s.includes('przygod') || s.includes('towarzys')) return 'przygoda';
+  return null;
+}
+
+export interface ProfileDetails {
+  occupation: string;
+  zodiac: string;
+  smoking: string;
+  children: string;
+}
+
+export interface Profile {
+  id: string;
+  name: string;
+  age: number;
+  city: string;
+  bio: string;
+  interests: string[];
+  status: string;
+  image: string;
+  email?: string;
+  photos?: string[];         // gallery photos (index 0 = main = same as image)
+  details: ProfileDetails;
+  isVerified: boolean;
+  verificationPending?: boolean;
+  gender?: string;          // 'K' | 'M'
+  seeking_gender?: string;  // 'K' | 'M'
+  seeking_age_min?: number;
+  seeking_age_max?: number;
+  isBlocked?: boolean;
+  lastActive?: string;
+  createdAt?: string;
+  role?: string;            // 'user' | 'admin' | 'super_admin'
+  isPremium?: boolean;
+  premiumUntil?: string;
+}
+
+// Surowy format z Supabase
+export interface SupabaseProfile {
+  id: string;
+  name: string;
+  age: number;
+  city: string;
+  bio: string;
+  interests: string[];
+  status: string;
+  image_url: string;
+  is_verified: boolean;
+  verification_pending?: boolean;
+  occupation: string;
+  zodiac: string;
+  smoking: string;
+  children: string;
+  created_at: string;
+  gender?: string;
+  seeking_gender?: string;
+  seeking_age_min?: number;
+  seeking_age_max?: number;
+  is_blocked?: boolean;
+  last_active?: string;
+  role?: string;
+  is_premium?: boolean;
+  premium_until?: string;
+}
+// ADMIN: Typ zgłoszenia użytkownika
+export interface AdminReport {
+  id: string;
+  reported_profile_id: string;
+  reporter_profile_id: string | null;
+  reason: string;
+  details?: string;
+  status: string;
+  created_at: string;
+  reviewed_at?: string;
+}
+
+export interface SupabaseMessage {
+  id: string;
+  from_profile_id: string;
+  to_profile_id: string;
+  content: string;
+  created_at: string;
+}
+
+export function mapSupabaseProfile(p: SupabaseProfile): Profile {
+  return {
+    id: p.id,
+    name: p.name,
+    age: p.age,
+    city: p.city,
+    bio: p.bio,
+    interests: p.interests ?? [],
+    status: p.status,
+    image: p.image_url,
+    isVerified: p.is_verified,
+    verificationPending: p.verification_pending,
+    gender: p.gender,
+    seeking_gender: p.seeking_gender,
+    seeking_age_min: p.seeking_age_min,
+    seeking_age_max: p.seeking_age_max,
+    isBlocked: p.is_blocked,
+    lastActive: p.last_active,
+    createdAt: p.created_at,
+    role: p.role || 'user',
+    isPremium: p.is_premium,
+    premiumUntil: p.premium_until,
+    photos: [p.image_url].filter(Boolean),
+    details: {
+      occupation: p.occupation,
+      zodiac: p.zodiac,
+      smoking: p.smoking,
+      children: p.children,
+    },
+  };
+}
+
+/**
+ * Filtruje profile wykluczając konta techniczne (adminy)
+ * Konta z role = 'admin' lub 'super_admin' nie powinny się wyświetlać w systemie randkowym
+ */
+export function filterNonAdminProfiles(profiles: Profile[]): Profile[] {
+  return profiles.filter(p => !p.role || (p.role !== 'admin' && p.role !== 'super_admin'));
+}

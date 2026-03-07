@@ -1,0 +1,20 @@
+{
+    "sqltools.connections": [
+        {
+            "pgOptions": {
+                "ssl": {
+                    "rejectUnauthorized": true
+                }
+            },
+            "ssh": "Disabled",
+            "previewLimit": 50,
+            "server": "db.wpwxjnxmckqnkdwcauwv.supabase.co",
+            "port": 5432,
+            "driver": "PostgreSQL",
+            "name": "zlotelata-db",
+            "database": "postgres",
+            "username": "postgres",
+            "password": "OHmIIzb1ZpQmtzcw"
+        }
+    ]
+}
