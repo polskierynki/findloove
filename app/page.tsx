@@ -19,7 +19,6 @@ import AIAssistant from '@/components/layout/AIAssistant';
 import GuestModal from '@/components/layout/GuestModal';
 import GuestBanner from '@/components/layout/GuestBanner';
 import ProfileCompletionModal from '@/components/layout/ProfileCompletionModal';
-import PasswordResetModal from '@/components/layout/PasswordResetModal';
 
 import HomeView from '@/components/views/HomeView';
 import AdminDashboard from '@/components/views/AdminDashboard';
@@ -80,7 +79,6 @@ export default function App() {
   const [searchLookingFor, setSearchLookingFor] = useState<LookingForCategory | undefined>(undefined);
   const [showPremiumView, setShowPremiumView] = useState(false);
   const [showCompletionModal, setShowCompletionModal] = useState(false);
-  const [showPasswordReset, setShowPasswordReset] = useState(false);
   const hideGuestModalOnAuthViews = view === 'auth' || view === 'register';
 
   /* ─── Auth & token state ─── */
@@ -155,26 +153,34 @@ export default function App() {
     }
   }
 
-  // Supabase auth state effect
+  // Read URL actions (e.g. redirect to auth after password reset)
   useEffect(() => {
-    // Check if URL contains password recovery hash
-    if (typeof window !== 'undefined') {
-      const hash = window.location.hash;
-      
-      // Check for recovery type in hash or search params
-      if (hash && hash.includes('type=recovery')) {
-        setShowPasswordReset(true);
-      }
-      
-      // Also check URL search params (some Supabase configs use this)
-      const searchParams = new URLSearchParams(window.location.search);
-      const typeParam = searchParams.get('type');
-      
-      if (typeParam === 'recovery') {
-        setShowPasswordReset(true);
-      }
+    if (typeof window === 'undefined') return;
+
+    const searchParams = new URLSearchParams(window.location.search);
+    const viewParam = searchParams.get('view');
+    const resetParam = searchParams.get('reset');
+
+    if (viewParam === 'auth' && !isLoggedIn) {
+      setView('auth');
     }
 
+    if (resetParam === 'success') {
+      setNotification('Hasło zostało zmienione. Zaloguj się nowym hasłem.');
+      window.setTimeout(() => setNotification(null), 3500);
+    }
+
+    if (viewParam || resetParam) {
+      searchParams.delete('view');
+      searchParams.delete('reset');
+      const nextQuery = searchParams.toString();
+      const nextUrl = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ''}${window.location.hash}`;
+      window.history.replaceState(null, '', nextUrl);
+    }
+  }, [isLoggedIn]);
+
+  // Supabase auth state effect
+  useEffect(() => {
     // Get initial session
     const getSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -183,11 +189,7 @@ export default function App() {
     getSession();
 
     // Listen for auth state changes
-    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
-      // Obsługa resetowania hasła
-      if (event === 'PASSWORD_RECOVERY') {
-        setShowPasswordReset(true);
-      }
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       handleSession(session);
     });
     return () => {
@@ -618,25 +620,6 @@ export default function App() {
           />
         )}
 
-        {/* Password reset modal */}
-        {showPasswordReset && (
-          <PasswordResetModal
-            onClose={() => {
-              // Wyczyść hash z URL
-              if (typeof window !== 'undefined' && window.location.hash) {
-                window.history.replaceState(null, '', window.location.pathname);
-              }
-              setShowPasswordReset(false);
-            }}
-            onSuccess={(msg) => {
-              notify(msg);
-              setShowPasswordReset(false);
-            }}
-            onError={(msg) => {
-              notify(msg);
-            }}
-          />
-        )}
       </div>
     </LegalProvider>
   );

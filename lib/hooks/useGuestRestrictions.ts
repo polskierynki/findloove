@@ -9,7 +9,6 @@ interface GuestState {
 }
 
 const MAX_CLICKS = 3;
-const MAX_TIME_SECONDS = 40; // Changed from 5 minutes to 40 seconds
 const STORAGE_KEY = 'guestState';
 const DEFAULT_START_TIME = Date.now();
 
@@ -33,7 +32,6 @@ export function useGuestRestrictions(isLoggedIn: boolean) {
       return defaults;
     }
   });
-  const [elapsedMs, setElapsedMs] = useState(0);
   const [showModal, setShowModal] = useState(false);
   const [showTimeoutModal, setShowTimeoutModal] = useState(false);
   const [showFeatureModal, setShowFeatureModal] = useState(false);
@@ -45,22 +43,7 @@ export function useGuestRestrictions(isLoggedIn: boolean) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   }, [state, isLoggedIn]);
 
-  // Track elapsed guest session time and trigger timeout modal
-  useEffect(() => {
-    if (isLoggedIn) return;
-    if (!state.startTime) return;
-
-    const interval = setInterval(() => {
-      const elapsed = Date.now() - state.startTime;
-      setElapsedMs(elapsed);
-
-      if (elapsed >= MAX_TIME_SECONDS * 1000) {
-        setShowTimeoutModal(true);
-      }
-    }, 1000); // Check every second for more accurate timing
-
-    return () => clearInterval(interval);
-  }, [state.startTime, isLoggedIn]);
+  // Timeout modal intentionally disabled - only click/feature prompts remain.
 
   const trackClick = () => {
     if (isLoggedIn) return;
@@ -87,18 +70,10 @@ export function useGuestRestrictions(isLoggedIn: boolean) {
 
   const closeTimeoutModal = () => {
     setShowTimeoutModal(false);
-    // Reset timer - start counting 40 seconds from now
-    const newStartTime = Date.now();
-    setState(prev => ({
-      ...prev,
-      startTime: newStartTime
-    }));
-    setElapsedMs(0);
   };
 
   const resetState = () => {
     const startedAt = Date.now();
-    setElapsedMs(0);
     setState({
       clickCount: 0,
       startTime: startedAt,
@@ -131,10 +106,7 @@ export function useGuestRestrictions(isLoggedIn: boolean) {
   };
 
   const getRemainingTime = (): number => {
-    if (!state.startTime) return MAX_TIME_SECONDS;
-    const elapsed = elapsedMs;
-    const remaining = (MAX_TIME_SECONDS * 1000) - elapsed;
-    return Math.max(0, Math.floor(remaining / 1000)); // Return seconds instead of minutes
+    return 0;
   };
 
   const triggerFeatureModal = (blockedFeatureName: string = 'Ta funkcja') => {

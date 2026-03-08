@@ -26,7 +26,7 @@ export default function AuthView({ onBack, onNotify, onRegister }: AuthViewProps
       setResetLoading(true);
       const emailToSend = resetEmail;
       const { error } = await supabase.auth.resetPasswordForEmail(emailToSend, {
-        redirectTo: typeof window !== 'undefined' ? window.location.origin : undefined,
+        redirectTo: typeof window !== 'undefined' ? `${window.location.origin}/reset-password` : undefined,
       });
       setResetLoading(false);
       if (error) {
