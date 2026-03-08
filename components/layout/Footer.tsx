@@ -3,12 +3,24 @@
 import Image from 'next/image';
 import { Mail } from 'lucide-react';
 import { ViewType } from '@/lib/types';
+import { useLegal } from '@/lib/context/LegalContext';
+import LegalModal from '@/components/layout/LegalModal';
+import { TERMS_OF_SERVICE } from '@/lib/legal/termsOfService';
+import { PRIVACY_POLICY } from '@/lib/legal/privacyPolicy';
 
 interface FooterProps {
   onNavigate?: (view: ViewType) => void;
 }
 
 export default function Footer({ onNavigate }: FooterProps) {
+  const {
+    openTerms,
+    openPrivacy,
+    showTerms,
+    showPrivacy,
+    closeTerms,
+    closePrivacy,
+  } = useLegal();
   const currentYear = new Date().getFullYear();
 
   return (
@@ -52,7 +64,7 @@ export default function Footer({ onNavigate }: FooterProps) {
               <li><button onClick={() => onNavigate?.('safety')} className="text-slate-400 hover:text-rose-400 transition-colors cursor-pointer">Weryfikacja profilu</button></li>
               <li><button onClick={() => onNavigate?.('safety')} className="text-slate-400 hover:text-rose-400 transition-colors cursor-pointer">Poradnik bezpieczeństwa</button></li>
               <li><a href="mailto:bezpieczenstwo@findloove.pl" className="text-slate-400 hover:text-rose-400 transition-colors">Zgłoś problem</a></li>
-              <li><button onClick={() => onNavigate?.('privacy')} className="text-slate-400 hover:text-rose-400 transition-colors cursor-pointer">Polityka RODO</button></li>
+              <li><button onClick={openPrivacy} className="text-slate-400 hover:text-rose-400 transition-colors cursor-pointer">Polityka RODO</button></li>
             </ul>
           </div>
 
@@ -75,8 +87,8 @@ export default function Footer({ onNavigate }: FooterProps) {
         <div className="flex flex-col md:flex-row items-center justify-between gap-4">
           {/* Legal links */}
           <div className="flex flex-wrap justify-center gap-6 text-xs text-slate-400">
-            <button onClick={() => onNavigate?.('terms')} className="hover:text-rose-400 transition-colors cursor-pointer">Regulamin</button>
-            <button onClick={() => onNavigate?.('privacy')} className="hover:text-rose-400 transition-colors cursor-pointer">Polityka prywatności</button>
+            <button onClick={openTerms} className="hover:text-rose-400 transition-colors cursor-pointer">Regulamin</button>
+            <button onClick={openPrivacy} className="hover:text-rose-400 transition-colors cursor-pointer">Polityka prywatności</button>
             <button onClick={() => onNavigate?.('cookies')} className="hover:text-rose-400 transition-colors cursor-pointer">Polityka cookies</button>
             <a href="#" className="hover:text-rose-400 transition-colors">Preferencje RODO</a>
           </div>
@@ -89,6 +101,19 @@ export default function Footer({ onNavigate }: FooterProps) {
         </div>
 
       </div>
+
+      <LegalModal
+        isOpen={showTerms}
+        onClose={closeTerms}
+        type="terms"
+        content={TERMS_OF_SERVICE}
+      />
+      <LegalModal
+        isOpen={showPrivacy}
+        onClose={closePrivacy}
+        type="privacy"
+        content={PRIVACY_POLICY}
+      />
     </footer>
   );
 }

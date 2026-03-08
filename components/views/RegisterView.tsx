@@ -10,9 +10,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { LookingForCategory, LOOKING_FOR_OPTIONS } from '@/lib/types';
-import LegalModal from '@/components/layout/LegalModal';
-import { TERMS_OF_SERVICE } from '@/lib/legal/termsOfService';
-import { PRIVACY_POLICY } from '@/lib/legal/privacyPolicy';
+import { useLegal } from '@/lib/context/LegalContext';
 
 interface RegisterViewProps {
   onBack: () => void;
@@ -86,10 +84,7 @@ export default function RegisterView({ onBack, onComplete }: RegisterViewProps) 
   // submission
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
-  
-  // legal modals
-  const [showTermsModal, setShowTermsModal] = useState(false);
-  const [showPrivacyModal, setShowPrivacyModal] = useState(false);
+  const { openTerms, openPrivacy } = useLegal();
   
   // validation errors
   const [emailError, setEmailError] = useState('');
@@ -1060,14 +1055,14 @@ export default function RegisterView({ onBack, onComplete }: RegisterViewProps) 
                     <span className="text-sm text-slate-700 leading-snug">
                       Akceptuję{' '}
                       <span
-                        onClick={() => setShowTermsModal(true)}
+                        onClick={openTerms}
                         className="text-rose-500 font-semibold hover:underline cursor-pointer"
                       >
                         Regulamin
                       </span>
                       {' '}i{' '}
                       <span
-                        onClick={() => setShowPrivacyModal(true)}
+                        onClick={openPrivacy}
                         className="text-rose-500 font-semibold hover:underline cursor-pointer"
                       >
                         Politykę Prywatności
@@ -1198,34 +1193,20 @@ export default function RegisterView({ onBack, onComplete }: RegisterViewProps) 
           <p className="text-center text-xs text-slate-400 mt-5 leading-relaxed px-4">
             Rejestrując się akceptujesz{' '}
             <span
-              onClick={() => setShowTermsModal(true)}
+              onClick={openTerms}
               className="text-rose-500 cursor-pointer hover:underline"
             >
               Regulamin
             </span>
             {' '}i{' '}
             <span
-              onClick={() => setShowPrivacyModal(true)}
+              onClick={openPrivacy}
               className="text-rose-500 cursor-pointer hover:underline"
             >
               Politykę Prywatności
             </span>
           </p>
         )}
-
-        {/* Legal Modals */}
-        <LegalModal
-          isOpen={showTermsModal}
-          onClose={() => setShowTermsModal(false)}
-          type="terms"
-          content={TERMS_OF_SERVICE}
-        />
-        <LegalModal
-          isOpen={showPrivacyModal}
-          onClose={() => setShowPrivacyModal(false)}
-          type="privacy"
-          content={PRIVACY_POLICY}
-        />
       </div>
     </div>
   );

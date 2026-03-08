@@ -9,6 +9,7 @@ import { useProfiles } from '@/lib/hooks/useProfiles';
 import { useLikes } from '@/lib/hooks/useLikes';
 import { useGuestRestrictions } from '@/lib/hooks/useGuestRestrictions';
 import { useProfileCompletion } from '@/lib/hooks/useProfileCompletion';
+import { LegalProvider } from '@/lib/context/LegalContext';
 
 import Header from '@/components/layout/Header';
 import BottomNav from '@/components/layout/BottomNav';
@@ -341,8 +342,9 @@ export default function App() {
   }, [view]);
 
   return (
-    <div className="min-h-screen bg-[#FDFCF9] text-slate-900 pb-24 md:pb-10 text-base selection:bg-rose-100">
-      {notification && <Notification message={notification} />}
+    <LegalProvider>
+      <div className="min-h-screen bg-[#FDFCF9] text-slate-900 pb-24 md:pb-10 text-base selection:bg-rose-100">
+        {notification && <Notification message={notification} />}
 
       <Header
         onAssistantClick={() => setChatOpen((v) => !v)}
@@ -552,18 +554,19 @@ export default function App() {
         </>
       )}
 
-      {/* Profile completion modal for logged-in users */}
-      {isLoggedIn && (
-        <ProfileCompletionModal
-          isOpen={showCompletionModal}
-          onClose={() => setShowCompletionModal(false)}
-          completionLevel={profileCompletion.completionLevel}
-          onGoToProfile={() => {
-            setShowCompletionModal(false);
-            setView('myprofile');
-          }}
-        />
-      )}
-    </div>
+        {/* Profile completion modal for logged-in users */}
+        {isLoggedIn && (
+          <ProfileCompletionModal
+            isOpen={showCompletionModal}
+            onClose={() => setShowCompletionModal(false)}
+            completionLevel={profileCompletion.completionLevel}
+            onGoToProfile={() => {
+              setShowCompletionModal(false);
+              setView('myprofile');
+            }}
+          />
+        )}
+      </div>
+    </LegalProvider>
   );
 }
