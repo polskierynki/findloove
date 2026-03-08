@@ -172,9 +172,11 @@ export default function MyProfile() {
     if (!file) return;
     setUploading(true);
 
-    const url = await uploadProfilePhoto(file, profile.id);
+    const { url, error } = await uploadProfilePhoto(file, profile.id);
     if (!url) {
-      alert('Nie udalo sie wyslac zdjecia. Sprawdz uprawnienia bucketu profile-photos.');
+      alert(
+        `Nie udalo sie wyslac zdjecia do storage.objects.\n\nSzczegoly: ${error || 'Bucket profile-photos moze nie istniec lub brak uprawnien.'}\n\nUpewnij sie, ze wykonales SQL: supabase/fix_photo_permissions_relaxed.sql`,
+      );
       setUploading(false);
       return;
     }

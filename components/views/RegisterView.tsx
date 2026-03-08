@@ -881,8 +881,9 @@ export default function RegisterView({ onBack, onComplete }: RegisterViewProps) 
                       if (!file) return;
                       setPhotoFile(file);
                       setUploadingPhoto(true);
-                      const url = await uploadProfilePhoto(file, email || name || 'temp');
+                      const { url, error } = await uploadProfilePhoto(file, email || name || 'temp');
                       if (url) setPhotoUrl(url);
+                      else if (error) console.error('Photo upload error:', error);
                       setUploadingPhoto(false);
                     }}
                     className="w-full border border-slate-200 rounded-xl px-4 py-3 text-slate-800 focus:outline-none focus:border-rose-400 focus:ring-2 focus:ring-rose-100 text-sm"
@@ -908,8 +909,9 @@ export default function RegisterView({ onBack, onComplete }: RegisterViewProps) 
                       if (!file) return;
                       setPhotoFile2(file);
                       setUploadingPhoto2(true);
-                      const url = await uploadProfilePhoto(file, email || name || 'temp');
+                      const { url, error } = await uploadProfilePhoto(file, email || name || 'temp');
                       if (url) setPhotoUrl2(url);
+                      else if (error) console.error('Photo upload error:', error);
                       setUploadingPhoto2(false);
                     }}
                     className="w-full border border-slate-200 rounded-xl px-4 py-3 text-slate-800 focus:outline-none focus:border-rose-400 focus:ring-2 focus:ring-rose-100 text-sm"

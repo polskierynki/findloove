@@ -7,7 +7,10 @@ type PhotoMutationResult = {
 
 // Upload pojedynczego zdjęcia do Supabase Storage (bucket: profile-photos) i zwróć publiczny URL
 // UWAGA: Plik trafia na Twój serwer Supabase, nie na zewnętrzny hosting!
-export async function uploadProfilePhoto(file: File, userId: string): Promise<string | null> {
+export async function uploadProfilePhoto(
+  file: File,
+  userId: string,
+): Promise<{ url: string | null; error?: string }> {
   const fileExt = file.name.split('.').pop();
   const filePath = `profiles/${userId}/${Date.now()}.${fileExt}`;
   // Wrzucenie pliku do bucketu 'profile-photos' (musisz utworzyć bucket w panelu Supabase)
@@ -17,11 +20,14 @@ export async function uploadProfilePhoto(file: File, userId: string): Promise<st
   });
   if (uploadError) {
     console.error('Blad uploadu do storage:', uploadError);
-    return null;
+    return {
+      url: null,
+      error: uploadError.message || 'Blad uploadu do storage.objects',
+    };
   }
   // Pobierz publiczny URL do pliku z Supabase Storage
   const { data } = supabase.storage.from('profile-photos').getPublicUrl(filePath);
-  return data.publicUrl;
+  return { url: data.publicUrl };
 }
 
 // Dodaj zdjęcie do photos[] w profiles (prosta galeria)
