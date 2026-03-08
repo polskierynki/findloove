@@ -211,9 +211,19 @@ function ConversationListItem({
 export default function MessagesView({ selectedProfile, onBack, onNotify, isLoggedIn = false, isPremium = false, tokens = 0, onSpendToken, onLoginRequest }: MessagesViewProps) {
   const { profiles: allProfiles, loading: profilesLoading } = useProfiles();
   const visibleProfiles = useMemo(() => filterNonAdminProfiles(allProfiles), [allProfiles]);
+  
+  // Track deleted conversations in localStorage
+  const [deletedConversations, setDeletedConversations] = useState<string[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('deletedConversations');
+      return saved ? JSON.parse(saved) : [];
+    }
+    return [];
+  });
+
   const conversationProfiles = useMemo(
-    () => [ADVISOR_BOT_PROFILE, ...visibleProfiles],
-    [visibleProfiles],
+    () => [ADVISOR_BOT_PROFILE, ...visibleProfiles].filter(p => !deletedConversations.includes(p.id)),
+    [visibleProfiles, deletedConversations],
   );
 
   const [activeProfile, setActiveProfile] = useState<Profile | null>(selectedProfile ?? ADVISOR_BOT_PROFILE);
@@ -231,6 +241,7 @@ export default function MessagesView({ selectedProfile, onBack, onNotify, isLogg
   const DAILY_LIMIT = isPremium ? Number.POSITIVE_INFINITY : FREE_DAILY_LIMIT;
   const [messagedToday, setMessagedToday] = useState<string[]>([]);
   const [showLimitModal, setShowLimitModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   const isAdvisorChat = activeProfile?.id === ADVISOR_BOT_ID;
 
@@ -240,9 +251,43 @@ export default function MessagesView({ selectedProfile, onBack, onNotify, isLogg
     }
   }, [conversationProfiles, activeProfile]);
 
+  // Save deleted conversations to localStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('deletedConversations', JSON.stringify(deletedConversations));
+    }
+  }, [deletedConversations]);
+
   const handleReport = () => { onNotify(`Zgłoszono profil: ${activeProfile?.name}`); };
-  const handleBlock = () => { onNotify(`Zablokowano użytkownika: ${activeProfile?.name}`); };
-  const handleDelete = () => { onNotify('Rozmowa została usunięta'); };
+  const handleBlock = () => { 
+    if (!activeProfile) return;
+    onNotify(`Zablokowano użytkownika: ${activeProfile?.name}`);
+    // Also delete the conversation when blocking
+    handleDeleteConfirmed();
+  };
+  
+  const handleDelete = () => { 
+    setShowDeleteModal(true);
+  };
+
+  const handleDeleteConfirmed = () => {
+    if (!activeProfile) return;
+    
+    // Add to deleted list
+    setDeletedConversations(prev => [...prev, activeProfile.id]);
+    
+    // Switch to first available conversation
+    const remainingProfiles = conversationProfiles.filter(p => p.id !== activeProfile.id);
+    if (remainingProfiles.length > 0) {
+      setActiveProfile(remainingProfiles[0]);
+    } else {
+      setActiveProfile(null);
+      setShowChat(false);
+    }
+    
+    setShowDeleteModal(false);
+    onNotify('Rozmowa została usunięta');
+  };
 
   const sendAdvisorMessage = (preset?: string) => {
     const content = (preset ?? advisorInput).trim();
@@ -471,6 +516,42 @@ export default function MessagesView({ selectedProfile, onBack, onNotify, isLogg
           </div>
         )}
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-in fade-in zoom-in duration-200">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center shrink-0">
+                <Trash2 size={24} className="text-red-600" />
+              </div>
+              <div>
+                <h3 className="font-bold text-lg text-slate-800">Usuń rozmowę</h3>
+                <p className="text-sm text-slate-500">
+                  Czy na pewno chcesz usunąć rozmowę z {activeProfile?.name}?
+                </p>
+              </div>
+            </div>
+            <p className="text-sm text-slate-600 mb-6">
+              Ta rozmowa zostanie ukryta. Możesz zawsze rozpocząć nową rozmowę z tym użytkownikiem.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 font-semibold hover:bg-slate-50 transition-colors"
+              >
+                Anuluj
+              </button>
+              <button
+                onClick={handleDeleteConfirmed}
+                className="flex-1 px-4 py-2.5 rounded-xl bg-red-500 text-white font-semibold hover:bg-red-600 transition-colors"
+              >
+                Usuń rozmowę
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
