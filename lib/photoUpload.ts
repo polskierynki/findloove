@@ -10,7 +10,10 @@ export async function uploadProfilePhoto(file: File, userId: string): Promise<st
     cacheControl: '3600',
     upsert: true,
   });
-  if (uploadError) return null;
+  if (uploadError) {
+    console.error('Blad uploadu do storage:', uploadError);
+    return null;
+  }
   // Pobierz publiczny URL do pliku z Supabase Storage
   const { data } = supabase.storage.from('profile-photos').getPublicUrl(filePath);
   return data.publicUrl;
@@ -27,24 +30,55 @@ export async function addPhotoToProfile(userId: string, photoUrl: string) {
 }
 
 // Dodaj zdjęcie do profile_photos (pełna galeria)
-export async function addPhotoToProfilePhotos(userId: string, photoUrl: string, isMain = false, sortOrder = 0) {
-  await supabase.from('profile_photos').insert({
+export async function addPhotoToProfilePhotos(userId: string, photoUrl: string, isMain = false, sortOrder = 0): Promise<boolean> {
+  const { error } = await supabase.from('profile_photos').insert({
     profile_id: userId,
     url: photoUrl,
     is_main: isMain,
     sort_order: sortOrder,
   });
+
+  if (error) {
+    console.error('Blad zapisu do profile_photos:', error);
+    return false;
+  }
+
+  return true;
 }
 
 // Usuń zdjęcie z profile_photos
-export async function removePhotoFromProfilePhotos(photoId: string) {
-  await supabase.from('profile_photos').delete().eq('id', photoId);
+export async function removePhotoFromProfilePhotos(photoId: string): Promise<boolean> {
+  const { error } = await supabase.from('profile_photos').delete().eq('id', photoId);
+  if (error) {
+    console.error('Blad usuwania zdjecia:', error);
+    return false;
+  }
+  return true;
 }
 
 // Ustaw zdjęcie główne
-export async function setMainProfilePhoto(userId: string, photoId: string) {
+export async function setMainProfilePhoto(userId: string, photoId: string): Promise<boolean> {
   // Najpierw odznacz wszystkie
-  await supabase.from('profile_photos').update({ is_main: false }).eq('profile_id', userId);
+  const { error: resetError } = await supabase
+    .from('profile_photos')
+    .update({ is_main: false })
+    .eq('profile_id', userId);
+
+  if (resetError) {
+    console.error('Blad resetowania glownego zdjecia:', resetError);
+    return false;
+  }
+
   // Potem ustaw wybrane
-  await supabase.from('profile_photos').update({ is_main: true }).eq('id', photoId);
+  const { error: mainError } = await supabase
+    .from('profile_photos')
+    .update({ is_main: true })
+    .eq('id', photoId);
+
+  if (mainError) {
+    console.error('Blad ustawiania glownego zdjecia:', mainError);
+    return false;
+  }
+
+  return true;
 }

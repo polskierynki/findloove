@@ -171,25 +171,54 @@ export default function MyProfile() {
     const file = e.target.files[0];
     if (!file) return;
     setUploading(true);
+
     const url = await uploadProfilePhoto(file, profile.id);
-    if (url) {
-      await addPhotoToProfilePhotos(profile.id, url, photos.length === 0, photos.length);
-      const { data: ph } = await supabase.from('profile_photos').select('*').eq('profile_id', profile.id).order('sort_order');
-      setPhotos(ph || []);
+    if (!url) {
+      alert('Nie udalo sie wyslac zdjecia. Sprawdz uprawnienia bucketu profile-photos.');
+      setUploading(false);
+      return;
     }
+
+    const added = await addPhotoToProfilePhotos(profile.id, url, photos.length === 0, photos.length);
+    if (!added) {
+      alert('Zdjecie wyslano, ale nie zapisano rekordu w bazie (profile_photos).');
+      setUploading(false);
+      return;
+    }
+
+    const { data: ph } = await supabase
+      .from('profile_photos')
+      .select('*')
+      .eq('profile_id', profile.id)
+      .order('sort_order');
+    setPhotos(ph || []);
+
     setUploading(false);
   };
 
   // Usuń zdjęcie
   const handleRemovePhoto = async (photoId: string) => {
-    await removePhotoFromProfilePhotos(photoId);
-    setPhotos(photos.filter(p => p.id !== photoId));
+    const removed = await removePhotoFromProfilePhotos(photoId);
+    if (!removed) {
+      alert('Nie udalo sie usunac zdjecia. Sprawdz polityki RLS dla profile_photos.');
+      return;
+    }
+    setPhotos(photos.filter((p) => p.id !== photoId));
   };
 
   // Ustaw zdjęcie główne
   const handleSetMain = async (photoId: string) => {
-    await setMainProfilePhoto(profile.id, photoId);
-    const { data: ph } = await supabase.from('profile_photos').select('*').eq('profile_id', profile.id).order('sort_order');
+    const changed = await setMainProfilePhoto(profile.id, photoId);
+    if (!changed) {
+      alert('Nie udalo sie ustawic glownego zdjecia.');
+      return;
+    }
+
+    const { data: ph } = await supabase
+      .from('profile_photos')
+      .select('*')
+      .eq('profile_id', profile.id)
+      .order('sort_order');
     setPhotos(ph || []);
   };
 
