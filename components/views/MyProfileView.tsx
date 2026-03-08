@@ -3,34 +3,52 @@ import { GENDERS, ORIENTATION_OPTIONS, POLISH_CITIES, ZODIAC_SIGNS, OCCUPATION_O
 import { LOOKING_FOR_OPTIONS } from '@/lib/types';
 // Funkcja pomocnicza do pobierania statystyk aktywności
 async function fetchUserStats(userId: string) {
-  // Liczba wysłanych wiadomości
-  const { count: sentMessages } = await supabase
-    .from('messages')
-    .select('*', { count: 'exact', head: true })
-    .eq('from_profile_id', userId);
-  // Liczba otrzymanych wiadomości
-  const { count: receivedMessages } = await supabase
-    .from('messages')
-    .select('*', { count: 'exact', head: true })
-    .eq('to_profile_id', userId);
-  // Liczba polubień otrzymanych
-  const { count: receivedLikes } = await supabase
-    .from('likes')
-    .select('*', { count: 'exact', head: true })
-    .eq('to_profile_id', userId);
-  // Liczba polubień wysłanych
-  const { count: sentLikes } = await supabase
-    .from('likes')
-    .select('*', { count: 'exact', head: true })
-    .eq('from_profile_id', userId);
-  // Liczba logowań (jeśli masz taką kolumnę/logi, tu uproszczone)
-  // Możesz rozbudować o inne statystyki
-  return {
-    sentMessages: sentMessages ?? 0,
-    receivedMessages: receivedMessages ?? 0,
-    receivedLikes: receivedLikes ?? 0,
-    sentLikes: sentLikes ?? 0,
-  };
+  try {
+    // Liczba wysłanych wiadomości
+    const { count: sentMessages, error: sentMsgError } = await supabase
+      .from('messages')
+      .select('*', { count: 'exact', head: true })
+      .eq('from_profile_id', userId);
+    
+    // Liczba otrzymanych wiadomości
+    const { count: receivedMessages, error: recvMsgError } = await supabase
+      .from('messages')
+      .select('*', { count: 'exact', head: true })
+      .eq('to_profile_id', userId);
+    
+    // Liczba polubień otrzymanych
+    const { count: receivedLikes, error: recvLikesError } = await supabase
+      .from('likes')
+      .select('*', { count: 'exact', head: true })
+      .eq('to_profile_id', userId);
+    
+    // Liczba polubień wysłanych
+    const { count: sentLikes, error: sentLikesError } = await supabase
+      .from('likes')
+      .select('*', { count: 'exact', head: true })
+      .eq('from_profile_id', userId);
+    
+    // Loguj błędy ale nie przerywaj działania
+    if (sentMsgError) console.warn('Error fetching sent messages:', sentMsgError);
+    if (recvMsgError) console.warn('Error fetching received messages:', recvMsgError);
+    if (recvLikesError) console.warn('Error fetching received likes:', recvLikesError);
+    if (sentLikesError) console.warn('Error fetching sent likes:', sentLikesError);
+    
+    return {
+      sentMessages: sentMessages ?? 0,
+      receivedMessages: receivedMessages ?? 0,
+      receivedLikes: receivedLikes ?? 0,
+      sentLikes: sentLikes ?? 0,
+    };
+  } catch (error) {
+    console.error('Error in fetchUserStats:', error);
+    return {
+      sentMessages: 0,
+      receivedMessages: 0,
+      receivedLikes: 0,
+      sentLikes: 0,
+    };
+  }
 }
 import { supabase } from '@/lib/supabase';
 
@@ -51,52 +69,75 @@ export default function MyProfile() {
   // Pobierz dane profilu i zdjęcia po zalogowaniu
   useEffect(() => {
     (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data: prof, error } = await supabase.from('profiles').select('*').eq('id', user.id).single();
-      console.log('PROFILE DEBUG:', { prof, error, user });
-      
-      // Jeśli profil nie istnieje, utwórz pusty
-      if (!prof && error?.code === 'PGRST116') {
-        const newProfile = {
-          id: user.id,
-          email: user.email || '',
-          name: '',
-          age: 18,
-          city: '',
-          bio: '',
-          interests: [],
-          status: '',
-          image_url: '',
-          is_verified: false,
-          occupation: '',
-          zodiac: '',
-          smoking: '',
-          children: '',
-          gender: '',
-          seeking_gender: '',
-          seeking_age_min: 18,
-          seeking_age_max: 82,
-        };
-        await supabase.from('profiles').insert(newProfile);
-        setProfile(newProfile);
-        setForm(newProfile);
-        setEdit(true); // Włącz tryb edycji dla nowego profilu
-      } else {
-        setProfile(prof);
-        setForm(prof || {});
+      try {
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        if (userError) {
+          console.error('Error getting user:', userError);
+          setLoading(false);
+          return;
+        }
+        if (!user) {
+          console.log('No user logged in');
+          setLoading(false);
+          return;
+        }
         
-        // Automatycznie włącz tryb edycji jeśli profil jest pusty/niepełny
-        const isIncomplete = !prof?.name || !prof?.age || !prof?.city || !prof?.bio;
-        setEdit(isIncomplete);
+        const { data: prof, error } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+        console.log('PROFILE DEBUG:', { prof, error, user });
+        
+        if (error && error.code !== 'PGRST116') {
+          console.error('Error fetching profile:', error);
+        }
+        
+        // Jeśli profil nie istnieje, utwórz pusty
+        if (!prof && error?.code === 'PGRST116') {
+          const newProfile = {
+            id: user.id,
+            email: user.email || '',
+            name: '',
+            age: 18,
+            city: '',
+            bio: '',
+            interests: [],
+            status: '',
+            image_url: '',
+            is_verified: false,
+            occupation: '',
+            zodiac: '',
+            smoking: '',
+            children: '',
+            gender: '',
+            seeking_gender: '',
+            seeking_age_min: 18,
+            seeking_age_max: 82,
+          };
+          const { error: insertError } = await supabase.from('profiles').insert(newProfile);
+          if (insertError) {
+            console.error('Error creating profile:', insertError);
+          }
+          setProfile(newProfile);
+          setForm(newProfile);
+          setEdit(true); // Włącz tryb edycji dla nowego profilu
+        } else {
+          setProfile(prof);
+          setForm(prof || {});
+          
+          // Automatycznie włącz tryb edycji jeśli profil jest pusty/niepełny
+          const isIncomplete = !prof?.name || !prof?.age || !prof?.city || !prof?.bio;
+          setEdit(isIncomplete);
+        }
+        
+        const { data: ph } = await supabase.from('profile_photos').select('*').eq('profile_id', user.id).order('sort_order');
+        setPhotos(ph || []);
+        
+        // Pobierz statystyki aktywności
+        const stats = await fetchUserStats(user.id);
+        setStats(stats);
+      } catch (err) {
+        console.error('Unexpected error in MyProfile useEffect:', err);
+      } finally {
+        setLoading(false);
       }
-      
-      const { data: ph } = await supabase.from('profile_photos').select('*').eq('profile_id', user.id).order('sort_order');
-      setPhotos(ph || []);
-      // Pobierz statystyki aktywności
-      const stats = await fetchUserStats(user.id);
-      setStats(stats);
-      setLoading(false);
     })();
   }, []);
 
@@ -108,10 +149,21 @@ export default function MyProfile() {
   // Zapisz zmiany profilu
   const handleSave = async () => {
     setLoading(true);
-    await supabase.from('profiles').update(form).eq('id', profile.id);
-    setProfile(form);
-    setEdit(false);
-    setLoading(false);
+    try {
+      const { error } = await supabase.from('profiles').update(form).eq('id', profile.id);
+      if (error) {
+        console.error('Error updating profile:', error);
+        alert('Błąd podczas zapisywania profilu. Sprawdź konsolę.');
+      } else {
+        setProfile(form);
+        setEdit(false);
+      }
+    } catch (err) {
+      console.error('Unexpected error saving profile:', err);
+      alert('Nieoczekiwany błąd. Sprawdź konsolę.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Upload nowego zdjęcia
