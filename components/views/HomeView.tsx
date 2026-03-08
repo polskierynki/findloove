@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
-import { Heart, MapPin, ShieldCheck, Eye, ChevronRight, Sparkles, Search, HeartHandshake, Lock, MessageCircle } from 'lucide-react';
+import { Heart, MapPin, ShieldCheck, Eye, ChevronRight, Sparkles, Search, HeartHandshake, Lock, MessageCircle, Users } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { Profile, ViewType, LookingForCategory, LOOKING_FOR_OPTIONS } from '@/lib/types';
 
@@ -253,6 +253,11 @@ export default function HomeView({ profiles, onNavigate, onSelectProfile, onSear
         <h3 className="text-base font-bold text-slate-700 mb-3">Czego szukasz?</h3>
         <div className="grid grid-cols-3 gap-3">
           {LOOKING_FOR_OPTIONS.map((opt) => {
+            const iconMap = {
+              'Heart': <Heart size={32} />,
+              'Users': <Users size={32} />,
+              'Sparkles': <Sparkles size={32} />,
+            };
             const bgMap: Record<string, string> = {
               rose:   'from-rose-500 to-pink-500',
               amber:  'from-amber-400 to-orange-400',
@@ -264,10 +269,12 @@ export default function HomeView({ profiles, onNavigate, onSelectProfile, onSear
                 onClick={() => onSearchFor(opt.id)}
                 className={`relative overflow-hidden rounded-2xl p-4 text-white text-left shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all bg-gradient-to-br ${bgMap[opt.color]}`}
               >
-                <div className="text-3xl mb-2">{opt.emoji}</div>
+                <div className="mb-2">{iconMap[opt.iconName as keyof typeof iconMap]}</div>
                 <p className="font-bold text-sm leading-tight">{opt.label}</p>
                 <p className="text-[10px] opacity-80 mt-0.5 leading-tight hidden sm:block">{opt.description.slice(0, 40)}…</p>
-                <div className="absolute -bottom-4 -right-4 text-6xl opacity-10">{opt.emoji}</div>
+                <div className="absolute -bottom-4 -right-4 opacity-10">
+                  {iconMap[opt.iconName as keyof typeof iconMap] && <div className="scale-[2]">{iconMap[opt.iconName as keyof typeof iconMap]}</div>}
+                </div>
               </button>
             );
           })}

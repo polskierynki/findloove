@@ -45,4 +45,19 @@ export const ALL_INTERESTS = [
   'Taniec', 'Sport', 'Kino', 'Fotografia', 'Szachy', 'Historia', 'Kościół',
   'Wędkarstwo', 'Majsterkowanie', 'Rowerowanie', 'Spacery', 'Koty', 'Psy',
   'Krzyżówki', 'Nordic Walking', 'Joga', 'Basen', 'Rodzina', 'Wolontariat',
+  'Gaming', 'Technologie', 'Fitness', 'Yoga', 'Medytacja', 'Festiwale',
+];
+
+export const EDUCATION_OPTIONS = [
+  'Podstawowe', 'Średnie', 'Wyższe licencjat', 'Wyższe magister', 'Doktorat', 'Wolę nie mówić',
+];
+
+export const DRINKING_OPTIONS = ['Nie piję', 'Towarzysko', 'Regularnie'];
+
+export const RELATIONSHIP_GOAL_OPTIONS = [
+  'Poważny związek', 'Coś na luzie', 'Przyjaźń', 'Jeszcze nie wiem',
+];
+
+export const WANTS_CHILDREN_OPTIONS = [
+  'Tak, chcę mieć dzieci', 'Nie jestem pewny/a', 'Nie chcę dzieci', 'Wolę nie mówić',
 ];

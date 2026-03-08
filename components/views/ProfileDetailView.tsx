@@ -4,7 +4,7 @@ import Image from 'next/image';
 import { useEffect, useState } from 'react';
 import {
   ChevronLeft, Heart, MapPin, MessageCircle, Phone, ShieldCheck,
-  Cigarette, Baby, Star, Briefcase, User, X, ChevronRight, Lock, LogIn, Hand, Gift, SmilePlus,
+  Cigarette, Baby, Star, Briefcase, User, X, ChevronRight, Lock, LogIn, Hand, Gift, SmilePlus, Users, Sparkles,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { Profile, LOOKING_FOR_OPTIONS, getLookingFor } from '@/lib/types';
@@ -469,6 +469,11 @@ export default function ProfileDetailView({
         const cat = getLookingFor(p.status);
         const opt = cat ? LOOKING_FOR_OPTIONS.find(o => o.id === cat) : null;
         if (!opt) return null;
+        const iconMap = {
+          'Heart': <Heart size={28} />,
+          'Users': <Users size={28} />,
+          'Sparkles': <Sparkles size={28} />,
+        };
         const colorMap: Record<string, string> = {
           rose:   'bg-rose-50 border-rose-100 text-rose-700',
           amber:  'bg-amber-50 border-amber-100 text-amber-700',
@@ -476,7 +481,7 @@ export default function ProfileDetailView({
         };
         return (
           <div className={`flex items-center gap-3 px-5 py-4 rounded-2xl border mb-6 shadow-sm ${colorMap[opt.color]}`}>
-            <span className="text-3xl">{opt.emoji}</span>
+            <div>{iconMap[opt.iconName as keyof typeof iconMap]}</div>
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide opacity-70">Czego szuka?</p>
               <p className="font-bold text-base">{p.status}</p>

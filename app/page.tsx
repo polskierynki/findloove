@@ -75,6 +75,7 @@ export default function App() {
   const [chatOpen, setChatOpen] = useState(false);
   const [searchLookingFor, setSearchLookingFor] = useState<LookingForCategory | undefined>(undefined);
   const [showPremiumView, setShowPremiumView] = useState(false);
+  const hideGuestModalOnAuthViews = view === 'auth' || view === 'register';
 
   /* ─── Auth & token state ─── */
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -513,29 +514,33 @@ export default function App() {
       {/* Guest restrictions components */}
       {!isLoggedIn && (
         <>
-          <GuestModal
-            isOpen={guestRestrictions.showModal || guestRestrictions.showTimeoutModal || guestRestrictions.showFeatureModal}
-            onClose={guestRestrictions.closeModal}
-            onRegister={() => {
-              guestRestrictions.closeModal();
-              setView('register');
-            }}
-            onLogin={() => {
-              guestRestrictions.closeModal();
-              setView('auth');
-            }}
-            variant={
-              guestRestrictions.showFeatureModal ? 'feature' : 
-              guestRestrictions.showTimeoutModal ? 'timeout' : 
-              'clicks'
-            }
-            featureName={guestRestrictions.featureName}
-          />
-          <GuestBanner
-            onRegister={() => setView('register')}
-            clickCount={guestRestrictions.clickCount}
-            maxClicks={guestRestrictions.maxClicks}
-          />
+          {!hideGuestModalOnAuthViews && (
+            <GuestModal
+              isOpen={guestRestrictions.showModal || guestRestrictions.showTimeoutModal || guestRestrictions.showFeatureModal}
+              onClose={guestRestrictions.closeModal}
+              onRegister={() => {
+                guestRestrictions.closeModal();
+                setView('register');
+              }}
+              onLogin={() => {
+                guestRestrictions.closeModal();
+                setView('auth');
+              }}
+              variant={
+                guestRestrictions.showFeatureModal ? 'feature' : 
+                guestRestrictions.showTimeoutModal ? 'timeout' : 
+                'clicks'
+              }
+              featureName={guestRestrictions.featureName}
+            />
+          )}
+          {!hideGuestModalOnAuthViews && (
+            <GuestBanner
+              onRegister={() => setView('register')}
+              clickCount={guestRestrictions.clickCount}
+              maxClicks={guestRestrictions.maxClicks}
+            />
+          )}
         </>
       )}
     </div>

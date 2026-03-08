@@ -5,7 +5,7 @@ import { uploadProfilePhoto } from '@/lib/photoUpload';
 import {
   ChevronLeft, ChevronRight, Check, Camera, Eye, EyeOff,
   Mail, Lock, Heart, User, MapPin, Sparkles, ShieldCheck,
-  AlertCircle, ImagePlus,
+  AlertCircle, ImagePlus, Search, MessageCircle, Users, Wind, Briefcase, Target,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { LookingForCategory, LOOKING_FOR_OPTIONS } from '@/lib/types';
@@ -31,7 +31,7 @@ const STEPS = [
   'Gotowe',
 ];
 
-import { GENDERS, ORIENTATION_OPTIONS, POLISH_CITIES, ZODIAC_SIGNS, OCCUPATION_OPTIONS, SMOKING_OPTIONS, CHILDREN_OPTIONS, ALL_INTERESTS } from './constants/profileFormOptions';
+import { GENDERS, ORIENTATION_OPTIONS, POLISH_CITIES, ZODIAC_SIGNS, OCCUPATION_OPTIONS, SMOKING_OPTIONS, CHILDREN_OPTIONS, ALL_INTERESTS, EDUCATION_OPTIONS, DRINKING_OPTIONS, RELATIONSHIP_GOAL_OPTIONS, WANTS_CHILDREN_OPTIONS } from './constants/profileFormOptions';
 
 const LOOKING_FOR_STATUS: Record<LookingForCategory, string> = {
   'miłość':   'Szuka miłości',
@@ -60,6 +60,10 @@ export default function RegisterView({ onBack, onComplete }: RegisterViewProps) 
   const [zodiac, setZodiac] = useState('');
   const [smoking, setSmoking] = useState('');
   const [children, setChildren] = useState('');
+  const [education, setEducation] = useState('');
+  const [drinking, setDrinking] = useState('');
+  const [relationshipGoal, setRelationshipGoal] = useState('');
+  const [wantsChildren, setWantsChildren] = useState('');
   const [interests, setInterests] = useState<string[]>([]);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -130,6 +134,10 @@ export default function RegisterView({ onBack, onComplete }: RegisterViewProps) 
         if (data.zodiac) setZodiac(data.zodiac);
         if (data.smoking) setSmoking(data.smoking);
         if (data.children) setChildren(data.children);
+        if (data.education) setEducation(data.education);
+        if (data.drinking) setDrinking(data.drinking);
+        if (data.relationshipGoal) setRelationshipGoal(data.relationshipGoal);
+        if (data.wantsChildren) setWantsChildren(data.wantsChildren);
         if (data.interests) setInterests(data.interests);
         if (data.lookingFor) setLookingFor(data.lookingFor);
         if (data.seekingAgeMin) setSeekingAgeMin(data.seekingAgeMin);
@@ -144,12 +152,12 @@ export default function RegisterView({ onBack, onComplete }: RegisterViewProps) 
     // Save form data to localStorage
     const formData = {
       name, age, city, cityInput, bio, email, gender, orientation,
-      occupation, zodiac, smoking, children, interests, lookingFor,
+      occupation, zodiac, smoking, children, education, drinking, relationshipGoal, wantsChildren, interests, lookingFor,
       seekingAgeMin, seekingAgeMax,
     };
     localStorage.setItem('registerFormData', JSON.stringify(formData));
   }, [name, age, city, cityInput, bio, email, gender, orientation,
-      occupation, zodiac, smoking, children, interests, lookingFor,
+      occupation, zodiac, smoking, children, education, drinking, relationshipGoal, wantsChildren, interests, lookingFor,
       seekingAgeMin, seekingAgeMax]);
 
   /* ---- keyboard navigation ---- */
@@ -524,6 +532,11 @@ export default function RegisterView({ onBack, onComplete }: RegisterViewProps) 
               <SectionHeader icon={<Sparkles size={22} className="text-rose-500" />} title="Czego szukasz?" subtitle="Wybierz główny cel swojej obecności na portalu" />
               <div className="mt-5 space-y-3">
                 {LOOKING_FOR_OPTIONS.map(opt => {
+                  const iconMap = {
+                    'Heart': <Heart size={28} />,
+                    'Users': <Users size={28} />,
+                    'Sparkles': <Sparkles size={28} />,
+                  };
                   const borderMap: Record<string, string> = {
                     rose:   'border-rose-500 bg-rose-50',
                     amber:  'border-amber-500 bg-amber-50',
@@ -543,7 +556,7 @@ export default function RegisterView({ onBack, onComplete }: RegisterViewProps) 
                         active ? `${borderMap[opt.color]} shadow-md` : 'border-slate-200 hover:border-slate-300 bg-white'
                       }`}
                     >
-                      <span className="text-3xl flex-shrink-0">{opt.emoji}</span>
+                      <div className="flex-shrink-0">{iconMap[opt.iconName as keyof typeof iconMap]}</div>
                       <div>
                         <p className={`font-bold text-base ${active ? textMap[opt.color] : 'text-slate-700'}`}>
                           Szukam {opt.label}
@@ -627,7 +640,10 @@ export default function RegisterView({ onBack, onComplete }: RegisterViewProps) 
               <SectionHeader icon={<Sparkles size={22} className="text-rose-500" />} title="Styl życia" subtitle="Pomaga dopasować odpowiednie osoby" />
               <div className="space-y-6 mt-5">
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2.5">🚬 Palenie</label>
+                  <label className="flex items-center gap-1.5 text-sm font-semibold text-slate-700 mb-2.5">
+                    <Wind size={16} className="text-slate-500" />
+                    Palenie
+                  </label>
                   <div className="grid grid-cols-3 gap-2">
                     {SMOKING_OPTIONS.map(o => (
                       <button
@@ -643,7 +659,10 @@ export default function RegisterView({ onBack, onComplete }: RegisterViewProps) 
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2.5">👨‍👩‍👧‍👦 Dzieci / Rodzina</label>
+                  <label className="flex items-center gap-1.5 text-sm font-semibold text-slate-700 mb-2.5">
+                    <Users size={16} className="text-slate-500" />
+                    Dzieci / Rodzina
+                  </label>
                   <div className="grid grid-cols-2 gap-2">
                     {CHILDREN_OPTIONS.map(o => (
                       <button
@@ -1028,8 +1047,8 @@ export default function RegisterView({ onBack, onComplete }: RegisterViewProps) 
                 <div className="rounded-xl border border-slate-100 bg-slate-50 p-4 text-sm text-slate-600 space-y-1">
                   <p>👤 <strong>{name}</strong>, {age} lat, {city}</p>
                   {orientation && <p>🔍 {ORIENTATION_OPTIONS[gender]?.find(o => o.id === orientation)?.label} (wiek {seekingAgeMin}–{seekingAgeMax} lat)</p>}
-                  <p>🎯 {lookingFor ? LOOKING_FOR_STATUS[lookingFor] : '—'}</p>
-                  <p>💼 {occupation}</p>
+                  <p className="flex items-center gap-1.5"><Target size={14} className="text-rose-500" /> {lookingFor ? LOOKING_FOR_STATUS[lookingFor] : '—'}</p>
+                  <p className="flex items-center gap-1.5"><Briefcase size={14} className="text-slate-500" /> {occupation}</p>
                   <p>🏷️ {interests.slice(0, 4).join(', ')}{interests.length > 4 ? ` +${interests.length - 4}` : ''}</p>
                   {faceStatus === 'verified' && <p>✅ Twarz zweryfikowana</p>}
                 </div>
@@ -1081,12 +1100,12 @@ export default function RegisterView({ onBack, onComplete }: RegisterViewProps) 
 
               <div className="grid grid-cols-3 gap-3 mb-7">
                 {[
-                  { emoji: '🔍', label: 'Odkrywaj profile' },
-                  { emoji: '❤️', label: 'Polub kogoś' },
-                  { emoji: '💬', label: 'Napisz wiadomość' },
+                  { icon: <Search size={20} />, label: 'Odkrywaj profile', color: 'rose' },
+                  { icon: <Heart size={20} />, label: 'Polub kogoś', color: 'pink' },
+                  { icon: <MessageCircle size={20} />, label: 'Napisz wiadomość', color: 'violet' },
                 ].map(item => (
                   <div key={item.label} className="bg-slate-50 rounded-xl p-3 text-center border border-slate-100">
-                    <div className="text-2xl mb-1">{item.emoji}</div>
+                    <div className="flex justify-center mb-1 text-slate-600">{item.icon}</div>
                     <p className="text-xs text-slate-500 font-medium leading-tight">{item.label}</p>
                   </div>
                 ))}

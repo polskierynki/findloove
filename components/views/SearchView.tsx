@@ -2,8 +2,14 @@
 
 import Image from 'next/image';
 import { useState, useMemo, useRef, useEffect } from 'react';
-import { Search, MapPin, ShieldCheck, SlidersHorizontal, X, ChevronLeft, Check, Lock } from 'lucide-react';
+import { Search, MapPin, ShieldCheck, SlidersHorizontal, X, ChevronLeft, Check, Lock, Heart, Users, Sparkles, User } from 'lucide-react';
 import { Profile, LookingForCategory, LOOKING_FOR_OPTIONS, getLookingFor, filterNonAdminProfiles } from '@/lib/types';
+import { 
+  ALL_INTERESTS, 
+  EDUCATION_OPTIONS, 
+  DRINKING_OPTIONS, 
+  RELATIONSHIP_GOAL_OPTIONS 
+} from './constants/profileFormOptions';
 
 interface SearchViewProps {
   profiles: Profile[];
@@ -18,14 +24,11 @@ interface SearchViewProps {
   };
 }
 
-const ALL_INTERESTS = [
-  'Ogrodnictwo', 'Teatr', 'Literatura', 'Podróże', 'Muzyka', 'Szachy',
-  'Historia', 'Las', 'Majsterkowanie', 'Morze', 'Gotowanie', 'Krzyżówki',
-  'Taniec', 'Sport', 'Kino', 'Koty',
-];
-
 const SMOKING_OPTIONS = ['Dowolnie', 'Niepalący/a', 'Okazyjnie', 'Palący/a'];
 const CHILDREN_OPTIONS = ['Dowolnie', 'Bezdzietny/a', 'Mam dzieci', 'Mam dorosłe dzieci'];
+const EDUCATION_FILTER_OPTIONS = ['Dowolnie', ...EDUCATION_OPTIONS.filter(e => e !== 'Wolę nie mówić')];
+const DRINKING_FILTER_OPTIONS = ['Dowolnie', ...DRINKING_OPTIONS];
+const RELATIONSHIP_GOAL_FILTER_OPTIONS = ['Dowolnie', ...RELATIONSHIP_GOAL_OPTIONS.filter(g => g !== 'Jeszcze nie wiem')];
 const RADIUS_OPTIONS = [0, 20, 50, 100, 200] as const;
 type RadiusOption = typeof RADIUS_OPTIONS[number];
 
@@ -99,7 +102,7 @@ type SortOption = 'match' | 'age_asc' | 'age_desc' | 'name';
 
 export default function SearchView({ profiles, onSelectProfile, onBack, initialLookingFor, guestRestrictions }: SearchViewProps) {
   const [query, setQuery] = useState('');
-  const [ageMin, setAgeMin] = useState(25);
+  const [ageMin, setAgeMin] = useState(18);
   const [ageMax, setAgeMax] = useState(80);
   const [cityInput, setCityInput] = useState('');
   const [citySelected, setCitySelected] = useState('');
@@ -108,6 +111,9 @@ export default function SearchView({ profiles, onSelectProfile, onBack, initialL
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
   const [smokingFilter, setSmokingFilter] = useState('Dowolnie');
   const [childrenFilter, setChildrenFilter] = useState('Dowolnie');
+  const [educationFilter, setEducationFilter] = useState('Dowolnie');
+  const [drinkingFilter, setDrinkingFilter] = useState('Dowolnie');
+  const [relationshipGoalFilter, setRelationshipGoalFilter] = useState('Dowolnie');
   const [verifiedOnly, setVerifiedOnly] = useState(false);
   const [sortBy, setSortBy] = useState<SortOption>('match');
   const [showFilters, setShowFilters] = useState(false);
@@ -153,12 +159,15 @@ export default function SearchView({ profiles, onSelectProfile, onBack, initialL
 
   const resetFilters = () => {
     setQuery('');
-    setAgeMin(55);
-    setAgeMax(85);
+    setAgeMin(18);
+    setAgeMax(80);
     clearCity();
     setSelectedInterests([]);
     setSmokingFilter('Dowolnie');
     setChildrenFilter('Dowolnie');
+    setEducationFilter('Dowolnie');
+    setDrinkingFilter('Dowolnie');
+    setRelationshipGoalFilter('Dowolnie');
     setVerifiedOnly(false);
     setSortBy('match');
     setLookingFor(null);
@@ -170,8 +179,11 @@ export default function SearchView({ profiles, onSelectProfile, onBack, initialL
     selectedInterests.length > 0,
     smokingFilter !== 'Dowolnie',
     childrenFilter !== 'Dowolnie',
+    educationFilter !== 'Dowolnie',
+    drinkingFilter !== 'Dowolnie',
+    relationshipGoalFilter !== 'Dowolnie',
     verifiedOnly,
-    ageMin !== 55 || ageMax !== 85,
+    ageMin !== 18 || ageMax !== 80,
     lookingFor !== null,
     orientationFilter !== null,
   ].filter(Boolean).length;
@@ -220,6 +232,18 @@ export default function SearchView({ profiles, onSelectProfile, onBack, initialL
       );
     }
 
+    if (educationFilter !== 'Dowolnie') {
+      list = list.filter((p) => p.details.education === educationFilter);
+    }
+
+    if (drinkingFilter !== 'Dowolnie') {
+      list = list.filter((p) => p.details.drinking === drinkingFilter);
+    }
+
+    if (relationshipGoalFilter !== 'Dowolnie') {
+      list = list.filter((p) => p.details.relationship_goal === relationshipGoalFilter);
+    }
+
     if (verifiedOnly) list = list.filter((p) => p.isVerified);
 
     if (lookingFor !== null) {
@@ -245,7 +269,7 @@ export default function SearchView({ profiles, onSelectProfile, onBack, initialL
     });
 
     return list;
-  }, [profiles, query, ageMin, ageMax, allowedCities, selectedInterests, smokingFilter, childrenFilter, verifiedOnly, lookingFor, orientationFilter, sortBy]);
+  }, [profiles, query, ageMin, ageMax, allowedCities, selectedInterests, smokingFilter, childrenFilter, educationFilter, drinkingFilter, relationshipGoalFilter, verifiedOnly, lookingFor, orientationFilter, sortBy]);
   
   // Limit results for guest users
   const visibleLimit = guestRestrictions?.getVisibleProfilesLimit() || 999;
@@ -269,10 +293,10 @@ export default function SearchView({ profiles, onSelectProfile, onBack, initialL
         <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Kto kogo szuka</p>
         <div className="grid grid-cols-2 gap-2">
           {[
-            { id: 'MK', label: 'Pan pozna Panią',   emoji: '👨‍❤️‍👩' },
-            { id: 'KM', label: 'Pani pozna Pana',   emoji: '👩‍❤️‍👨' },
-            { id: 'KK', label: 'Pani pozna Panią',  emoji: '👩‍❤️‍👩' },
-            { id: 'MM', label: 'Pan pozna Pana',    emoji: '👨‍❤️‍👨' },
+            { id: 'MK', label: 'Pan pozna Panią',   icon: <User size={16} /> },
+            { id: 'KM', label: 'Pani pozna Pana',   icon: <User size={16} /> },
+            { id: 'KK', label: 'Pani pozna Panią',  icon: <Users size={16} /> },
+            { id: 'MM', label: 'Pan pozna Pana',    icon: <Users size={16} /> },
           ].map((opt) => {
             const active = orientationFilter === opt.id;
             return (
@@ -285,7 +309,7 @@ export default function SearchView({ profiles, onSelectProfile, onBack, initialL
                     : 'bg-white text-slate-600 border-slate-200 hover:border-rose-300 hover:bg-rose-50'
                 }`}
               >
-                <span className="text-base">{opt.emoji}</span>
+                {opt.icon}
                 <span className="text-xs leading-tight">{opt.label}</span>
                 {active && <Check size={14} className="ml-auto flex-shrink-0" />}
               </button>
@@ -297,6 +321,11 @@ export default function SearchView({ profiles, onSelectProfile, onBack, initialL
       {/* Czego szukasz — zawsze widoczne chipy */}
       <div className="flex gap-2 mb-4">
         {LOOKING_FOR_OPTIONS.map((opt) => {
+          const iconMap = {
+            'Heart': <Heart size={16} />,
+            'Users': <Users size={16} />,
+            'Sparkles': <Sparkles size={16} />,
+          };
           const colorMap: Record<string, string> = {
             rose:   'bg-rose-500 text-white border-rose-500',
             amber:  'bg-amber-500 text-white border-amber-500',
@@ -316,7 +345,7 @@ export default function SearchView({ profiles, onSelectProfile, onBack, initialL
                 active ? colorMap[opt.color] : inactiveMap[opt.color]
               }`}
             >
-              <span>{opt.emoji}</span>
+              {iconMap[opt.iconName as keyof typeof iconMap]}
               <span className="hidden sm:inline">{opt.label}</span>
             </button>
           );
@@ -369,7 +398,7 @@ export default function SearchView({ profiles, onSelectProfile, onBack, initialL
             <div className="flex gap-3 items-center">
               <span className="text-xs text-slate-400 w-8">{ageMin}</span>
               <input
-                type="range" min={50} max={ageMax} value={ageMin}
+                type="range" min={18} max={ageMax} value={ageMin}
                 onChange={(e) => setAgeMin(Number(e.target.value))}
                 className="flex-1 accent-rose-500"
               />
@@ -525,6 +554,66 @@ export default function SearchView({ profiles, onSelectProfile, onBack, initialL
                   </button>
                 ))}
               </div>
+            </div>
+          </div>
+
+          {/* Edukacja + Alkohol */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="text-xs font-bold text-slate-600 uppercase tracking-wide mb-2 block">Edukacja</label>
+              <div className="flex flex-wrap gap-2">
+                {EDUCATION_FILTER_OPTIONS.map((o) => (
+                  <button
+                    key={o}
+                    onClick={() => setEducationFilter(o)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                      educationFilter === o
+                        ? 'bg-rose-500 text-white border-rose-500'
+                        : 'bg-slate-50 text-slate-600 border-slate-200 hover:border-rose-300'
+                    }`}
+                  >
+                    {o}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label className="text-xs font-bold text-slate-600 uppercase tracking-wide mb-2 block">Alkohol</label>
+              <div className="flex flex-wrap gap-2">
+                {DRINKING_FILTER_OPTIONS.map((o) => (
+                  <button
+                    key={o}
+                    onClick={() => setDrinkingFilter(o)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                      drinkingFilter === o
+                        ? 'bg-rose-500 text-white border-rose-500'
+                        : 'bg-slate-50 text-slate-600 border-slate-200 hover:border-rose-300'
+                    }`}
+                  >
+                    {o}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Cel związku */}
+          <div>
+            <label className="text-xs font-bold text-slate-600 uppercase tracking-wide mb-2 block">Cel związku</label>
+            <div className="flex flex-wrap gap-2">
+              {RELATIONSHIP_GOAL_FILTER_OPTIONS.map((o) => (
+                <button
+                  key={o}
+                  onClick={() => setRelationshipGoalFilter(o)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                    relationshipGoalFilter === o
+                      ? 'bg-rose-500 text-white border-rose-500'
+                      : 'bg-slate-50 text-slate-600 border-slate-200 hover:border-rose-300'
+                  }`}
+                >
+                  {o}
+                </button>
+              ))}
             </div>
           </div>
 

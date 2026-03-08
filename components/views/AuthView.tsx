@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import Image from 'next/image';
 import { supabase } from '../../lib/supabase';
+import { sendMagicLink } from '../../lib/magicLink';
 import { ChevronLeft, Eye, EyeOff, Mail, Lock, User, Heart } from 'lucide-react';
 
 interface AuthViewProps {
@@ -13,6 +14,7 @@ interface AuthViewProps {
 }
 
 type AuthMode = 'login' | 'register';
+type LoginMethod = 'password' | 'magic';
 
 export default function AuthView({ onBack, onNotify, onRegister }: AuthViewProps) {
     const [showReset, setShowReset] = useState(false);
@@ -39,6 +41,18 @@ export default function AuthView({ onBack, onNotify, onRegister }: AuthViewProps
   const [password, setPassword] = useState('');
   const [password2, setPassword2] = useState('');
   const [name, setName] = useState('');
+  const [magicLoading, setMagicLoading] = useState(false);
+  const [loginMethod, setLoginMethod] = useState<LoginMethod>('password');
+  const [magicSentEmail, setMagicSentEmail] = useState<string | null>(null);
+  const [resendCooldown, setResendCooldown] = useState(0);
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const timer = window.setTimeout(() => {
+      setResendCooldown((v) => Math.max(0, v - 1));
+    }, 1000);
+    return () => window.clearTimeout(timer);
+  }, [resendCooldown]);
 
   // Logowanie przez social (OAuth)
   type OAuthProvider = 'google' | 'facebook' | 'apple';
@@ -115,6 +129,11 @@ export default function AuthView({ onBack, onNotify, onRegister }: AuthViewProps
       setMode('login');
       return;
     } else {
+      if (loginMethod === 'magic') {
+        await handleMagicLinkLogin();
+        return;
+      }
+
       // Logowanie przez Supabase Auth
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -148,6 +167,37 @@ export default function AuthView({ onBack, onNotify, onRegister }: AuthViewProps
       onNotify('Zalogowano pomyślnie!');
       onBack();
     }
+  };
+
+  const handleMagicLinkLogin = async (isResend = false) => {
+    const normalizedEmail = email.trim().toLowerCase();
+
+    if (!normalizedEmail) {
+      onNotify('Podaj adres e-mail, aby wysłać Magic Link.');
+      return;
+    }
+
+    if (resendCooldown > 0 && isResend) {
+      onNotify(`Poczekaj ${resendCooldown}s przed ponowną wysyłką.`);
+      return;
+    }
+
+    setMagicLoading(true);
+    const result = await sendMagicLink(normalizedEmail, window.location.origin);
+    setMagicLoading(false);
+
+    if (!result.success) {
+      onNotify('Błąd wysyłki Magic Link: ' + result.error);
+      return;
+    }
+
+    setMagicSentEmail(normalizedEmail);
+    setResendCooldown(30);
+    onNotify(
+      isResend
+        ? `Wysłaliśmy ponownie Magic Link na ${normalizedEmail}.`
+        : `Wysłaliśmy Magic Link na ${normalizedEmail}. Sprawdź skrzynkę e-mail.`
+    );
   };
 
   const SOCIAL_BUTTONS: { provider: OAuthProvider; bg: string; icon: React.ReactNode }[] = [
@@ -263,6 +313,37 @@ export default function AuthView({ onBack, onNotify, onRegister }: AuthViewProps
                   <div className="flex-1 h-px bg-slate-100" />
                 </div>
 
+                {mode === 'login' && (
+                  <div className="grid grid-cols-2 gap-2 mb-4">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLoginMethod('password');
+                        setMagicSentEmail(null);
+                        setResendCooldown(0);
+                      }}
+                      className={`py-2.5 rounded-xl text-xs font-semibold border transition-colors ${
+                        loginMethod === 'password'
+                          ? 'bg-rose-50 text-rose-600 border-rose-300'
+                          : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'
+                      }`}
+                    >
+                      Logowanie hasłem
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setLoginMethod('magic')}
+                      className={`py-2.5 rounded-xl text-xs font-semibold border transition-colors ${
+                        loginMethod === 'magic'
+                          ? 'bg-rose-50 text-rose-600 border-rose-300'
+                          : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'
+                      }`}
+                    >
+                      Magic Link
+                    </button>
+                  </div>
+                )}
+
                 <form onSubmit={handleSubmit} className="space-y-3">
                   {/* Imię — tylko rejestracja */}
                   {mode === 'register' && (
@@ -285,31 +366,39 @@ export default function AuthView({ onBack, onNotify, onRegister }: AuthViewProps
                       required
                       type="email"
                       value={email}
-                      onChange={(e) => setEmail(e.target.value)}
+                      onChange={(e) => {
+                        setEmail(e.target.value);
+                        if (magicSentEmail) {
+                          setMagicSentEmail(null);
+                          setResendCooldown(0);
+                        }
+                      }}
                       placeholder="Adres e-mail"
                       className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:border-rose-300 focus:ring-2 focus:ring-rose-100 transition-all"
                     />
                   </div>
 
                   {/* Hasło */}
-                  <div className="relative">
-                    <Lock size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                    <input
-                      required
-                      type={showPassword ? 'text' : 'password'}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="Hasło"
-                      className="w-full pl-10 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:border-rose-300 focus:ring-2 focus:ring-rose-100 transition-all"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword((v) => !v)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                    >
-                      {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
-                    </button>
-                  </div>
+                  {(mode === 'register' || (mode === 'login' && loginMethod === 'password')) && (
+                    <div className="relative">
+                      <Lock size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <input
+                        required
+                        type={showPassword ? 'text' : 'password'}
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="Hasło"
+                        className="w-full pl-10 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:border-rose-300 focus:ring-2 focus:ring-rose-100 transition-all"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword((v) => !v)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                      >
+                        {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                      </button>
+                    </div>
+                  )}
 
                   {/* Powtórz hasło — tylko rejestracja */}
                   {mode === 'register' && (
@@ -333,7 +422,7 @@ export default function AuthView({ onBack, onNotify, onRegister }: AuthViewProps
                     </div>
                   )}
 
-                  {mode === 'login' && (
+                  {mode === 'login' && loginMethod === 'password' && (
                     <div className="text-right">
                       <button
                         type="button"
@@ -344,6 +433,44 @@ export default function AuthView({ onBack, onNotify, onRegister }: AuthViewProps
                       </button>
                     </div>
                   )}
+
+                  {mode === 'login' && loginMethod === 'magic' && (
+                    <>
+                      {!magicSentEmail ? (
+                        <p className="text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5">
+                          Kliknij przycisk poniżej, a wyślemy Ci link logowania na e-mail.
+                        </p>
+                      ) : (
+                        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 space-y-2">
+                          <p className="text-xs font-semibold text-emerald-700">Sprawdź skrzynkę e-mail</p>
+                          <p className="text-xs text-emerald-800/90">
+                            Link logowania został wysłany na <span className="font-semibold">{magicSentEmail}</span>.
+                          </p>
+                          <div className="flex gap-2 pt-1">
+                            <button
+                              type="button"
+                              onClick={() => handleMagicLinkLogin(true)}
+                              disabled={magicLoading || resendCooldown > 0}
+                              className="flex-1 py-2 rounded-lg border border-emerald-300 text-emerald-700 text-xs font-semibold hover:bg-emerald-100 disabled:opacity-60 disabled:cursor-not-allowed"
+                            >
+                              {resendCooldown > 0 ? `Wyślij ponownie za ${resendCooldown}s` : (magicLoading ? 'Wysyłanie...' : 'Wyślij ponownie')}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setMagicSentEmail(null);
+                                setResendCooldown(0);
+                              }}
+                              className="px-3 py-2 rounded-lg border border-slate-300 text-slate-600 text-xs font-semibold hover:bg-slate-100"
+                            >
+                              Zmień e-mail
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+
       {/* Modal resetowania hasła */}
       {showReset && typeof window !== 'undefined' && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
@@ -379,12 +506,19 @@ export default function AuthView({ onBack, onNotify, onRegister }: AuthViewProps
         document.body
       )}
 
-                  <button
-                    type="submit"
-                    className="w-full bg-rose-500 hover:bg-rose-600 text-white py-3 rounded-xl font-semibold text-sm shadow-sm transition-colors mt-1"
-                  >
-                    {mode === 'login' ? 'Zaloguj się' : 'Utwórz konto'}
-                  </button>
+                  {!(mode === 'login' && loginMethod === 'magic' && magicSentEmail) && (
+                    <button
+                      type="submit"
+                      disabled={mode === 'login' && loginMethod === 'magic' ? magicLoading || !email.trim() : false}
+                      className="w-full bg-rose-500 hover:bg-rose-600 text-white py-3 rounded-xl font-semibold text-sm shadow-sm transition-colors mt-1 disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                      {mode === 'register'
+                        ? 'Utwórz konto'
+                        : loginMethod === 'magic'
+                        ? (magicLoading ? 'Wysyłanie Magic Link...' : 'Wyślij Magic Link')
+                        : 'Zaloguj się'}
+                    </button>
+                  )}
                 </form>
 
                 {mode === 'register' && (

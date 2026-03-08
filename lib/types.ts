@@ -17,10 +17,10 @@ export type AppView = ViewType | 'admin' | 'myprofile';
 
 export type LookingForCategory = 'miłość' | 'przyjaźń' | 'przygoda';
 
-export const LOOKING_FOR_OPTIONS: { id: LookingForCategory; label: string; description: string; emoji: string; color: string }[] = [
-  { id: 'miłość',   label: 'Miłości',   description: 'Szukasz poważnego związku i partnera na całe życie', emoji: '❤️', color: 'rose' },
-  { id: 'przyjaźń', label: 'Przyjaźni', description: 'Zależy Ci na szczerych relacjach i wspólnym spędzaniu czasu',  emoji: '🤝', color: 'amber' },
-  { id: 'przygoda', label: 'Przygody',   description: 'Cenisz spontaniczność, nowe miejsca i nowe znajomości',          emoji: '✨', color: 'violet' },
+export const LOOKING_FOR_OPTIONS: { id: LookingForCategory; label: string; description: string; iconName: string; color: string }[] = [
+  { id: 'miłość',   label: 'Miłości',   description: 'Szukasz poważnego związku i partnera na całe życie', iconName: 'Heart', color: 'rose' },
+  { id: 'przyjaźń', label: 'Przyjaźni', description: 'Zależy Ci na szczerych relacjach i wspólnym spędzaniu czasu',  iconName: 'Users', color: 'amber' },
+  { id: 'przygoda', label: 'Przygody',   description: 'Cenisz spontaniczność, nowe miejsca i nowe znajomości',          iconName: 'Sparkles', color: 'violet' },
 ];
 
 export function getLookingFor(status: string): LookingForCategory | null {
@@ -36,6 +36,10 @@ export interface ProfileDetails {
   zodiac: string;
   smoking: string;
   children: string;
+  education?: string;
+  drinking?: string;
+  relationship_goal?: string;
+  wants_children?: string;
 }
 
 export interface Profile {
