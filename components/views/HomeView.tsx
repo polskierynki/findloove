@@ -30,6 +30,8 @@ interface HomeViewProps {
 
 const MATCH_SCORES = [94, 87, 91, 78];
 const WEEK_IN_MS = 7 * 24 * 60 * 60 * 1000;
+const DAY_IN_MS = 24 * 60 * 60 * 1000;
+const ACTIVE_NOW_WINDOW_MS = 15 * 60 * 1000;
 
 interface HomeHeroStats {
   newMatches: number;
@@ -43,6 +45,20 @@ function isRecent(dateLike?: string): boolean {
   const ts = new Date(dateLike).getTime();
   if (Number.isNaN(ts)) return false;
   return Date.now() - ts <= WEEK_IN_MS;
+}
+
+function isToday(dateLike?: string): boolean {
+  if (!dateLike) return false;
+  const ts = new Date(dateLike).getTime();
+  if (Number.isNaN(ts)) return false;
+  return Date.now() - ts <= DAY_IN_MS;
+}
+
+function isActiveNow(dateLike?: string): boolean {
+  if (!dateLike) return false;
+  const ts = new Date(dateLike).getTime();
+  if (Number.isNaN(ts)) return false;
+  return Date.now() - ts <= ACTIVE_NOW_WINDOW_MS;
 }
 
 export default function HomeView({ profiles, onNavigate, onSelectProfile, onSearchFor, userName, isLoggedIn, guestRestrictions, profileCompletion, onShowCompletionModal }: HomeViewProps) {
@@ -78,6 +94,15 @@ export default function HomeView({ profiles, onNavigate, onSelectProfile, onSear
       messagesReceived: 0,
     };
   }, [limitedProfiles]);
+
+  const guestPortalStats = useMemo(() => {
+    return {
+      activeNow: profiles.filter((profile) => isActiveNow(profile.lastActive)).length,
+      newToday: profiles.filter((profile) => isToday(profile.createdAt)).length,
+      verified: profiles.filter((profile) => profile.isVerified).length,
+      totalMembers: profiles.length,
+    };
+  }, [profiles]);
 
   useEffect(() => {
     let cancelled = false;
@@ -189,69 +214,122 @@ export default function HomeView({ profiles, onNavigate, onSelectProfile, onSear
         <div className="absolute inset-0 bg-gradient-to-br from-rose-600 via-rose-500 to-orange-400" />
         <div className="absolute inset-0 opacity-10"
           style={{ backgroundImage: 'radial-gradient(circle at 30% 50%, white 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
-        <div className="relative px-4 md:px-8 py-6 md:py-10 flex flex-col md:flex-row items-center gap-4 md:gap-8">
-          <div className="relative shrink-0">
-            <div className="absolute -inset-2 rounded-[1.75rem] bg-white/30 blur-md" />
-            <div className="relative h-24 w-24 rounded-[1.75rem] bg-gradient-to-br from-amber-300 via-white to-rose-200 p-[3px] shadow-2xl">
-              <div className="relative h-full w-full overflow-hidden rounded-[1.5rem] border border-white/70 bg-white/30 backdrop-blur">
-                {heroPhoto ? (
-                  <Image
-                    src={heroPhoto}
-                    alt="Twoje zdjęcie profilowe"
-                    fill
-                    sizes="96px"
-                    className="object-cover"
-                  />
-                ) : (
-                  <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-rose-500 to-orange-400 text-3xl font-extrabold text-white">
-                    {profileInitial}
+        <div className="relative px-4 md:px-8 py-6 md:py-10">
+          {isLoggedIn ? (
+            <div className="flex flex-col md:flex-row items-center gap-4 md:gap-8">
+              <div className="relative shrink-0">
+                <div className="absolute -inset-2 rounded-[1.75rem] bg-white/30 blur-md" />
+                <div className="relative h-24 w-24 rounded-[1.75rem] bg-gradient-to-br from-amber-300 via-white to-rose-200 p-[3px] shadow-2xl">
+                  <div className="relative h-full w-full overflow-hidden rounded-[1.5rem] border border-white/70 bg-white/30 backdrop-blur">
+                    {heroPhoto ? (
+                      <Image
+                        src={heroPhoto}
+                        alt="Twoje zdjęcie profilowe"
+                        fill
+                        sizes="96px"
+                        className="object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-rose-500 to-orange-400 text-3xl font-extrabold text-white">
+                        {profileInitial}
+                      </div>
+                    )}
                   </div>
+                </div>
+                <div className="absolute -bottom-2 -right-2 rounded-full border-2 border-white bg-emerald-500 p-1.5 text-white shadow-lg">
+                  <ShieldCheck size={13} />
+                </div>
+                <div className="absolute -left-2 -top-2 rounded-full bg-white/85 p-1 text-rose-500 shadow-md">
+                  <Sparkles size={11} />
+                </div>
+              </div>
+
+              <div className="flex-1 text-white text-center md:text-left">
+                {displayName ? (
+                  <p className="text-rose-100 font-medium mb-1">Dzień dobry{displayName ? `, ${displayName}` : ''} 👋</p>
+                ) : null}
+                {effectiveStats.newMatches > 0 ? (
+                  <h2 className="text-3xl font-bold mb-4 leading-tight">Dziś czeka na Ciebie<br/>{effectiveStats.newMatches} nowych dopasowań!</h2>
+                ) : (
+                  <h2 className="text-3xl font-bold mb-4 leading-tight">Brak nowych dopasowań na dziś</h2>
+                )}
+                <div className="flex flex-wrap gap-3 justify-center md:justify-start">
+                  <button onClick={() => onNavigate('discover')}
+                    className="bg-amber-400 text-amber-950 px-6 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-amber-300 transition-all shadow-lg border border-amber-300">
+                    <HeartHandshake size={18} /> Szybkie Randki
+                  </button>
+                  <button onClick={() => onNavigate('search')}
+                    className="bg-white/20 backdrop-blur text-white border border-white/30 px-6 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-white/30 transition-all">
+                    <Search size={18} /> Szukaj profili
+                  </button>
+                </div>
+                {heroLoading && isLoggedIn && (
+                  <p className="mt-2 text-xs font-semibold text-rose-100/90">Aktualizuję Twoje statystyki...</p>
                 )}
               </div>
-            </div>
-            <div className="absolute -bottom-2 -right-2 rounded-full border-2 border-white bg-emerald-500 p-1.5 text-white shadow-lg">
-              <ShieldCheck size={13} />
-            </div>
-            <div className="absolute -left-2 -top-2 rounded-full bg-white/85 p-1 text-rose-500 shadow-md">
-              <Sparkles size={11} />
-            </div>
-          </div>
-          <div className="flex-1 text-white text-center md:text-left">
-            {displayName ? (
-              <p className="text-rose-100 font-medium mb-1">Dzień dobry{displayName ? `, ${displayName}` : ''} 👋</p>
-            ) : null}
-            {effectiveStats.newMatches > 0 ? (
-              <h2 className="text-3xl font-bold mb-4 leading-tight">Dziś czeka na Ciebie<br/>{effectiveStats.newMatches} nowych dopasowań!</h2>
-            ) : (
-              <h2 className="text-3xl font-bold mb-4 leading-tight">Brak nowych dopasowań na dziś</h2>
-            )}
-            <div className="flex flex-wrap gap-3 justify-center md:justify-start">
-              <button onClick={() => onNavigate('discover')}
-                className="bg-amber-400 text-amber-950 px-6 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-amber-300 transition-all shadow-lg border border-amber-300">
-                <HeartHandshake size={18} /> Szybkie Randki
-              </button>
-              <button onClick={() => onNavigate('search')}
-                className="bg-white/20 backdrop-blur text-white border border-white/30 px-6 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-white/30 transition-all">
-                <Search size={18} /> Szukaj profili
-              </button>
-            </div>
-            {heroLoading && isLoggedIn && (
-              <p className="mt-2 text-xs font-semibold text-rose-100/90">Aktualizuję Twoje statystyki...</p>
-            )}
-          </div>
-          {/* Statystyki */}
-          <div className="flex md:flex-col gap-3 shrink-0">
-            {[
-              { label: 'Nowe profile', value: effectiveStats.newProfiles, icon: <Eye size={14} /> },
-              { label: 'Polubienia', value: effectiveStats.likesReceived, icon: <Heart size={14} /> },
-              { label: 'Wiadomości', value: effectiveStats.messagesReceived, icon: <MessageCircle size={14} /> },
-            ].map(s => (
-              <div key={s.label} className="bg-white/20 backdrop-blur rounded-xl px-4 py-2 text-center text-white">
-                <div className="flex items-center justify-center gap-1 text-xl font-bold">{s.icon}{s.value}</div>
-                <div className="text-xs text-rose-100">{s.label}</div>
+
+              <div className="flex md:flex-col gap-3 shrink-0">
+                {[
+                  { label: 'Nowe profile', value: effectiveStats.newProfiles, icon: <Eye size={14} /> },
+                  { label: 'Polubienia', value: effectiveStats.likesReceived, icon: <Heart size={14} /> },
+                  { label: 'Wiadomości', value: effectiveStats.messagesReceived, icon: <MessageCircle size={14} /> },
+                ].map(s => (
+                  <div key={s.label} className="bg-white/20 backdrop-blur rounded-xl px-4 py-2 text-center text-white">
+                    <div className="flex items-center justify-center gap-1 text-xl font-bold">{s.icon}{s.value}</div>
+                    <div className="text-xs text-rose-100">{s.label}</div>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            </div>
+          ) : (
+            <div className="w-full max-w-4xl mx-auto text-white text-center md:text-left">
+              <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur px-3 py-1.5 rounded-full text-xs font-semibold mb-3">
+                <ShieldCheck size={14} /> Społeczność 50+ z weryfikacją profili
+              </div>
+              <h2 className="text-2xl md:text-4xl font-bold leading-tight mb-3">
+                Poznaj osoby 50+ z Twojej okolicy
+              </h2>
+              <p className="text-rose-100 text-sm md:text-base mb-5 md:mb-6 max-w-3xl">
+                Zobacz, kto jest online teraz, sprawdź najnowsze profile i dołącz za darmo.
+              </p>
+
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3 mb-5 md:mb-6">
+                {[
+                  { label: 'Aktywni teraz', value: guestPortalStats.activeNow, icon: <Eye size={14} /> },
+                  { label: 'Nowe dzisiaj', value: guestPortalStats.newToday, icon: <Sparkles size={14} /> },
+                  { label: 'Zweryfikowani', value: guestPortalStats.verified, icon: <ShieldCheck size={14} /> },
+                  { label: 'Członkowie', value: guestPortalStats.totalMembers, icon: <Users size={14} /> },
+                ].map((stat) => (
+                  <div key={stat.label} className="bg-white/20 backdrop-blur rounded-xl px-3 py-2 text-left md:text-center">
+                    <div className="flex items-center md:justify-center gap-1 text-lg md:text-xl font-bold">
+                      {stat.icon}
+                      {stat.value}
+                    </div>
+                    <div className="text-[11px] md:text-xs text-rose-100">{stat.label}</div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-2.5 md:gap-3 justify-center md:justify-start">
+                <button
+                  onClick={() => onNavigate('register')}
+                  className="bg-amber-400 text-amber-950 px-5 py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-amber-300 transition-all shadow-lg border border-amber-300"
+                >
+                  <HeartHandshake size={18} /> Załóż konto za darmo
+                </button>
+                <button
+                  onClick={() => onNavigate('auth')}
+                  className="bg-white/20 backdrop-blur text-white border border-white/30 px-5 py-3 rounded-xl font-bold hover:bg-white/30 transition-all"
+                >
+                  Mam już konto
+                </button>
+              </div>
+
+              <p className="mt-3 text-[11px] md:text-xs text-rose-100/90">
+                Zweryfikowane profile • Moderacja • Zgłoszenia 24/7
+              </p>
+            </div>
+          )}
         </div>
       </div>
 
