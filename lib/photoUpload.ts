@@ -5,6 +5,53 @@ type PhotoMutationResult = {
   error?: string;
 };
 
+// Crop image na podstawie koordinat i konwertuj do File
+export async function cropImage(
+  imageSrc: string,
+  crop: { x: number; y: number; width: number; height: number },
+  zoom: number,
+): Promise<{ file: File | null; error?: string }> {
+  return new Promise((resolve) => {
+    const image = new Image();
+    image.src = imageSrc;
+    
+    image.onload = () => {
+      const canvas = document.createElement('canvas');
+      const maxSize = Math.max(image.width, image.height);
+      const safeArea = 2 * ((maxSize / 2) * Math.sqrt(2));
+      
+      canvas.width = safeArea;
+      canvas.height = safeArea;
+      
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        resolve({ file: null, error: 'Failed to get canvas context' });
+        return;
+      }
+      
+      ctx.translate(safeArea / 2, safeArea / 2);
+      ctx.translate(crop.x, crop.y);
+      ctx.scale(zoom, zoom);
+      ctx.translate(-image.width / 2, -image.height / 2);
+      ctx.drawImage(image, 0, 0);
+      
+      canvas.toBlob((blob) => {
+        if (!blob) {
+          resolve({ file: null, error: 'Failed to create blob' });
+          return;
+        }
+        
+        const file = new File([blob], 'cropped.jpg', { type: 'image/jpeg' });
+        resolve({ file });
+      }, 'image/jpeg', 0.95);
+    };
+    
+    image.onerror = () => {
+      resolve({ file: null, error: 'Failed to load image' });
+    };
+  });
+}
+
 // Upload pojedynczego zdjęcia do Supabase Storage (bucket: profile-photos) i zwróć publiczny URL
 // UWAGA: Plik trafia na Twój serwer Supabase, nie na zewnętrzny hosting!
 export async function uploadProfilePhoto(

@@ -52,8 +52,9 @@ async function fetchUserStats(userId: string) {
 }
 import { supabase } from '@/lib/supabase';
 
-import { uploadProfilePhoto, addPhotoToProfilePhotos, removePhotoFromProfilePhotos, setMainProfilePhoto } from '@/lib/photoUpload';
+import { uploadProfilePhoto, addPhotoToProfilePhotos, removePhotoFromProfilePhotos, setMainProfilePhoto, cropImage } from '@/lib/photoUpload';
 import { FaceVerificationModal } from './FaceVerificationModal';
+import CropImageModal from '@/components/layout/CropImageModal';
 
 export default function MyProfile() {
   const [profile, setProfile] = useState<any>(null);
@@ -67,6 +68,8 @@ export default function MyProfile() {
   const [uploading, setUploading] = useState(false);
   const [savingPhotos, setSavingPhotos] = useState(false);
   const [stats, setStats] = useState<any>(null);
+  const [showCropModal, setShowCropModal] = useState(false);
+  const [cropImageSrc, setCropImageSrc] = useState<string>('');
 
   // Pobierz dane profilu i zdjęcia po zalogowaniu
   useEffect(() => {
@@ -274,6 +277,84 @@ export default function MyProfile() {
     }
   };
 
+  // Wybierz zdjęcie główne do edycji (cropp)
+  const handleEditMainPhoto = () => {
+    if (profile?.image) {
+      setCropImageSrc(profile.image);
+      setShowCropModal(true);
+    }
+  };
+
+  // Zapisz skroplowane zdjęcie i ustaw jako główne
+  const handleSaveCroppedPhoto = async (crop: any, zoom: number) => {
+    setLoading(true);
+    try {
+      // Crop image i skonwertuj do File
+      const { file, error } = await cropImage(cropImageSrc, crop, zoom);
+      
+      if (!file || error) {
+        alert(`Błąd przy kadraniu: ${error}`);
+        return;
+      }
+
+      // Uploaduj nowe zdjęcie
+      const { url, error: uploadError } = await uploadProfilePhoto(file, profile.id);
+      if (!url) {
+        alert(`Błąd uploadu: ${uploadError}`);
+        return;
+      }
+
+      // Dodaj do profile_photos jako główne
+      const added = await addPhotoToProfilePhotos(profile.id, url, true, 0);
+      if (!added.success) {
+        alert(`Błąd zapisu: ${added.error}`);
+        return;
+      }
+
+      // Zaktualizuj profil głównym zdjęciem
+      await supabase.from('profiles').update({ image_url: url }).eq('id', profile.id);
+
+      // Pobierz zaktualizowaną listę zdjęć
+      const { data: ph } = await supabase
+        .from('profile_photos')
+        .select('*')
+        .eq('profile_id', profile.id)
+        .order('sort_order');
+      setPhotos(ph || []);
+
+      // Zaktualizuj profil w state
+      setProfile({ ...profile, image_url: url });
+
+      setShowCropModal(false);
+      alert('✓ Zdjęcie profilowe zostało zmienione!');
+    } catch (err) {
+      console.error('Error saving cropped photo:', err);
+      alert('Błąd przy zapisywaniu zdjęcia');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Uploaduj nowe zdjęcie do edycji
+  const handleProfilePhotoUpload = async (e: any) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const imgSrc = evt.target?.result as string;
+      setCropImageSrc(imgSrc);
+      setShowCropModal(true);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Wybierz zdjęcie z galerii do edycji
+  const handleEditPhotoFromGallery = (photoUrl: string) => {
+    setCropImageSrc(photoUrl);
+    setShowCropModal(true);
+  };
+
   // Usuń zdjęcie
   const handleRemovePhoto = async (photoId: string) => {
     const removed = await removePhotoFromProfilePhotos(photoId);
@@ -352,11 +433,23 @@ export default function MyProfile() {
         <div className="pointer-events-none absolute -left-20 bottom-0 h-44 w-44 rounded-full bg-amber-100/60 blur-2xl" />
 
         <div className="relative grid gap-4 md:grid-cols-[96px_1fr_auto] md:items-center">
-          <img
-            src={mainPhotoUrl}
-            alt="Zdjecie glowne profilu"
-            className="h-24 w-24 rounded-2xl object-cover border-2 border-white shadow"
-          />
+          <div className="group relative">
+            <img
+              src={mainPhotoUrl}
+              alt="Zdjecie glowne profilu"
+              className="h-24 w-24 rounded-2xl object-cover border-2 border-white shadow"
+            />
+            <button
+              onClick={handleEditMainPhoto}
+              className="absolute inset-0 flex items-center justify-center rounded-2xl bg-black/40 opacity-0 transition-opacity group-hover:opacity-100"
+            >
+              <span className="text-[11px] font-bold text-white">Edytuj</span>
+            </button>
+            <label className="absolute -bottom-2 -right-2 cursor-pointer rounded-full bg-rose-500 p-2 shadow hover:bg-rose-600">
+              <input type="file" accept="image/*" className="hidden" onChange={handleProfilePhotoUpload} />
+              <span className="text-xs text-white">+</span>
+            </label>
+          </div>
 
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.14em] text-rose-500">Moj profil</p>
@@ -425,6 +518,13 @@ export default function MyProfile() {
         isOpen={showFaceModal}
         onClose={() => setShowFaceModal(false)}
         onSuccess={handleFaceSuccess}
+      />
+
+      <CropImageModal
+        isOpen={showCropModal}
+        imageSrc={cropImageSrc}
+        onClose={() => setShowCropModal(false)}
+        onSave={handleSaveCroppedPhoto}
       />
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[1.65fr_1fr]">
@@ -719,10 +819,11 @@ export default function MyProfile() {
                   {photo.is_main && (
                     <span className="absolute left-2 top-2 rounded-full bg-rose-500 px-2 py-0.5 text-[10px] font-bold text-white">Glowne</span>
                   )}
-                  <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-black/45 px-2 py-1 text-[11px] text-white opacity-0 transition-opacity group-hover:opacity-100">
-                    <button onClick={() => handleRemovePhoto(photo.id)} className="font-semibold">Usun</button>
+                  <div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-1 bg-black/45 px-1 py-1 text-[10px] text-white opacity-0 transition-opacity group-hover:opacity-100">
+                    <button onClick={() => handleRemovePhoto(photo.id)} className="flex-1 truncate font-semibold">Usun</button>
+                    <button onClick={() => handleEditPhotoFromGallery(photo.url)} className="font-semibold text-amber-200">Edytuj</button>
                     {!photo.is_main && (
-                      <button onClick={() => handleSetMain(photo.id)} className="font-semibold text-amber-200">Ustaw glowne</button>
+                      <button onClick={() => handleSetMain(photo.id)} className="font-semibold text-amber-200">Glowne</button>
                     )}
                   </div>
                 </div>
