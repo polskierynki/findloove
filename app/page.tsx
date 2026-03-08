@@ -81,14 +81,7 @@ export default function App() {
   const [showPremiumView, setShowPremiumView] = useState(false);
   const [showCompletionModal, setShowCompletionModal] = useState(false);
   const [showPasswordReset, setShowPasswordReset] = useState(false);
-  const [debugInfo, setDebugInfo] = useState<string[]>([]);
   const hideGuestModalOnAuthViews = view === 'auth' || view === 'register';
-
-  // Debug helper
-  const addDebugLog = (message: string) => {
-    const timestamp = new Date().toLocaleTimeString();
-    setDebugInfo(prev => [...prev.slice(-9), `[${timestamp}] ${message}`]);
-  };
 
   /* ─── Auth & token state ─── */
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -167,26 +160,17 @@ export default function App() {
     // Check if URL contains password recovery hash
     if (typeof window !== 'undefined') {
       const hash = window.location.hash;
-      const fullURL = window.location.href;
-      
-      addDebugLog(`Page loaded: ${fullURL}`);
-      addDebugLog(`URL hash: ${hash || '(brak)'}`);
       
       // Check for recovery type in hash or search params
       if (hash && hash.includes('type=recovery')) {
-        addDebugLog('✅ Recovery hash detected!');
         setShowPasswordReset(true);
-      } else {
-        addDebugLog('❌ No recovery hash in URL');
       }
       
       // Also check URL search params (some Supabase configs use this)
       const searchParams = new URLSearchParams(window.location.search);
       const typeParam = searchParams.get('type');
-      addDebugLog(`Query param 'type': ${typeParam || '(brak)'}`);
       
       if (typeParam === 'recovery') {
-        addDebugLog('✅ Recovery query param detected!');
         setShowPasswordReset(true);
       }
     }
@@ -194,21 +178,14 @@ export default function App() {
     // Get initial session
     const getSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        addDebugLog(`Session found: ${session.user?.email}`);
-      } else {
-        addDebugLog('No active session');
-      }
       handleSession(session);
     };
     getSession();
 
     // Listen for auth state changes
     const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
-      addDebugLog(`Auth event: ${event}`);
       // Obsługa resetowania hasła
       if (event === 'PASSWORD_RECOVERY') {
-        addDebugLog('✅ PASSWORD_RECOVERY event triggered!');
         setShowPasswordReset(true);
       }
       handleSession(session);
@@ -217,13 +194,6 @@ export default function App() {
       listener.subscription.unsubscribe();
     };
   }, []);
-
-  // Monitor password reset modal state changes
-  useEffect(() => {
-    if (showPasswordReset) {
-      addDebugLog('🔓 Password reset modal OPENED');
-    }
-  }, [showPasswordReset]);
 
   const [unlockedLikes, setUnlockedLikes] = useState(false);
 
@@ -641,62 +611,16 @@ export default function App() {
               if (typeof window !== 'undefined' && window.location.hash) {
                 window.history.replaceState(null, '', window.location.pathname);
               }
-              addDebugLog('Password reset modal closed');
               setShowPasswordReset(false);
             }}
             onSuccess={(msg) => {
               notify(msg);
-              addDebugLog('Password changed successfully');
               setShowPasswordReset(false);
             }}
             onError={(msg) => {
               notify(msg);
-              addDebugLog(`Password change error: ${msg}`);
             }}
           />
-        )}
-
-        {/* Debug Panel - Remove in production */}
-        {typeof window !== 'undefined' && (
-          <div className="fixed bottom-4 right-4 bg-slate-900 text-white p-4 rounded-lg shadow-2xl max-w-md text-xs font-mono z-[9999] max-h-96 overflow-y-auto">
-            <div className="flex justify-between items-center mb-2">
-              <h3 className="font-bold text-sm">🔍 Password Reset Debug</h3>
-              <button 
-                onClick={() => setDebugInfo([])}
-                className="text-rose-400 hover:text-rose-300 text-xs"
-              >
-                Clear
-              </button>
-            </div>
-            <div className="space-y-1">
-              <div className="border-b border-slate-700 pb-2 mb-2">
-                <div className="text-yellow-400">Modal Status:</div>
-                <div className={showPasswordReset ? 'text-green-400' : 'text-red-400'}>
-                  {showPasswordReset ? '✅ VISIBLE' : '❌ HIDDEN'}
-                </div>
-              </div>
-              <div className="text-slate-400 text-[10px] mb-1">Recent Events:</div>
-              {debugInfo.length === 0 ? (
-                <div className="text-slate-500 italic">No events yet...</div>
-              ) : (
-                debugInfo.map((log, i) => (
-                  <div 
-                    key={i} 
-                    className={`py-1 ${
-                      log.includes('✅') ? 'text-green-400' : 
-                      log.includes('❌') ? 'text-red-400' : 
-                      'text-slate-300'
-                    }`}
-                  >
-                    {log}
-                  </div>
-                ))
-              )}
-            </div>
-            <div className="mt-3 pt-2 border-t border-slate-700 text-[10px] text-slate-500">
-              Kliknij link z emaila i sprawdź logi powyżej
-            </div>
-          </div>
         )}
       </div>
     </LegalProvider>
