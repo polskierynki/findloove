@@ -111,12 +111,23 @@ export default function MyProfile() {
             seeking_age_min: 18,
             seeking_age_max: 82,
           };
-          const { error: insertError } = await supabase.from('profiles').insert(newProfile);
+          const { data: insertedProfile, error: insertError } = await supabase
+            .from('profiles')
+            .insert(newProfile)
+            .select()
+            .single();
+          
           if (insertError) {
             console.error('Error creating profile:', insertError);
+            alert(
+              `Nie udalo sie utworzyc profilu w bazie.\n\nSzczegoly: ${insertError.message}\n\nUpewnij sie, ze wykonales SQL: supabase/fix_photo_permissions_relaxed.sql`,
+            );
+            setLoading(false);
+            return;
           }
-          setProfile(newProfile);
-          setForm(newProfile);
+          
+          setProfile(insertedProfile || newProfile);
+          setForm(insertedProfile || newProfile);
           setEdit(true); // Włącz tryb edycji dla nowego profilu
         } else {
           setProfile(prof);
@@ -170,6 +181,13 @@ export default function MyProfile() {
   const handlePhotoUpload = async (e: any) => {
     const file = e.target.files[0];
     if (!file) return;
+    
+    // Sprawdź czy profil istnieje
+    if (!profile || !profile.id) {
+      alert('Profil nie zostal jeszcze utworzony. Odswierz strone lub wypelnij dane profilu.');
+      return;
+    }
+    
     setUploading(true);
 
     const { url, error } = await uploadProfilePhoto(file, profile.id);

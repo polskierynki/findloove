@@ -74,9 +74,41 @@ create index if not exists profile_photos_profile_sort_idx
 grant usage on schema public to anon, authenticated;
 grant select on public.profile_photos to anon;
 grant select, insert, update, delete on public.profile_photos to authenticated;
+grant select on public.profiles to anon;
+grant select, insert, update, delete on public.profiles to authenticated;
 grant usage on schema storage to anon, authenticated;
 grant select on storage.objects to anon;
 grant select, insert, update, delete on storage.objects to authenticated;
+
+-- TABLE: public.profiles (ensure users can create and update their profiles)
+alter table public.profiles enable row level security;
+
+drop policy if exists "Public read profiles" on public.profiles;
+drop policy if exists "Authenticated insert profiles" on public.profiles;
+drop policy if exists "Authenticated update profiles" on public.profiles;
+drop policy if exists "Public insert profiles" on public.profiles;
+drop policy if exists "Public update profiles" on public.profiles;
+
+-- Anyone can read profiles
+create policy "Public read profiles"
+  on public.profiles
+  for select
+  using (true);
+
+-- Authenticated users can insert their own profile
+create policy "Authenticated insert profiles"
+  on public.profiles
+  for insert
+  to authenticated
+  with check (id = auth.uid());
+
+-- Authenticated users can update their own profile
+create policy "Authenticated update profiles"
+  on public.profiles
+  for update
+  to authenticated
+  using (id = auth.uid())
+  with check (id = auth.uid());
 
 -- TABLE: public.profile_photos
 alter table public.profile_photos enable row level security;
