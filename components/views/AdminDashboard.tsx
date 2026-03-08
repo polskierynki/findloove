@@ -30,6 +30,7 @@ const MessageModal = dynamic(() => import('../layout/MessageModal'), { ssr: fals
 type AdminTab = 'overview' | 'users' | 'moderation' | 'monetization';
 type UserFilter = 'all' | 'blocked' | 'active' | 'unverified' | 'pending' | 'premium';
 type UserSort = 'newest' | 'oldest' | 'az' | 'za';
+type DashboardDataSource = 'live' | 'demo' | 'error';
 
 interface SubscriptionRow {
   id: string;
@@ -128,6 +129,12 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [notification, setNotification] = useState<string | null>(null);
+  const [dataSource, setDataSource] = useState<DashboardDataSource>('live');
+  const [lastSyncAt, setLastSyncAt] = useState<string | null>(null);
+  const [lastError, setLastError] = useState<string | null>(null);
+  const [isOnline, setIsOnline] = useState<boolean>(() =>
+    typeof navigator === 'undefined' ? true : navigator.onLine,
+  );
 
   const [reportsEnabled, setReportsEnabled] = useState(true);
   const [billingEnabled, setBillingEnabled] = useState(true);
@@ -215,8 +222,23 @@ export default function AdminDashboard() {
   const moderationRate =
     stats.totalUsers > 0 ? Math.round((stats.blockedUsers / stats.totalUsers) * 100) : 0;
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const updateNetworkStatus = () => setIsOnline(window.navigator.onLine);
+
+    window.addEventListener('online', updateNetworkStatus);
+    window.addEventListener('offline', updateNetworkStatus);
+
+    return () => {
+      window.removeEventListener('online', updateNetworkStatus);
+      window.removeEventListener('offline', updateNetworkStatus);
+    };
+  }, []);
+
   async function fetchDashboardData() {
     setNotification(null);
+    setLastError(null);
     try {
       const dayAgoIso = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
       const monthAgoTs = Date.now() - 30 * 24 * 60 * 60 * 1000;
@@ -244,6 +266,14 @@ export default function AdminDashboard() {
       ]);
 
       const fallbackProfiles = filterNonAdminProfiles(MOCK_PROFILES);
+      const partialErrors: string[] = [];
+
+      if (profilesResponse.error) partialErrors.push(`profiles: ${profilesResponse.error.message}`);
+      if (reportsResponse.error) partialErrors.push(`admin_reports: ${reportsResponse.error.message}`);
+      if (messages24hResponse.error) partialErrors.push(`messages: ${messages24hResponse.error.message}`);
+      if (likes24hResponse.error) partialErrors.push(`likes: ${likes24hResponse.error.message}`);
+      if (subscriptionsResponse.error) partialErrors.push(`subscriptions: ${subscriptionsResponse.error.message}`);
+
       const mappedProfiles = profilesResponse.error || !profilesResponse.data
         ? fallbackProfiles
         : (profilesResponse.data as SupabaseProfile[]).map(mapSupabaseProfile);
@@ -273,6 +303,7 @@ export default function AdminDashboard() {
       );
 
       const useDemoProfiles = userProfiles.length === 0;
+      setDataSource(useDemoProfiles ? 'demo' : 'live');
       const visibleProfiles = useDemoProfiles
         ? [
             ...mappedProfiles.filter((profile) => profile.role === 'super_admin' || profile.role === 'admin'),
@@ -321,15 +352,25 @@ export default function AdminDashboard() {
         premiumActive: premiumActiveCount,
         revenue30dGross,
       });
+
+      if (partialErrors.length > 0) {
+        setLastError(partialErrors.join(' | '));
+      }
+
+      setLastSyncAt(new Date().toISOString());
     } catch (error) {
       console.error('Błąd ładowania panelu admina:', error);
       const fallbackProfiles = filterNonAdminProfiles(MOCK_PROFILES);
+      const message = error instanceof Error ? error.message : 'Nieznany błąd';
 
       setProfiles(fallbackProfiles);
       setReports([]);
       setSubscriptions([]);
       setReportsEnabled(false);
       setBillingEnabled(false);
+      setDataSource('error');
+      setLastError(message);
+      setLastSyncAt(new Date().toISOString());
       setStats({
         ...EMPTY_STATS,
         totalUsers: fallbackProfiles.length,
@@ -494,6 +535,33 @@ export default function AdminDashboard() {
               </button>
             );
           })}
+        </div>
+
+        <div
+          className={`mb-4 rounded-xl border px-4 py-2 text-xs ${
+            dataSource === 'error'
+              ? 'border-rose-200 bg-rose-50 text-rose-700'
+              : dataSource === 'demo'
+                ? 'border-amber-200 bg-amber-50 text-amber-700'
+                : 'border-emerald-200 bg-emerald-50 text-emerald-700'
+          }`}
+        >
+          <div className="flex flex-wrap items-center gap-2">
+            <span className={`inline-flex items-center rounded-full px-2 py-0.5 font-semibold ${isOnline ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
+              {isOnline ? 'Online' : 'Offline'}
+            </span>
+            <span className="inline-flex items-center rounded-full bg-white/70 px-2 py-0.5 font-semibold">
+              Źródło danych: {dataSource === 'live' ? 'Live' : dataSource === 'demo' ? 'Demo fallback' : 'Fallback po błędzie'}
+            </span>
+            <span className="inline-flex items-center rounded-full bg-white/70 px-2 py-0.5 font-semibold">
+              Ostatnia synchronizacja: {formatDateTime(lastSyncAt || undefined)}
+            </span>
+            {lastError && (
+              <span className="inline-flex max-w-full items-center rounded-full bg-white/70 px-2 py-0.5 font-semibold break-all">
+                Ostatni błąd: {lastError}
+              </span>
+            )}
+          </div>
         </div>
 
         {notification && (
