@@ -3,12 +3,12 @@
 
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
-import { Heart, Search, MessageCircle, ShieldCheck, LogIn, LogOut, HeartHandshake, User, Crown, UserRound, Settings, Bot, BadgeCheck } from 'lucide-react';
+import { Home, Search, MessageCircle, ShieldCheck, LogIn, LogOut, HeartHandshake, User, Crown, Bot } from 'lucide-react';
 import { useLogout } from '@/lib/hooks/useLogout';
 import { AppView, ViewType } from '@/lib/types';
 
 const NAV_ITEMS: { id: ViewType; icon: React.ReactNode; label: string }[] = [
-  { id: 'home',     icon: <Heart size={20} />,         label: 'Start' },
+  { id: 'home',     icon: <Home size={20} />,         label: 'Start' },
   { id: 'discover', icon: <HeartHandshake size={20} />, label: 'Szybkie Randki' },
   { id: 'search',   icon: <Search size={20} />,        label: 'Szukaj' },
   { id: 'messages', icon: <MessageCircle size={20} />, label: 'Poczta' },
@@ -61,7 +61,7 @@ export default function Header({ onAssistantClick, currentView, onNavigate, assi
 
   return (
     <header className={`bg-white border-b border-slate-100 sticky top-0 z-50 shadow-sm transition-transform duration-300 ${isVisible ? 'translate-y-0' : '-translate-y-full md:translate-y-0'}`}>
-      <div className="max-w-6xl mx-auto px-3 md:px-6 h-12 md:h-14 flex items-center gap-2 md:gap-6">
+      <div className="max-w-6xl mx-auto px-3 md:px-6 h-14 md:h-14 flex items-center gap-2 md:gap-6">
         {/* Logo - smaller on mobile */}
         <button onClick={() => onNavigate('home')} className="flex items-center gap-2 group shrink-0 cursor-pointer">
           <Image

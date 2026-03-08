@@ -1,6 +1,6 @@
 'use client';
 
-import { Heart, MessageCircle, Star, ShieldCheck, HeartHandshake, User } from 'lucide-react';
+import { Heart, Home, MessageCircle, ShieldCheck, HeartHandshake, User } from 'lucide-react';
 import { AppView, ViewType } from '@/lib/types';
 
 interface BottomNavProps {
@@ -10,12 +10,12 @@ interface BottomNavProps {
 }
 
 const NAV_ITEMS: { id: ViewType | 'myprofile'; icon: React.ReactNode; label: string }[] = [
-  { id: 'home', icon: <Heart size={22} />, label: 'Start' },
+  { id: 'home', icon: <Home size={20} />, label: 'Start' },
   { id: 'discover', icon: <HeartHandshake size={22} />, label: 'Randki' },
   { id: 'messages', icon: <MessageCircle size={22} />, label: 'Poczta' },
-  { id: 'likes', icon: <Star size={22} />, label: 'Lubię' },
+  { id: 'likes', icon: <Heart size={20} />, label: 'Lubię' },
   { id: 'safety', icon: <ShieldCheck size={22} />, label: 'Tarcza' },
-  { id: 'myprofile', icon: <User size={22} />, label: 'Profil' },
+  { id: 'myprofile', icon: <User size={20} />, label: 'Profil' },
 ];
 
 export default function BottomNav({ currentView, onNavigate, isLoggedIn = false }: BottomNavProps) {
@@ -24,8 +24,8 @@ export default function BottomNav({ currentView, onNavigate, isLoggedIn = false 
     : NAV_ITEMS.filter((item) => item.id !== 'messages');
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 shadow-[0_-4px_16px_rgba(0,0,0,0.08)] z-50 pb-safe">
-      <div className="max-w-2xl mx-auto flex justify-around items-center px-2 pt-2 pb-1">
+    <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 shadow-[0_-4px_16px_rgba(0,0,0,0.08)] z-50 pb-safe md:py-0">
+      <div className="max-w-2xl mx-auto flex justify-around items-center px-2 py-1 md:py-2 min-h-[56px] md:min-h-0">
         {visibleNavItems.map((item) => (
           (() => {
             const active = currentView === item.id;
@@ -35,7 +35,7 @@ export default function BottomNav({ currentView, onNavigate, isLoggedIn = false 
           <button
             key={item.id}
             onClick={() => onNavigate(item.id)}
-            className={`flex flex-col items-center gap-0.5 cursor-pointer transition-all px-2 py-1.5 rounded-xl active:scale-95 min-w-[52px] touch-manipulation ${
+            className={`flex flex-col items-center gap-0.5 cursor-pointer transition-all px-1.5 py-1 rounded-xl active:scale-95 min-w-[44px] md:min-w-[52px] touch-manipulation ${
               isSpeedDating
                 ? active
                   ? 'text-amber-600'
@@ -49,16 +49,16 @@ export default function BottomNav({ currentView, onNavigate, isLoggedIn = false 
               className={`transition-all ${
                 isSpeedDating
                   ? active
-                    ? 'bg-amber-100 p-2 rounded-xl scale-105'
-                    : 'p-1.5'
+                    ? 'bg-amber-100 p-1.5 md:p-2 rounded-xl scale-105'
+                    : 'p-1.5 md:p-1.5'
                   : active
-                  ? 'bg-rose-50 p-2 rounded-xl scale-105'
-                  : 'p-1.5'
+                  ? 'bg-rose-50 p-1.5 md:p-2 rounded-xl scale-105'
+                  : 'p-1.5 md:p-1.5'
               }`}
             >
               {item.icon}
             </div>
-            <span className="text-[10px] font-bold uppercase tracking-tight leading-none">{item.label}</span>
+            <span className="hidden md:block text-[10px] font-bold uppercase tracking-tight leading-none">{item.label}</span>
           </button>
             );
           })()
