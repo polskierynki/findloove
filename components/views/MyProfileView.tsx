@@ -201,7 +201,9 @@ export default function MyProfile() {
 
     const added = await addPhotoToProfilePhotos(profile.id, url, photos.length === 0, photos.length);
     if (!added.success) {
-      alert(`Zdjecie wyslano, ale nie zapisano rekordu w bazie (profile_photos).\n\nSzczegoly: ${added.error || 'brak dodatkowych informacji'}`);
+      const errorMsg = `BLAD DODAWANIA ZDJECIA\n\nProfile ID: ${profile.id}\nURL: ${url}\n\nSzczegoly bledu:\n${added.error || 'brak dodatkowych informacji'}\n\nOtworz konsole przegladarki (F12) aby zobaczyc wiecej szczegolow.`;
+      console.error('ALERT TEXT:', errorMsg);
+      alert(errorMsg);
       setUploading(false);
       return;
     }

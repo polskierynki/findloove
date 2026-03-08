@@ -19,7 +19,10 @@ export async function uploadProfilePhoto(
     upsert: true,
   });
   if (uploadError) {
-    console.error('Blad uploadu do storage:', uploadError);
+    console.error('=== BLAD UPLOADU DO STORAGE ===');
+    console.error('Error object:', uploadError);
+    console.error('Error message:', uploadError.message);
+    console.table({ userId, filePath, fileSize: file.size, fileType: file.type });
     return {
       url: null,
       error: uploadError.message || 'Blad uploadu do storage.objects',
@@ -55,10 +58,16 @@ export async function addPhotoToProfilePhotos(
   });
 
   if (error) {
-    console.error('Blad zapisu do profile_photos:', error);
+    console.error('=== BLAD ZAPISU DO profile_photos ===');
+    console.error('Error object:', error);
+    console.error('Error message:', error.message);
+    console.error('Error details:', error.details);
+    console.error('Error hint:', error.hint);
+    console.error('Error code:', error.code);
+    console.table({ userId, photoUrl, isMain, sortOrder });
     return {
       success: false,
-      error: error.message || 'Blad zapisu do profile_photos',
+      error: `${error.message}${error.details ? ' | Details: ' + error.details : ''}${error.hint ? ' | Hint: ' + error.hint : ''}`,
     };
   }
 
