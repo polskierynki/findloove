@@ -178,7 +178,7 @@ values (
   'profile-photos',
   true,
   10485760,
-  array['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/heic']
+  array['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/heic', 'image/avif']
 )
 on conflict (id) do update
 set
