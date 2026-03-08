@@ -45,14 +45,25 @@ export default function AuthView({ onBack, onNotify, onRegister }: AuthViewProps
   const handleSocial = async (provider: OAuthProvider) => {
     try {
       const redirectTo = `${window.location.origin}/`;
-      const { error } = await supabase.auth.signInWithOAuth({
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider,
-        options: { redirectTo },
+        options: { redirectTo, skipBrowserRedirect: true },
       });
       if (error) {
         onNotify('Błąd logowania przez ' + provider + ': ' + error.message);
         return;
       }
+
+      if (!data?.url) {
+        onNotify('Błąd logowania przez ' + provider + ': brak adresu przekierowania OAuth.');
+        return;
+      }
+
+      // Enforce production redirect target explicitly to avoid unwanted localhost callbacks.
+      const authUrl = new URL(data.url);
+      authUrl.searchParams.set('redirect_to', redirectTo);
+      window.location.assign(authUrl.toString());
+
       // Po udanym logowaniu Supabase przekieruje użytkownika na stronę powrotną (redirect). Po powrocie sprawdź, czy profil istnieje.
       // Poniższy kod działa tylko po stronie klienta, po powrocie z OAuth:
       setTimeout(async () => {
