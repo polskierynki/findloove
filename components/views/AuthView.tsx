@@ -44,7 +44,11 @@ export default function AuthView({ onBack, onNotify, onRegister }: AuthViewProps
   type OAuthProvider = 'google' | 'facebook' | 'apple';
   const handleSocial = async (provider: OAuthProvider) => {
     try {
-      const { data, error } = await supabase.auth.signInWithOAuth({ provider });
+      const redirectTo = `${window.location.origin}/`;
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: { redirectTo },
+      });
       if (error) {
         onNotify('Błąd logowania przez ' + provider + ': ' + error.message);
         return;
