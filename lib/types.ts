@@ -111,6 +111,19 @@ export interface SupabaseMessage {
   created_at: string;
 }
 
+export type ProfileInteractionKind = 'poke' | 'gift' | 'emote';
+
+export interface SupabaseProfileInteraction {
+  id: string;
+  from_profile_id: string;
+  to_profile_id: string;
+  kind: ProfileInteractionKind;
+  emoji?: string | null;
+  label?: string | null;
+  token_cost?: number | null;
+  created_at: string;
+}
+
 export function mapSupabaseProfile(p: SupabaseProfile): Profile {
   return {
     id: p.id,

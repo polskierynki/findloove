@@ -424,6 +424,7 @@ export default function App() {
                 onBack={() => setView('home')}
                 onMessage={() => openMessages()}
                 onContactRequest={(name) => notify(`Wysłano prośbę o kontakt do: ${name}`)}
+                onNotify={notify}
                 isLoggedIn={isLoggedIn}
                 tokens={tokens}
                 onSpendToken={spendToken}

@@ -1,11 +1,12 @@
 'use client';
 
 import Image from 'next/image';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ChevronLeft, Heart, MapPin, MessageCircle, Phone, ShieldCheck,
-  Cigarette, Baby, Star, Briefcase, User, X, ChevronRight, Lock, LogIn,
+  Cigarette, Baby, Star, Briefcase, User, X, ChevronRight, Lock, LogIn, Hand, Gift, SmilePlus,
 } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 import { Profile, LOOKING_FOR_OPTIONS, getLookingFor } from '@/lib/types';
 
 interface ProfileDetailViewProps {
@@ -13,6 +14,7 @@ interface ProfileDetailViewProps {
   onBack: () => void;
   onMessage: () => void;
   onContactRequest: (name: string) => void;
+  onNotify: (message: string) => void;
   isLoggedIn: boolean;
   tokens: number;
   onSpendToken: () => boolean;
@@ -36,6 +38,19 @@ const INTEREST_COLORS: Record<string, string> = {
   alt4: 'bg-violet-50 text-violet-700 border-violet-100',
 };
 const COLOR_KEYS = Object.keys(INTEREST_COLORS);
+
+const PREMIUM_EMOTE_PACK: { emoji: string; label: string; tokenCost: number }[] = [
+  { emoji: '💐', label: 'Bukiet kwiatów', tokenCost: 1 },
+  { emoji: '🥰', label: 'Słodki uśmiech', tokenCost: 1 },
+  { emoji: '🧸', label: 'Pluszowy miś', tokenCost: 1 },
+  { emoji: '🍫', label: 'Słodki upominek', tokenCost: 1 },
+  { emoji: '😍', label: 'Zachwyt', tokenCost: 1 },
+  { emoji: '😂', label: 'Humorystyczny akcent', tokenCost: 1 },
+  { emoji: '😘', label: 'Romantyczna zaczepka', tokenCost: 2 },
+  { emoji: '🎶', label: 'Muzyczna dedykacja', tokenCost: 2 },
+];
+
+type InteractionKind = 'poke' | 'gift' | 'emote';
 
 /* ── fallback avatar ─────────────────────────────────────────── */
 function ProfileAvatar({ src, name, className }: { src: string; name: string; className: string }) {
@@ -67,6 +82,7 @@ export default function ProfileDetailView({
   onBack,
   onMessage,
   onContactRequest,
+  onNotify,
   isLoggedIn,
   tokens,
   onSpendToken,
@@ -85,6 +101,113 @@ export default function ProfileDetailView({
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [lockModal, setLockModal] = useState(false);
+  const [senderProfileId, setSenderProfileId] = useState<string | null>(null);
+  const [actionInFlight, setActionInFlight] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadSenderProfile = async () => {
+      if (!isLoggedIn) {
+        setSenderProfileId(null);
+        return;
+      }
+
+      const { data } = await supabase.auth.getUser();
+      const userId = data.user?.id || null;
+      if (!cancelled) {
+        setSenderProfileId(userId);
+      }
+    };
+
+    loadSenderProfile();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isLoggedIn]);
+
+  const ensureCanInteract = (): boolean => {
+    if (!isLoggedIn) {
+      onLoginRequest();
+      return false;
+    }
+
+    if (!senderProfileId) {
+      onNotify('Nie udało się pobrać Twojego profilu. Odśwież stronę i spróbuj ponownie.');
+      return false;
+    }
+
+    if (senderProfileId === p.id) {
+      onNotify('Nie możesz wysyłać interakcji do własnego profilu.');
+      return false;
+    }
+
+    return true;
+  };
+
+  const sendLike = async () => {
+    if (!ensureCanInteract()) return;
+    setActionInFlight('like');
+
+    const { error } = await supabase.from('likes').upsert({
+      from_profile_id: senderProfileId,
+      to_profile_id: p.id,
+    });
+
+    setActionInFlight(null);
+
+    if (error) {
+      onNotify('Nie udało się wysłać polubienia: ' + error.message);
+      return;
+    }
+
+    onNotify(`Polubiono profil ${p.name}. ❤️`);
+  };
+
+  const sendInteraction = async (
+    kind: InteractionKind,
+    emoji: string,
+    label: string,
+    tokenCost: number,
+  ) => {
+    if (!ensureCanInteract()) return;
+
+    const actionKey = `${kind}:${emoji}`;
+    setActionInFlight(actionKey);
+
+    const { data, error } = await supabase
+      .from('profile_interactions')
+      .insert({
+        from_profile_id: senderProfileId,
+        to_profile_id: p.id,
+        kind,
+        emoji,
+        label,
+        token_cost: tokenCost,
+      })
+      .select('id')
+      .single();
+
+    if (error) {
+      setActionInFlight(null);
+      onNotify('Nie udało się wysłać interakcji: ' + error.message);
+      return;
+    }
+
+    if (tokenCost > 0) {
+      const paid = onSpendToken();
+      if (!paid) {
+        await supabase.from('profile_interactions').delete().eq('id', data.id);
+        setActionInFlight(null);
+        onNotify(`Brak Serduszek. Ta interakcja kosztuje ${tokenCost}.`);
+        return;
+      }
+    }
+
+    setActionInFlight(null);
+    onNotify(`Wysłano: ${emoji} ${label} do ${p.name}.`);
+  };
 
   const openLightbox = (i: number) => {
     if (!canViewPhoto(i)) { setLockModal(true); return; }
@@ -380,6 +503,67 @@ export default function ProfileDetailView({
           <span className="text-rose-600 font-bold">{p.name}</span> szuka:{' '}
           <span className="text-rose-600 font-bold">{p.status}</span>
         </p>
+      </div>
+
+      {/* ── INTERAKCJE ── */}
+      <div className="bg-white border border-slate-100 rounded-3xl p-6 mb-6 shadow-sm">
+        <h4 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-3">Sygnały sympatii</h4>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+          <button
+            onClick={sendLike}
+            disabled={!!actionInFlight}
+            className="px-3 py-2.5 rounded-xl border border-rose-200 bg-rose-50 text-rose-700 text-sm font-bold hover:bg-rose-100 transition-colors disabled:opacity-60 flex items-center justify-center gap-1.5"
+          >
+            <Heart size={15} /> Polub
+          </button>
+          <button
+            onClick={() => sendInteraction('poke', '👋', 'Zaczepka', 0)}
+            disabled={!!actionInFlight}
+            className="px-3 py-2.5 rounded-xl border border-sky-200 bg-sky-50 text-sky-700 text-sm font-bold hover:bg-sky-100 transition-colors disabled:opacity-60 flex items-center justify-center gap-1.5"
+          >
+            <Hand size={15} /> Zaczep
+          </button>
+          <button
+            onClick={() => sendInteraction('gift', '🌹', 'Romantyczny prezent', 1)}
+            disabled={!!actionInFlight}
+            className="px-3 py-2.5 rounded-xl border border-amber-200 bg-amber-50 text-amber-700 text-sm font-bold hover:bg-amber-100 transition-colors disabled:opacity-60 flex items-center justify-center gap-1.5"
+          >
+            <Gift size={15} /> Wyślij prezent (1 💛)
+          </button>
+        </div>
+
+        <div className="mt-4 border-t border-slate-100 pt-4">
+          <div className="flex items-center gap-2 mb-2">
+            <SmilePlus size={14} className="text-violet-500" />
+            <p className="text-sm font-semibold text-slate-700">Płatny pakiet emoji (romantyczne i zabawne)</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {PREMIUM_EMOTE_PACK.map((item) => {
+              const actionKey = `emote:${item.emoji}`;
+              const disabled = !!actionInFlight || tokens < item.tokenCost;
+              return (
+                <button
+                  key={`${item.emoji}-${item.label}`}
+                  onClick={() => sendInteraction('emote', item.emoji, item.label, item.tokenCost)}
+                  disabled={disabled}
+                  className={`px-3 py-2 rounded-xl border text-sm font-semibold transition-colors ${
+                    disabled
+                      ? 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed'
+                      : 'border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100'
+                  }`}
+                  title={`${item.label} • koszt ${item.tokenCost} 💛`}
+                >
+                  <span className="mr-1">{item.emoji}</span>
+                  {item.label}
+                  <span className="ml-1 text-xs">({item.tokenCost} 💛)</span>
+                  {actionInFlight === actionKey && <span className="ml-1">…</span>}
+                </button>
+              );
+            })}
+          </div>
+          <p className="text-xs text-slate-400 mt-2">Dostępne Serduszka: {tokens}</p>
+        </div>
       </div>
 
       {/* ── ZAINTERESOWANIA ── */}

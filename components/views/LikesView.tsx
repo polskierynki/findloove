@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
-import { ChevronLeft, Heart, Lock, LogIn } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { ChevronLeft, Hand, Heart, Lock, LogIn, Sparkles } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 import { Profile } from '@/lib/types';
 
 interface LikesViewProps {
@@ -19,6 +20,42 @@ interface LikesViewProps {
 
 const FREE_PREVIEW_COUNT = 3;
 
+interface LikeRow {
+  from_profile_id: string;
+  created_at?: string;
+}
+
+interface InteractionRow {
+  id: string;
+  from_profile_id: string;
+  kind: 'poke' | 'gift' | 'emote';
+  emoji: string | null;
+  label: string | null;
+  created_at: string;
+}
+
+interface InteractionFeedItem {
+  id: string;
+  from: Profile;
+  kind: 'poke' | 'gift' | 'emote';
+  emoji: string;
+  label: string;
+  createdAt: string;
+}
+
+function formatRelative(dateLike: string): string {
+  const ts = new Date(dateLike).getTime();
+  if (Number.isNaN(ts)) return 'przed chwilą';
+  const diff = Date.now() - ts;
+  const min = Math.floor(diff / 60000);
+  if (min < 1) return 'przed chwilą';
+  if (min < 60) return `${min} min temu`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return `${h} h temu`;
+  const d = Math.floor(h / 24);
+  return `${d} dni temu`;
+}
+
 export default function LikesView({
   profiles,
   onBack,
@@ -32,9 +69,99 @@ export default function LikesView({
   onLoginRequest,
 }: LikesViewProps) {
   const [showUnlockModal, setShowUnlockModal] = useState(false);
+  const [loadingInbox, setLoadingInbox] = useState(false);
+  const [incomingLikeProfiles, setIncomingLikeProfiles] = useState<Profile[]>([]);
+  const [interactionFeed, setInteractionFeed] = useState<InteractionFeedItem[]>([]);
+  const [interactionFeatureReady, setInteractionFeatureReady] = useState(true);
+
+  const profileById = useMemo(() => new Map(profiles.map((profile) => [profile.id, profile])), [profiles]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadInbox = async () => {
+      if (!isLoggedIn) {
+        setIncomingLikeProfiles([]);
+        setInteractionFeed([]);
+        return;
+      }
+
+      setLoadingInbox(true);
+
+      const { data: userData } = await supabase.auth.getUser();
+      const userId = userData.user?.id;
+
+      if (!userId) {
+        if (!cancelled) {
+          setIncomingLikeProfiles([]);
+          setInteractionFeed([]);
+          setLoadingInbox(false);
+        }
+        return;
+      }
+
+      const [likesResponse, interactionsResponse] = await Promise.all([
+        supabase
+          .from('likes')
+          .select('from_profile_id, created_at')
+          .eq('to_profile_id', userId)
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('profile_interactions')
+          .select('id, from_profile_id, kind, emoji, label, created_at')
+          .eq('to_profile_id', userId)
+          .order('created_at', { ascending: false })
+          .limit(12),
+      ]);
+
+      const seen = new Set<string>();
+      const mappedLikes: Profile[] = [];
+
+      (likesResponse.data || []).forEach((row: LikeRow) => {
+        const id = row.from_profile_id;
+        if (!id || seen.has(id)) return;
+        const profile = profileById.get(id);
+        if (!profile) return;
+        seen.add(id);
+        mappedLikes.push(profile);
+      });
+
+      const feed: InteractionFeedItem[] = (interactionsResponse.data || [])
+        .map((row: InteractionRow) => {
+          const from = profileById.get(row.from_profile_id);
+          if (!from) return null;
+          const fallbackLabel =
+            row.kind === 'poke' ? 'Zaczepka' : row.kind === 'gift' ? 'Prezent' : 'Emoji';
+          return {
+            id: row.id,
+            from,
+            kind: row.kind,
+            emoji: row.emoji || '💌',
+            label: row.label || fallbackLabel,
+            createdAt: row.created_at,
+          };
+        })
+        .filter(Boolean) as InteractionFeedItem[];
+
+      if (cancelled) return;
+
+      setIncomingLikeProfiles(mappedLikes);
+      setInteractionFeed(feed);
+      setInteractionFeatureReady(!interactionsResponse.error);
+      setLoadingInbox(false);
+    };
+
+    loadInbox();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isLoggedIn, profileById]);
+
+  const visibleLikeProfiles = incomingLikeProfiles.length > 0 ? incomingLikeProfiles : profiles;
 
   const hasPremiumAccess = isPremium || unlockedLikes;
-  const hasMoreProfiles = profiles.length > FREE_PREVIEW_COUNT;
+  const hasMoreProfiles = visibleLikeProfiles.length > FREE_PREVIEW_COUNT;
   const isLocked = !hasPremiumAccess && hasMoreProfiles;
 
   const handleUnlock = () => {
@@ -124,7 +251,7 @@ export default function LikesView({
         ) : isLocked && (
           <div className="bg-rose-50 px-4 py-2 rounded-full border-2 border-rose-200 flex items-center gap-2">
             <Lock size={18} className="text-rose-500" />
-            <span className="text-sm font-bold text-rose-700">{profiles.length - FREE_PREVIEW_COUNT} ukryte</span>
+            <span className="text-sm font-bold text-rose-700">{visibleLikeProfiles.length - FREE_PREVIEW_COUNT} ukryte</span>
           </div>
         )}
       </div>
@@ -133,8 +260,43 @@ export default function LikesView({
         Oni kliknęli serce przy Twoim zdjęciu w findloove.pl. Możesz do nich napisać.
       </p>
 
+      {isLoggedIn && (
+        <section className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+              <Sparkles size={18} className="text-violet-500" /> Zaczepki i prezenty
+            </h3>
+            {loadingInbox && <span className="text-xs text-slate-400">Aktualizuję...</span>}
+          </div>
+
+          {!interactionFeatureReady ? (
+            <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+              Funkcja zaczepki/prezentu wymaga utworzenia tabeli `profile_interactions` w Supabase.
+            </p>
+          ) : interactionFeed.length === 0 ? (
+            <p className="text-sm text-slate-500">Na razie brak nowych zaczepek i prezentów.</p>
+          ) : (
+            <div className="space-y-2">
+              {interactionFeed.slice(0, 6).map((item) => (
+                <div key={item.id} className="flex items-center gap-3 rounded-xl bg-slate-50 px-3 py-2 border border-slate-100">
+                  <img src={item.from.image} alt={item.from.name} className="w-9 h-9 rounded-full object-cover" />
+                  <div className="flex-1 min-w-0 text-sm text-slate-700">
+                    <p className="truncate">
+                      <span className="font-bold text-slate-900">{item.from.name}</span>
+                      {' '}wysłał(a) {item.emoji} {item.label.toLowerCase()}
+                    </p>
+                    <p className="text-xs text-slate-400">{formatRelative(item.createdAt)}</p>
+                  </div>
+                  <span className="text-xl">{item.kind === 'poke' ? '👋' : item.emoji}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {profiles.map((p, index) => {
+        {visibleLikeProfiles.map((p, index) => {
           const isVisible = index < FREE_PREVIEW_COUNT || hasPremiumAccess;
 
           return (
