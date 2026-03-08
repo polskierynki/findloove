@@ -58,7 +58,7 @@ export default function PasswordResetModal({
   if (typeof window === 'undefined') return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4">
       <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md relative animate-in fade-in duration-200">
         <button
           className="absolute top-3 right-3 text-slate-400 hover:text-slate-600 text-2xl leading-none"
