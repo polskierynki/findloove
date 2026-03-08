@@ -60,8 +60,8 @@ export default function GuestModal({
   const { icon, title, description, benefits } = content[variant];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white rounded-3xl max-w-md w-full shadow-2xl animate-in zoom-in-95 duration-300">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-0 md:p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="bg-white h-full md:h-auto w-full md:max-w-md md:rounded-3xl shadow-2xl animate-in zoom-in-95 duration-300 overflow-y-auto">
         {/* Header */}
         <div className="relative p-8 pb-6">
           <button

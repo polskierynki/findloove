@@ -58,8 +58,8 @@ export default function PasswordResetModal({
   if (typeof window === 'undefined') return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4">
-      <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md relative animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-0 md:p-4">
+      <div className="bg-white h-full md:h-auto w-full md:max-w-md md:rounded-2xl shadow-xl p-6 md:p-6 relative animate-in fade-in duration-200 overflow-y-auto">
         <button
           className="absolute top-3 right-3 text-slate-400 hover:text-slate-600 text-2xl leading-none"
           onClick={onClose}
