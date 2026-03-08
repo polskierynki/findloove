@@ -167,13 +167,28 @@ export default function MyProfile() {
   const handleSave = async () => {
     setLoading(true);
     try {
-      const { error } = await supabase.from('profiles').update(form).eq('id', profile.id);
+      // Sprawdź czy profil będzie kompletny po zapisaniu
+      const isComplete =
+        Boolean(form?.name) &&
+        Boolean(form?.age) &&
+        Boolean(form?.city) &&
+        Boolean(form?.bio) &&
+        Boolean(form?.interests?.length) &&
+        photos.length > 0;
+
+      // Jeśli kompletny, ustaw status na 'active'
+      const updateData = isComplete && form?.status !== 'active' ? { ...form, status: 'active' } : form;
+
+      const { error } = await supabase.from('profiles').update(updateData).eq('id', profile.id);
       if (error) {
         console.error('Error updating profile:', error);
         alert('Błąd podczas zapisywania profilu. Sprawdź konsolę.');
       } else {
-        setProfile(form);
+        setProfile(updateData);
         setEdit(false);
+        if (isComplete && form?.status !== 'active') {
+          alert('✓ Profil uzupełniony i aktywowany!');
+        }
       }
     } catch (err) {
       console.error('Unexpected error saving profile:', err);
@@ -220,6 +235,24 @@ export default function MyProfile() {
       .eq('profile_id', profile.id)
       .order('sort_order');
     setPhotos(ph || []);
+
+    // Sprawdź czy profil jest teraz kompletny - jeśli tak, zmień status na 'active'
+    const isNowComplete =
+      Boolean(profile?.name) &&
+      Boolean(profile?.age) &&
+      Boolean(profile?.city) &&
+      Boolean(profile?.bio) &&
+      Boolean(profile?.interests?.length) &&
+      (ph?.length || 0) > 0;
+
+    if (isNowComplete && profile?.status !== 'active') {
+      console.log('Profile is now complete! Updating status to active...');
+      await supabase
+        .from('profiles')
+        .update({ status: 'active' })
+        .eq('id', profile.id);
+      setProfile({ ...profile, status: 'active' });
+    }
 
     setUploading(false);
     setPhotoSaved(true);
@@ -293,6 +326,19 @@ export default function MyProfile() {
   const completionPercent = Math.round(
     (completionChecks.filter(Boolean).length / completionChecks.length) * 100,
   );
+
+  // Debug logging
+  if (photos.length > 0) {
+    console.log('=== COMPLETION PROGRESS ===');
+    console.log('Profile name:', profile?.name);
+    console.log('Profile age:', profile?.age);
+    console.log('Profile city:', profile?.city);
+    console.log('Profile bio:', profile?.bio);
+    console.log('Profile interests:', profile?.interests?.length);
+    console.log('Photos count:', photos.length);
+    console.log('Completion checks:', completionChecks);
+    console.log('Completion percent:', completionPercent);
+  }
 
   const renderValue = (value: string | number | undefined | null) =>
     value ? value : <span className="text-slate-400 italic">Nie podano</span>;
