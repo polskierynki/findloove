@@ -160,7 +160,18 @@ export default function App() {
     // Check if URL contains password recovery hash
     if (typeof window !== 'undefined') {
       const hash = window.location.hash;
+      console.log('Current URL hash:', hash); // Debug log
+      
+      // Check for recovery type in hash or search params
       if (hash && hash.includes('type=recovery')) {
+        console.log('Recovery hash detected, showing modal');
+        setShowPasswordReset(true);
+      }
+      
+      // Also check URL search params (some Supabase configs use this)
+      const searchParams = new URLSearchParams(window.location.search);
+      if (searchParams.get('type') === 'recovery') {
+        console.log('Recovery query param detected, showing modal');
         setShowPasswordReset(true);
       }
     }
@@ -174,8 +185,10 @@ export default function App() {
 
     // Listen for auth state changes
     const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('Auth event:', event); // Debug log
       // Obsługa resetowania hasła
       if (event === 'PASSWORD_RECOVERY') {
+        console.log('PASSWORD_RECOVERY event triggered');
         setShowPasswordReset(true);
       }
       handleSession(session);
