@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { Mail, Phone, MapPin } from 'lucide-react';
+import { Mail } from 'lucide-react';
 import { ViewType } from '@/lib/types';
 
 interface FooterProps {
@@ -63,14 +63,6 @@ export default function Footer({ onNavigate }: FooterProps) {
               <li className="flex items-start gap-2">
                 <Mail size={16} className="text-rose-400 mt-0.5 shrink-0" />
                 <a href="mailto:pomoc@findloove.pl" className="text-slate-400 hover:text-rose-400 transition-colors">pomoc@findloove.pl</a>
-              </li>
-              <li className="flex items-start gap-2">
-                <Phone size={16} className="text-rose-400 mt-0.5 shrink-0" />
-                <a href="tel:+48123456789" className="text-slate-400 hover:text-rose-400 transition-colors">+48 123 456 789</a>
-              </li>
-              <li className="flex items-start gap-2">
-                <MapPin size={16} className="text-rose-400 mt-0.5 shrink-0" />
-                <span className="text-slate-400">ul. Wiśniowa 15<br />00-000 Warszawa</span>
               </li>
             </ul>
           </div>

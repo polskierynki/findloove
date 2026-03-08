@@ -28,6 +28,8 @@ export const metadata: Metadata = {
   },
 };
 
+import CookieBanner from '@/components/layout/CookieBanner';
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -37,6 +39,7 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         {children}
+        <CookieBanner />
       </body>
     </html>
   );
