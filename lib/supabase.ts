@@ -15,4 +15,15 @@ if (!supabaseKey) {
 	);
 }
 
-export const supabase = createClient(supabaseUrl, supabaseKey);
+// Avoid browser lock contention warnings in React Strict Mode and rapid re-renders.
+const relaxedAuthLock = async <R>(
+	_lockName: string,
+	_acquireTimeout: number,
+	fn: () => Promise<R>,
+): Promise<R> => await fn();
+
+export const supabase = createClient(supabaseUrl, supabaseKey, {
+	auth: {
+		lock: relaxedAuthLock,
+	},
+});

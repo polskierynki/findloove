@@ -124,7 +124,26 @@ export interface SupabaseProfileInteraction {
   created_at: string;
 }
 
+const KNOWN_BROKEN_IMAGE_FRAGMENTS = [
+  'photo-1581579438747-104c53d2f93b',
+];
+
+function buildProfileFallbackImage(name?: string): string {
+  const safeName = encodeURIComponent(name || 'Uzytkownik');
+  return `https://ui-avatars.com/api/?name=${safeName}&background=C05868&color=fff&size=256`;
+}
+
+function normalizeProfileImageUrl(imageUrl: string | null | undefined, profileName?: string): string {
+  if (!imageUrl) return buildProfileFallbackImage(profileName);
+  if (KNOWN_BROKEN_IMAGE_FRAGMENTS.some((fragment) => imageUrl.includes(fragment))) {
+    return buildProfileFallbackImage(profileName);
+  }
+  return imageUrl;
+}
+
 export function mapSupabaseProfile(p: SupabaseProfile): Profile {
+  const safeImageUrl = normalizeProfileImageUrl(p.image_url, p.name);
+
   return {
     id: p.id,
     name: p.name,
@@ -133,7 +152,7 @@ export function mapSupabaseProfile(p: SupabaseProfile): Profile {
     bio: p.bio,
     interests: p.interests ?? [],
     status: p.status,
-    image: p.image_url,
+    image: safeImageUrl,
     isVerified: p.is_verified,
     verificationPending: p.verification_pending,
     gender: p.gender,
@@ -146,7 +165,7 @@ export function mapSupabaseProfile(p: SupabaseProfile): Profile {
     role: p.role || 'user',
     isPremium: p.is_premium,
     premiumUntil: p.premium_until,
-    photos: [p.image_url].filter(Boolean),
+    photos: [safeImageUrl].filter(Boolean),
     details: {
       occupation: p.occupation,
       zodiac: p.zodiac,
