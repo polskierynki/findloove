@@ -56,6 +56,27 @@ function isPremiumActiveFromProfile(profile: {
   return Boolean(profile.is_premium) || premiumByDate;
 }
 
+const ROUTABLE_APP_VIEWS: AppView[] = [
+  'home',
+  'discover',
+  'profile',
+  'messages',
+  'safety',
+  'likes',
+  'search',
+  'auth',
+  'register',
+  'terms',
+  'privacy',
+  'cookies',
+  'admin',
+  'myprofile',
+];
+
+function isRoutableAppView(value: string | null): value is AppView {
+  return Boolean(value) && ROUTABLE_APP_VIEWS.includes(value as AppView);
+}
+
 export default function App() {
   const [view, setView] = useState<AppView>('home');
   const [showAdminDashboard, setShowAdminDashboard] = useState(false);
@@ -79,7 +100,16 @@ export default function App() {
   const [searchLookingFor, setSearchLookingFor] = useState<LookingForCategory | undefined>(undefined);
   const [showPremiumView, setShowPremiumView] = useState(false);
   const [showCompletionModal, setShowCompletionModal] = useState(false);
+  const [urlSearch, setUrlSearch] = useState('');
   const hideGuestModalOnAuthViews = view === 'auth' || view === 'register';
+
+  // Track browser URL updates (initial load + back/forward).
+  useEffect(() => {
+    const syncSearchFromLocation = () => setUrlSearch(window.location.search);
+    syncSearchFromLocation();
+    window.addEventListener('popstate', syncSearchFromLocation);
+    return () => window.removeEventListener('popstate', syncSearchFromLocation);
+  }, []);
 
   /* ─── Auth & token state ─── */
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -153,31 +183,105 @@ export default function App() {
     }
   }
 
-  // Read URL actions (e.g. redirect to auth after password reset)
+  // Read URL state (view/profile) and one-time actions (password reset success)
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    const searchParams = new URLSearchParams(window.location.search);
+    const searchParams = new URLSearchParams(urlSearch);
     const viewParam = searchParams.get('view');
+    const profileIdParam = searchParams.get('id');
     const resetParam = searchParams.get('reset');
-
-    if (viewParam === 'auth' && !isLoggedIn) {
-      setView('auth');
-    }
+    const nextParams = new URLSearchParams(searchParams.toString());
+    let shouldReplaceUrl = false;
 
     if (resetParam === 'success') {
       setNotification('Hasło zostało zmienione. Zaloguj się nowym hasłem.');
       window.setTimeout(() => setNotification(null), 3500);
+      nextParams.delete('reset');
+      shouldReplaceUrl = true;
     }
 
-    if (viewParam || resetParam) {
-      searchParams.delete('view');
-      searchParams.delete('reset');
-      const nextQuery = searchParams.toString();
-      const nextUrl = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ''}${window.location.hash}`;
+    if (viewParam && isRoutableAppView(viewParam)) {
+      if (viewParam === 'profile') {
+        if (profileIdParam) {
+          const profileFromUrl = profiles.find((profile) => profile.id === profileIdParam);
+          if (profileFromUrl) {
+            if (selectedProfile?.id !== profileFromUrl.id) {
+              setSelectedProfile(profileFromUrl);
+            }
+            if (view !== 'profile') {
+              setView('profile');
+            }
+          } else if (!loading && view !== 'home') {
+            setView('home');
+            nextParams.set('view', 'home');
+            nextParams.delete('id');
+            shouldReplaceUrl = true;
+          }
+        } else if (view !== 'home') {
+          setView('home');
+          nextParams.set('view', 'home');
+          shouldReplaceUrl = true;
+        }
+      } else if (viewParam === 'messages' && !isLoggedIn) {
+        if (view !== 'auth') {
+          setView('auth');
+        }
+        nextParams.set('view', 'auth');
+        nextParams.delete('id');
+        shouldReplaceUrl = true;
+      } else if (view !== viewParam) {
+        setView(viewParam);
+      }
+    }
+
+    if (shouldReplaceUrl) {
+      const nextQuery = nextParams.toString();
+      const nextSearch = nextQuery ? `?${nextQuery}` : '';
+      const nextUrl = `${window.location.pathname}${nextSearch}`;
+      const currentUrl = `${window.location.pathname}${window.location.search}`;
+
+      if (nextUrl !== currentUrl) {
+        window.history.replaceState(null, '', nextUrl);
+      }
+
+      if (nextSearch !== urlSearch) {
+        setUrlSearch(nextSearch);
+      }
+    }
+  }, [isLoggedIn, loading, profiles, selectedProfile?.id, urlSearch, view]);
+
+  // Keep URL in sync with current view so tabs/profiles are shareable.
+  useEffect(() => {
+    const searchParams = new URLSearchParams(urlSearch);
+    const urlView = searchParams.get('view');
+
+    // Let URL-driven state initialize first (e.g. direct link open/back-forward).
+    if (urlView && isRoutableAppView(urlView) && urlView !== view) {
+      return;
+    }
+
+    const nextParams = new URLSearchParams(searchParams.toString());
+    nextParams.set('view', view);
+    nextParams.delete('reset');
+
+    if (view === 'profile' && selectedProfile?.id) {
+      nextParams.set('id', selectedProfile.id);
+    } else {
+      nextParams.delete('id');
+    }
+
+    const nextQuery = nextParams.toString();
+    const nextSearch = nextQuery ? `?${nextQuery}` : '';
+    const nextUrl = `${window.location.pathname}${nextSearch}`;
+    const currentUrl = `${window.location.pathname}${window.location.search}`;
+
+    if (nextUrl !== currentUrl) {
       window.history.replaceState(null, '', nextUrl);
     }
-  }, [isLoggedIn]);
+
+    if (nextSearch !== urlSearch) {
+      setUrlSearch(nextSearch);
+    }
+  }, [selectedProfile?.id, urlSearch, view]);
 
   // Supabase auth state effect
   useEffect(() => {
