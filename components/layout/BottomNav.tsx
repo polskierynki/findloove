@@ -15,7 +15,7 @@ const NAV_ITEMS: { id: ViewType | 'myprofile'; icon: React.ReactNode; label: str
   { id: 'search', icon: <Search size={20} />, label: 'Szukaj' },
   { id: 'messages', icon: <MessageCircle size={22} />, label: 'Poczta' },
   { id: 'likes', icon: <Heart size={20} />, label: 'Lubię' },
-  { id: 'myprofile', icon: <User size={20} />, label: 'Profil' },
+  { id: 'myprofile', icon: <User size={22} />, label: 'Profil' },
 ];
 
 export default function BottomNav({ currentView, onNavigate, isLoggedIn = false }: BottomNavProps) {
@@ -30,6 +30,7 @@ export default function BottomNav({ currentView, onNavigate, isLoggedIn = false 
           (() => {
             const active = currentView === item.id;
             const isSpeedDating = item.id === 'discover';
+            const isProfileTab = item.id === 'myprofile';
 
             return (
           <button
@@ -38,6 +39,7 @@ export default function BottomNav({ currentView, onNavigate, isLoggedIn = false 
               const targetView: ViewType | 'myprofile' = !isLoggedIn && item.id === 'myprofile' ? 'auth' : item.id;
               onNavigate(targetView);
             }}
+            title={isProfileTab ? 'Moj profil' : item.label}
             className={`flex flex-col items-center gap-0.5 cursor-pointer transition-all px-1.5 py-1 rounded-xl active:scale-95 min-w-[44px] md:min-w-[52px] touch-manipulation ${
               isSpeedDating
                 ? active
@@ -49,7 +51,7 @@ export default function BottomNav({ currentView, onNavigate, isLoggedIn = false 
             }`}
           >
             <div
-              className={`transition-all ${
+              className={`relative transition-all ${
                 isSpeedDating
                   ? active
                     ? 'bg-amber-100 p-1.5 md:p-2 rounded-xl scale-105'
@@ -60,6 +62,11 @@ export default function BottomNav({ currentView, onNavigate, isLoggedIn = false 
               }`}
             >
               {item.icon}
+              {isProfileTab && isLoggedIn && (
+                <span className="absolute -top-1.5 -right-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white shadow-sm">
+                  i
+                </span>
+              )}
             </div>
             <span className="hidden md:block text-[10px] font-bold uppercase tracking-tight leading-none">{item.label}</span>
           </button>

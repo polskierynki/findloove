@@ -7,17 +7,18 @@ import { Home, Search, MessageCircle, LogIn, LogOut, HeartHandshake, User, Crown
 import { useLogout } from '@/lib/hooks/useLogout';
 import { AppView, ViewType } from '@/lib/types';
 
-const NAV_ITEMS: { id: ViewType; icon: React.ReactNode; label: string }[] = [
+const NAV_ITEMS: { id: ViewType | 'myprofile'; icon: React.ReactNode; label: string }[] = [
   { id: 'home',     icon: <Home size={20} />,         label: 'Start' },
   { id: 'discover', icon: <HeartHandshake size={20} />, label: 'Szybkie Randki' },
   { id: 'search',   icon: <Search size={20} />,        label: 'Szukaj' },
   { id: 'messages', icon: <MessageCircle size={20} />, label: 'Poczta' },
+  { id: 'myprofile', icon: <User size={20} />,         label: 'Moj profil' },
 ];
 
 interface HeaderProps {
   onAssistantClick: () => void;
   currentView: AppView;
-  onNavigate: (view: ViewType | 'admin') => void;
+  onNavigate: (view: ViewType | 'admin' | 'myprofile') => void;
   assistantOpen: boolean;
   isLoggedIn?: boolean;
   tokens?: number;
@@ -29,7 +30,7 @@ export default function Header({ onAssistantClick, currentView, onNavigate, assi
   const logout = useLogout();
   const visibleNavItems = isLoggedIn
     ? NAV_ITEMS
-    : NAV_ITEMS.filter((item) => item.id !== 'messages');
+    : NAV_ITEMS.filter((item) => item.id !== 'messages' && item.id !== 'myprofile');
 
   // Auto-hide header on mobile scroll
   const [isVisible, setIsVisible] = useState(true);
@@ -106,12 +107,15 @@ export default function Header({ onAssistantClick, currentView, onNavigate, assi
                   <span className="md:hidden">{tokens ?? 0}</span>
                 </div>
                 <button
-                  onClick={() => onNavigate('profile')}
-                  className="flex items-center gap-1 md:gap-1.5 bg-slate-100 border border-slate-300 text-slate-700 px-1.5 md:px-2.5 py-1 md:py-1.5 rounded-lg text-xs md:text-sm font-semibold hover:bg-slate-200 transition-colors cursor-pointer"
-                  title="Mój profil"
+                  onClick={() => onNavigate('myprofile')}
+                  className="relative flex items-center gap-1 md:gap-1.5 bg-slate-100 border border-slate-300 text-slate-700 px-1.5 md:px-2.5 py-1 md:py-1.5 rounded-lg text-xs md:text-sm font-semibold hover:bg-slate-200 transition-colors cursor-pointer"
+                  title="Moj profil"
                 >
                   <User size={14} className="md:w-4 md:h-4" />
-                  <span className="hidden lg:inline">Mój profil</span>
+                  <span className="hidden lg:inline">Moj profil</span>
+                  <span className="absolute -top-1 -right-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white">
+                    i
+                  </span>
                 </button>
                 <button
                   onClick={onAssistantClick}

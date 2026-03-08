@@ -609,6 +609,10 @@ export default function App() {
         currentView={view}
         onNavigate={(v) => {
           setShowPremiumView(false);
+          if (v === 'myprofile') {
+            router.push('/myprofile');
+            return;
+          }
           setView(v);
         }}
         isLoggedIn={isLoggedIn}
