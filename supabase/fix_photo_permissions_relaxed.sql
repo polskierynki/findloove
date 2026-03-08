@@ -232,4 +232,39 @@ create policy "Profile photos authenticated delete"
     and (storage.foldername(name))[1] = 'profiles'
   );
 
+-- TRIGGER: Auto-update profile.image_url when first photo is added
+create or replace function public.set_profile_image_if_empty()
+returns trigger as $$
+begin
+  if new.is_main = true or new.sort_order = 0 then
+    update public.profiles
+    set image_url = new.url
+    where id = new.profile_id
+      and (image_url is null or image_url = '' or image_url like '%ui-avatars.com%');
+  end if;
+  return new;
+end;
+$$ language plpgsql;
+
+drop trigger if exists set_profile_image_on_photo_insert on public.profile_photos;
+
+create trigger set_profile_image_on_photo_insert
+after insert on public.profile_photos
+for each row
+execute function public.set_profile_image_if_empty();
+
+-- Update existing profiles: if they have photos but no image_url, set it to the first photo
+update public.profiles p
+set image_url = (
+  select url 
+  from public.profile_photos pp 
+  where pp.profile_id = p.id
+  order by is_main desc, sort_order asc
+  limit 1
+)
+where (p.image_url is null or p.image_url = '' or p.image_url like '%ui-avatars.com%')
+  and exists (
+    select 1 from public.profile_photos pp where pp.profile_id = p.id
+  );
+
 commit;

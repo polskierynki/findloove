@@ -45,6 +45,31 @@ export function useProfileCompletion(isLoggedIn: boolean) {
         .maybeSingle();
 
       if (profileData) {
+        // Sprawdź czy użytkownik ma zdjęcia w profile_photos
+        const { data: photos } = await supabase
+          .from('profile_photos')
+          .select('id')
+          .eq('profile_id', user.id)
+          .limit(1);
+
+        // Jeśli ma zdjęcia w profile_photos, użyj pierwszego jako image
+        let imageUrl = profileData.image_url;
+        if (photos && photos.length > 0) {
+          // Pobierz pierwsze zdjęcie
+          const { data: photoData } = await supabase
+            .from('profile_photos')
+            .select('url, is_main')
+            .eq('profile_id', user.id)
+            .order('is_main', { ascending: false })
+            .order('sort_order')
+            .limit(1)
+            .single();
+          
+          if (photoData?.url) {
+            imageUrl = photoData.url;
+          }
+        }
+
         const profile: Profile = {
           id: profileData.id,
           name: profileData.name,
@@ -53,7 +78,7 @@ export function useProfileCompletion(isLoggedIn: boolean) {
           bio: profileData.bio,
           interests: profileData.interests || [],
           status: profileData.status,
-          image: profileData.image_url,
+          image: imageUrl,
           details: {
             occupation: profileData.occupation,
             zodiac: profileData.zodiac,
