@@ -9,7 +9,7 @@ import { TERMS_OF_SERVICE } from '@/lib/legal/termsOfService';
 import { PRIVACY_POLICY } from '@/lib/legal/privacyPolicy';
 
 interface FooterProps {
-  onNavigate?: (view: ViewType) => void;
+  onNavigate?: (view: ViewType | 'myprofile') => void;
 }
 
 export default function Footer({ onNavigate }: FooterProps) {

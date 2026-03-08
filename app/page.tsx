@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import type { Session } from '@supabase/supabase-js';
 
@@ -34,7 +35,6 @@ import PremiumView from '@/components/views/PremiumView';
 import TermsView from '@/components/views/TermsView';
 import PrivacyView from '@/components/views/PrivacyView';
 import CookiesView from '@/components/views/CookiesView';
-import MyProfileView from '@/components/views/MyProfileView';
 
 const PREMIUM_LOCAL_STORAGE_KEY = 'zl_premium_demo';
 const PREMIUM_DEMO_DAYS = 30;
@@ -132,6 +132,7 @@ function getPathForView(view: AppView, profileId?: string | null): string {
 }
 
 export default function App() {
+  const router = useRouter();
   const [view, setView] = useState<AppView>('home');
   const [showAdminDashboard, setShowAdminDashboard] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -703,9 +704,6 @@ export default function App() {
                 onGuestFeatureBlock={guestRestrictions.triggerFeatureModal}
               />
             )}
-            {view === 'myprofile' && (
-              <MyProfileView />
-            )}
             {view === 'messages' && (
               <MessagesView
                 selectedProfile={selectedProfile}
@@ -763,7 +761,11 @@ export default function App() {
       <Footer
         onNavigate={(v) => {
           setShowPremiumView(false);
-          setView(v);
+          if (v === 'myprofile') {
+            router.push('/myprofile');
+          } else {
+            setView(v);
+          }
         }}
       />
       <div className="md:hidden">
@@ -772,7 +774,11 @@ export default function App() {
           isLoggedIn={isLoggedIn}
           onNavigate={(v) => {
             setShowPremiumView(false);
-            setView(v);
+            if (v === 'myprofile') {
+              router.push('/myprofile');
+            } else {
+              setView(v);
+            }
           }}
         />
       </div>
@@ -834,7 +840,7 @@ export default function App() {
             completionLevel={profileCompletion.completionLevel}
             onGoToProfile={() => {
               setShowCompletionModal(false);
-              setView('myprofile');
+              router.push('/myprofile');
             }}
           />
         )}
