@@ -26,10 +26,26 @@ export default function ResetPasswordPage() {
 
       const searchParams = new URLSearchParams(window.location.search);
       const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+      const errorCode = hashParams.get('error_code') || searchParams.get('error_code');
+      const errorDescription = hashParams.get('error_description') || searchParams.get('error_description');
       const recoveryType = hashParams.get('type') || searchParams.get('type');
       const code = searchParams.get('code');
       const accessToken = hashParams.get('access_token');
       const refreshToken = hashParams.get('refresh_token');
+
+      // Check if Supabase returned an error
+      if (errorCode) {
+        if (!isActive) return;
+        setStatus('invalid');
+        
+        if (errorCode === 'otp_expired') {
+          setStatusMessage('Link resetu hasła wygasł. Linki są ważne przez 1 godzinę. Poproś o nowy link.');
+        } else {
+          const decodedDescription = errorDescription ? decodeURIComponent(errorDescription.replace(/\+/g, ' ')) : '';
+          setStatusMessage(decodedDescription || 'Link resetu hasła jest nieprawidłowy. Poproś o nowy link.');
+        }
+        return;
+      }
 
       try {
         if (code) {
