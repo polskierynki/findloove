@@ -10,96 +10,127 @@ Ostatnia aktualizacja: 8 marca 2026
 
 I. POSTANOWIENIA OGÓLNE
 
-1. Niniejszy Regulamin określa zasady korzystania z serwisu FindLooove.pl (dalej: "Serwis").
-2. Korzystając z Serwisu, akceptujesz wszystkie postanowienia Regulaminu.
-3. FindLooove.pl zastrzega sobie prawo do zmiany Regulaminu bez uprzedzenia.
+Niniejszy Regulamin określa zasady świadczenia usług drogą elektroniczną oraz korzystania z serwisu FindLooove.pl (dalej: „Serwis").
+
+Rejestracja i korzystanie z Serwisu oznaczają akceptację wszystkich postanowień niniejszego Regulaminu.
+
+Właściciel Serwisu zastrzega sobie prawo do zmiany Regulaminu z ważnych przyczyn (np. zmiana przepisów prawa, zmiana funkcjonalności serwisu). O wszelkich zmianach użytkownicy zostaną poinformowani drogą mailową oraz w Serwisie z co najmniej 14-dniowym wyprzedzeniem. Użytkownik, który nie akceptuje zmian, ma prawo do rozwiązania umowy i usunięcia konta przed ich wejściem w życie.
 
 II. REJESTRACJA I KONTO UŻYTKOWNIKA
 
-1. Aby korzystać z Serwisu, musisz zarejestrować się i założyć konto.
-2. Odpowiadasz za poufność swojego hasła i danych dostępu.
-3. Zobowiązujesz się do podania prawdziwych i kompletnych informacji podczas rejestracji.
-4. Jesteś odpowiedzialny za wszystkie działania podejmowane na Twoim koncie.
-5. Nie wolno Ci dzielić się kontem z innymi osobami.
+Warunkiem korzystania z pełnej funkcjonalności Serwisu jest rejestracja i założenie indywidualnego konta użytkownika. Z Serwisu mogą korzystać wyłącznie osoby pełnoletnie.
 
-III. ZACHOWANIE UŻYTKOWNIKA
+Użytkownik jest zobowiązany do zachowania w tajemnicy swojego hasła oraz danych dostępowych do konta.
 
-1. Zgadzasz się nie publikować treści:
-   - Obraźliwych, wulgarnych lub dyskryminacyjnych
-   - Zawierających nielegalne informacje
-   - Naruszających prywatność innych osób
-   - Namawiających do niebezpiecznych lub nielegalnych działań
-   - Zawierających złośliwe oprogramowanie
+Użytkownik zobowiązuje się do podania prawdziwych, aktualnych i kompletnych informacji podczas procesu rejestracji.
 
-2. Nie wolno Ci:
-   - Oszukiwać lub wprowadzać w błąd innych użytkowników
-   - Harassment lub zastraszać inne osoby
-   - Spamować lub wysyłać niechciane wiadomości
-   - Podszywać się pod inną osobę
-   - Wykorzystywać boty lub zautomatyzowane narzędzia do komunikacji
+Użytkownik ponosi pełną odpowiedzialność za działania podejmowane z wykorzystaniem jego konta.
 
-IV. PROFILOWANIE
+Udostępnianie konta osobom trzecim jest surowo zabronione.
 
-1. Twój profil musi zawierać rzeczywiste zdjęcie Twojej twarzy.
-2. Zabrania się publikowania:
-   - Zdjęć innych osób
-   - Zdjęć z zawartością pornograficzną
-   - Zdjęć zawierających przemoc
-   - Sztucznych lub AI-generowanych twarzy
+III. ZASADY KORZYSTANIA Z SERWISU
 
-3. FindLooove.pl może weryfikować autentyczność Twojej twarzy za pomocą technologii biometrycznej.
-4. Niespełnienie wymagań profilowych może skutkować usunięciem konta.
+Użytkownik zobowiązuje się do niepublikowania w Serwisie treści:
 
-V. MONETYZACJA I TOKENY
+Obraźliwych, wulgarnych, dyskryminujących lub szerzących nienawiść;
 
-1. Serwis oferuje system "Serduszek" (tokenów premium).
-2. Serduszka pozwalają na:
-   - Wysyłanie nieograniczonej liczby wiadomości
-   - Dostęp do premium funkcji
-   - Zwiększenie widoczności profilu
+Niezgodnych z obowiązującym prawem;
 
-3. Serduszka nie mogą być zwracane ani wymieniane na pieniądze.
-4. FindLooove.pl zastrzega sobie prawo do zmiany cen i dostępności serduszek.
+Naruszających dobra osobiste, prawa autorskie lub prywatność innych osób;
+
+Namawiających do niebezpiecznych lub nielegalnych działań;
+
+Zawierających złośliwe oprogramowanie, wirusy lub linki do stron niebezpiecznych.
+
+Użytkownikowi zabrania się ponadto:
+
+Oszukiwania lub celowego wprowadzania w błąd innych użytkowników;
+
+Nękania, dręczenia lub zastraszania innych osób;
+
+Wysyłania spamu, niezamówionych informacji handlowych lub masowych wiadomości;
+
+Podszywania się pod inne osoby fizyczne lub podmioty;
+
+Korzystania z botów, skryptów lub zautomatyzowanych narzędzi w celu interakcji z Serwisem.
+
+IV. ZASADY PROFILU I WERYFIKACJA
+
+Profil użytkownika musi zawierać rzeczywiste zdjęcie prezentujące jego twarz.
+
+Zabrania się publikowania w profilu:
+
+Zdjęć przedstawiających inne osoby bez ich zgody;
+
+Materiałów o charakterze pornograficznym lub erotycznym;
+
+Treści drastycznych lub promujących przemoc;
+
+Twarzy wygenerowanych sztucznie (w tym przez sztuczną inteligencję) lub przerobionych w sposób uniemożliwiający identyfikację.
+
+W celu zapewnienia bezpieczeństwa, Serwis może oferować opcjonalną weryfikację autentyczności twarzy za pomocą technologii biometrycznej. Proces ten odbywa się wyłącznie na podstawie odrębnej, wyraźnej zgody użytkownika.
+
+Naruszenie wymagań dotyczących profilu może skutkować ukryciem profilu, zawieszeniem lub trwałym usunięciem konta.
+
+V. USŁUGI PŁATNE I WIRTUALNE WALUTY („SERDUSZKA")
+
+Serwis oferuje możliwość zakupu wirtualnych żetonów o nazwie „Serduszka", które pozwalają na korzystanie z funkcji premium.
+
+Posiadanie „Serduszek" umożliwia m.in.:
+
+Wysyłanie nielimitowanej liczby wiadomości;
+
+Dostęp do dodatkowych funkcji konta;
+
+Promowanie i zwiększenie widoczności profilu.
+
+Kupując „Serduszka" i wyrażając zgodę na natychmiastowe udostępnienie treści cyfrowych przed upływem terminu do odstąpienia od umowy, użytkownik przyjmuje do wiadomości, że traci ustawowe prawo do odstąpienia od umowy w terminie 14 dni od zakupu (zgodnie z Ustawą o prawach konsumenta).
+
+„Serduszka" nie podlegają wymianie na gotówkę ani zwrotowi, z wyjątkiem sytuacji przewidzianych w powszechnie obowiązujących przepisach prawa (np. w przypadku wadliwego działania usługi).
 
 VI. CZAT I KOMUNIKACJA
 
-1. FindLooove.pl nie jest odpowiedzialny za treść wiadomości wymienianych między użytkownikami.
-2. Serwis automatycznie moderuje wiadomości zawierające nielegalne treści.
-3. Użytkownik może zgłosić inne użytkownika za dolegliwe zachowanie.
+Wiadomości wymieniane między użytkownikami mają charakter prywatny. Serwis nie ponosi odpowiedzialności za treść i prawdziwość tych wiadomości.
 
-VII. OCHRONA PRYWATNOŚCI
+W celu zapewnienia bezpieczeństwa Serwis stosuje zautomatyzowane filtry, które mogą blokować wiadomości zawierające podejrzane linki, spam lub treści jednoznacznie naruszające prawo.
 
-1. Twoje dane są chronione zgodnie z Polityką Prywatności.
-2. FindLooove.pl nie sprzedaje danych osobowych stronom trzecim.
-3. Możesz usunąć swoje konto i dane w dowolnym momencie.
+Każdy użytkownik ma prawo i możliwość zgłoszenia (za pomocą odpowiedniej funkcji w Serwisie) innego użytkownika, którego zachowanie narusza Regulamin lub jest uciążliwe.
+
+VII. OCHRONA DANYCH OSOBOWYCH
+
+Administratorem danych osobowych użytkowników jest właściciel Serwisu.
+
+Szczegółowe zasady przetwarzania danych osobowych, cel, zakres oraz prawa użytkowników (w tym prawo do dostępu, sprostowania, usunięcia lub ograniczenia przetwarzania) określa odrębny dokument – Polityka Prywatności.
+
+Serwis nie odsprzedaje danych osobowych użytkowników stronom trzecim w celach marketingowych bez ich wyraźnej zgody.
 
 VIII. ODPOWIEDZIALNOŚĆ
 
-1. Serwis jest udostępniany "w stanie istniejącym" bez gwarancji.
-2. FindLooove.pl nie odpowiada za:
-   - Przerwy w dostępie do serwisu
-   - Utratę danych
-   - Szkody wynikłe z korzystania z serwisu
-   - Zachowanie innych użytkowników
+Właściciel Serwisu dokłada wszelkich starań, aby zapewnić nieprzerwane i bezpieczne działanie platformy, jednak zastrzega sobie prawo do przerw technicznych niezbędnych do konserwacji lub aktualizacji systemu.
 
-3. Maksymalna odpowiedzialność FindLooove.pl ograniczona jest do kwoty zapłaconej za serduszka.
+Właściciel Serwisu odpowiada wobec konsumentów za zgodność usługi cyfrowej z umową na zasadach określonych w polskim prawie (w tym w Ustawie o prawach konsumenta).
 
-IX. ZAKOŃCZENIE KONTA
+Serwis nie ponosi odpowiedzialności za zachowanie użytkowników poza platformą (np. podczas spotkań w świecie rzeczywistym). Zalecamy zachowanie ostrożności podczas nawiązywania nowych znajomości.
 
-1. Możesz usunąć swoje konto w dowolnym momencie.
-2. FindLooove.pl może usunąć lub zawiesić konto za naruszenie Regulaminu.
-3. Po usunięciu konta, wszystkie dane będą trwale skasowane w ciągu 30 dni.
+IX. USUNIĘCIE KONTA I ROZWIĄZANIE UMOWY
 
-X. PRAWO OBOWIĄZUJĄCE
+Użytkownik ma prawo do rozwiązania umowy i usunięcia swojego konta w dowolnym momencie, korzystając z odpowiedniej opcji w ustawieniach profilu.
 
-1. Niniejszy Regulamin podlega prawu polskiemu.
-2. Wszelkie spory rozstrzygane będą przez kompetentne sądy w Polsce.
+Serwis zastrzega sobie prawo do zawieszenia lub trwałego usunięcia konta w przypadku rażącego lub uporczywego naruszania przez użytkownika postanowień niniejszego Regulaminu.
+
+Po usunięciu konta dane użytkownika są trwale usuwane z systemów Serwisu, chyba że ich dalsze przechowywanie jest niezbędne do celów rozpatrzenia reklamacji, obrony przed roszczeniami lub wynika z bezwzględnie obowiązujących przepisów prawa (np. przepisów podatkowych).
+
+X. PRAWO WŁAŚCIWE I ROZWIĄZYWANIE SPORÓW
+
+Niniejszy Regulamin podlega prawu polskiemu.
+
+Wszelkie spory wynikające z korzystania z Serwisu przez konsumentów będą rozstrzygane przez właściwe sądy powszechne w Polsce. Konsument ma również możliwość skorzystania z pozasądowych sposobów rozpatrywania reklamacji i dochodzenia roszczeń, np. poprzez platformę ODR (Online Dispute Resolution).
 
 XI. POSTANOWIENIA KOŃCOWE
 
-1. Jeśli którekolwiek postanowienie Regulaminu jest nieważne, pozostałe postanowienia pozostają w mocy.
-2. FindLooove.pl może cedować swoje prawa i obowiązki.
-3. Brak egzekwowania któregoś postanowienia nie stanowi rezygnacji z jego egzekwowania w przyszłości.
+Jeśli którekolwiek z postanowień niniejszego Regulaminu zostanie uznane za nieważne lub bezskuteczne, nie wpływa to na ważność pozostałych postanowień.
 
-Pytania dotyczące Regulaminu? Skontaktuj się z nami: support@findloove.pl
+W sprawach nieuregulowanych niniejszym Regulaminem zastosowanie mają odpowiednie przepisy prawa polskiego, w szczególności Kodeksu cywilnego oraz Ustawy o prawach konsumenta.
+
+W razie jakichkolwiek pytań dotyczących Regulaminu prosimy o kontakt pod adresem: support@findloove.pl
 `;

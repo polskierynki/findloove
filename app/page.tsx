@@ -234,9 +234,20 @@ export default function App() {
   };
 
   const openMessages = (profile?: Profile) => {
+    if (!isLoggedIn) {
+      notify('Zaloguj się lub zarejestruj, aby korzystać z czatu.');
+      setView('auth');
+      return;
+    }
     if (profile) setSelectedProfile(profile);
     setView('messages');
   };
+
+  useEffect(() => {
+    if (!isLoggedIn && view === 'messages') {
+      setView('auth');
+    }
+  }, [isLoggedIn, view]);
 
   const searchFor = (cat: LookingForCategory) => {
     setSearchLookingFor(cat);
@@ -513,6 +524,7 @@ export default function App() {
       <div className="md:hidden">
         <BottomNav
           currentView={view}
+          isLoggedIn={isLoggedIn}
           onNavigate={(v) => {
             setShowPremiumView(false);
             setView(v);

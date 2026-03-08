@@ -27,6 +27,9 @@ interface HeaderProps {
 
 export default function Header({ onAssistantClick, currentView, onNavigate, assistantOpen, isLoggedIn, tokens, userName, isAdmin }: HeaderProps) {
   const logout = useLogout();
+  const visibleNavItems = isLoggedIn
+    ? NAV_ITEMS
+    : NAV_ITEMS.filter((item) => item.id !== 'messages');
 
   return (
     <header className="bg-white border-b border-slate-100 sticky top-0 z-50 shadow-sm">
@@ -45,7 +48,7 @@ export default function Header({ onAssistantClick, currentView, onNavigate, assi
         <div className="w-px h-6 bg-slate-200 shrink-0" />
         {/* Nawigacja — środek, tylko ikony, tooltip na hover */}
         <nav className="flex items-center flex-1 justify-center gap-2 min-w-0">
-          {NAV_ITEMS.map((item) => {
+          {visibleNavItems.map((item) => {
             const active = currentView === item.id;
             return (
               <button

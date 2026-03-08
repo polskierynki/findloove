@@ -1,12 +1,13 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { ChevronLeft, Search, ShieldCheck, Flag, Ban, Trash2, LogIn, Heart, FileText } from 'lucide-react';
+import { ChevronLeft, Search, ShieldCheck, Flag, Ban, Trash2, LogIn, Heart, FileText, Bot, Send } from 'lucide-react';
 import { Profile, filterNonAdminProfiles } from '@/lib/types';
 import { useProfiles } from '@/lib/hooks/useProfiles';
 import TalkJSChat from '@/components/layout/TalkJSChat';
 
 const MY_PROFILE_ID = '00000000-0000-0000-0000-000000000001';
+const ADVISOR_BOT_ID = 'advisor-bot-findloove';
 
 interface MessagesViewProps {
   selectedProfile: Profile | null;
@@ -22,7 +23,152 @@ interface MessagesViewProps {
 const getTime = (iso: string) =>
   new Date(iso).toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' });
 
-const QUICK_STARTERS = ['Dzień dobry!', 'Jak minął dzień?', 'Mam pytanie o zainteresowania'];
+const QUICK_STARTERS = [
+  'Jaki mam stan doładowań?',
+  'Jak zacząć pierwszą rozmowę?',
+  'Jak odblokować więcej rozmów?',
+];
+
+const ADVISOR_BOT_PROFILE: Profile = {
+  id: ADVISOR_BOT_ID,
+  name: 'Doradca Findloove',
+  age: 0,
+  city: 'Online',
+  bio: 'Pomagam z kontem, Serduszkami i rozpoczęciem rozmów.',
+  interests: ['Wsparcie', 'Porady'],
+  status: 'online',
+  image: '/logo/logo.jpg',
+  details: {
+    occupation: 'Asystent konta',
+    zodiac: '-',
+    smoking: '-',
+    children: '-',
+  },
+  isVerified: true,
+};
+
+type AdvisorMessage = {
+  id: string;
+  from: 'bot' | 'user';
+  content: string;
+  createdAt: string;
+};
+
+function createAdvisorMessage(from: 'bot' | 'user', content: string): AdvisorMessage {
+  return {
+    id: `${from}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    from,
+    content,
+    createdAt: new Date().toISOString(),
+  };
+}
+
+function buildAdvisorReply(question: string, opts: { tokens: number; isPremium: boolean }): string {
+  const q = question.toLowerCase();
+
+  if (
+    q.includes('doład') ||
+    q.includes('dolad') ||
+    q.includes('serdusz') ||
+    q.includes('token') ||
+    q.includes('stan konta')
+  ) {
+    return `Masz teraz ${opts.tokens} Serduszek. ${
+      opts.isPremium
+        ? 'Masz też aktywne Premium, więc limity rozmów są szersze.'
+        : 'Aby odblokować więcej możliwości, możesz skorzystać z opcji Premium lub zdobywać Serduszka aktywnością w profilu.'
+    }`;
+  }
+
+  if (q.includes('jak') && (q.includes('zaczą') || q.includes('zaczac') || q.includes('pierwsz'))) {
+    return 'Dobry start rozmowy: 1) Nawiąż do opisu lub zdjęcia rozmówcy, 2) Zadaj jedno konkretne pytanie, 3) Dodaj lekki, pozytywny ton. Przykład: "Widzę, że lubisz góry. Masz ulubiony szlak na weekend?"';
+  }
+
+  if (q.includes('odblok') || q.includes('więcej') || q.includes('wiecej') || q.includes('limit') || q.includes('premium')) {
+    return 'Więcej rozmów odblokujesz przez pełniejsze uzupełnienie profilu i opcje Premium. Najpierw dodaj zdjęcie i opis, a następnie sprawdź sekcje z dodatkowymi możliwościami.';
+  }
+
+  return 'Jasne. Mogę pomóc w 3 obszarach: stan Serduszek/doładowań, rozpoczęcie pierwszej rozmowy i odblokowanie większej liczby czatów. Napisz, czego potrzebujesz.';
+}
+
+function AdvisorChatPanel({
+  messages,
+  input,
+  onInputChange,
+  onSend,
+  tokens,
+  isPremium,
+}: {
+  messages: AdvisorMessage[];
+  input: string;
+  onInputChange: (value: string) => void;
+  onSend: (preset?: string) => void;
+  tokens: number;
+  isPremium: boolean;
+}) {
+  return (
+    <div className="flex-1 flex flex-col bg-[#FDFCF9]">
+      <div className="px-4 py-3 border-b border-slate-100 bg-white">
+        <p className="text-sm text-slate-700">
+          <strong>Stan konta:</strong> {tokens} Serduszek • {isPremium ? 'Premium aktywne' : 'Konto standard'}
+        </p>
+      </div>
+
+      <div className="px-4 py-3 border-b border-slate-100 bg-slate-50 flex flex-wrap gap-2">
+        {QUICK_STARTERS.map((starter) => (
+          <button
+            key={starter}
+            onClick={() => onSend(starter)}
+            className="text-xs px-3 py-1.5 rounded-full border border-slate-200 bg-white text-slate-700 hover:border-rose-200 hover:text-rose-600 transition-colors"
+          >
+            {starter}
+          </button>
+        ))}
+      </div>
+
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+        {messages.map((message) => {
+          const isUser = message.from === 'user';
+          return (
+            <div key={message.id} className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
+              <div
+                className={`max-w-[85%] rounded-2xl px-3 py-2 shadow-sm ${
+                  isUser ? 'bg-rose-500 text-white' : 'bg-white border border-slate-100 text-slate-700'
+                }`}
+              >
+                <p className="text-sm leading-relaxed whitespace-pre-line">{message.content}</p>
+                <p className={`text-[10px] mt-1 ${isUser ? 'text-rose-100' : 'text-slate-400'}`}>{getTime(message.createdAt)}</p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="border-t border-slate-100 bg-white px-3 py-3 flex items-center gap-2">
+        <input
+          value={input}
+          onChange={(e) => onInputChange(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              onSend();
+            }
+          }}
+          placeholder="Napisz pytanie do doradcy..."
+          className="flex-1 h-10 rounded-xl border border-slate-200 px-3 text-sm text-slate-700 outline-none focus:border-rose-300 focus:ring-2 focus:ring-rose-100"
+        />
+        <button
+          onClick={() => onSend()}
+          className="h-10 px-3 rounded-xl bg-rose-500 text-white hover:bg-rose-600 transition-colors inline-flex items-center gap-1.5"
+          title="Wyślij"
+        >
+          <Send size={15} />
+          <span className="text-sm font-semibold">Wyślij</span>
+        </button>
+      </div>
+    </div>
+  );
+}
 
 /* ─── Sub-components for clarity ─── */
 
@@ -65,9 +211,20 @@ function ConversationListItem({
 export default function MessagesView({ selectedProfile, onBack, onNotify, isLoggedIn = false, isPremium = false, tokens = 0, onSpendToken, onLoginRequest }: MessagesViewProps) {
   const { profiles: allProfiles, loading: profilesLoading } = useProfiles();
   const visibleProfiles = useMemo(() => filterNonAdminProfiles(allProfiles), [allProfiles]);
-  
-  const [activeProfile, setActiveProfile] = useState<Profile | null>(selectedProfile);
+  const conversationProfiles = useMemo(
+    () => [ADVISOR_BOT_PROFILE, ...visibleProfiles],
+    [visibleProfiles],
+  );
+
+  const [activeProfile, setActiveProfile] = useState<Profile | null>(selectedProfile ?? ADVISOR_BOT_PROFILE);
   const [showChat, setShowChat] = useState(!!selectedProfile);
+  const [advisorInput, setAdvisorInput] = useState('');
+  const [advisorMessages, setAdvisorMessages] = useState<AdvisorMessage[]>([
+    createAdvisorMessage(
+      'bot',
+      'Cześć! Jestem doradcą Findloove. Mogę sprawdzić Twój stan Serduszek/doładowań i podpowiedzieć, jak zacząć rozmowę.',
+    ),
+  ]);
 
   /* ─── daily message limit ─── */
   const FREE_DAILY_LIMIT = 2;
@@ -75,15 +232,28 @@ export default function MessagesView({ selectedProfile, onBack, onNotify, isLogg
   const [messagedToday, setMessagedToday] = useState<string[]>([]);
   const [showLimitModal, setShowLimitModal] = useState(false);
 
+  const isAdvisorChat = activeProfile?.id === ADVISOR_BOT_ID;
+
   useEffect(() => {
-    if (!activeProfile && visibleProfiles.length > 0) {
-      setActiveProfile(visibleProfiles[0]);
+    if (!activeProfile && conversationProfiles.length > 0) {
+      setActiveProfile(conversationProfiles[0]);
     }
-  }, [visibleProfiles, activeProfile]);
+  }, [conversationProfiles, activeProfile]);
 
   const handleReport = () => { onNotify(`Zgłoszono profil: ${activeProfile?.name}`); };
   const handleBlock = () => { onNotify(`Zablokowano użytkownika: ${activeProfile?.name}`); };
   const handleDelete = () => { onNotify('Rozmowa została usunięta'); };
+
+  const sendAdvisorMessage = (preset?: string) => {
+    const content = (preset ?? advisorInput).trim();
+    if (!content) return;
+
+    const userMessage = createAdvisorMessage('user', content);
+    const botReply = createAdvisorMessage('bot', buildAdvisorReply(content, { tokens, isPremium }));
+
+    setAdvisorMessages((prev) => [...prev, userMessage, botReply]);
+    setAdvisorInput('');
+  };
 
   const selectConversation = (profile: Profile) => {
     setActiveProfile(profile);
@@ -154,13 +324,18 @@ export default function MessagesView({ selectedProfile, onBack, onNotify, isLogg
 
         {/* Konwersacje */}
         <div className="flex-1 overflow-y-auto">
-          {visibleProfiles.map((profile) => {
+          {conversationProfiles.map((profile) => {
+            const lastMessage = profile.id === ADVISOR_BOT_ID
+              ? advisorMessages[advisorMessages.length - 1]?.content
+              : undefined;
+
             return (
               <ConversationListItem
                 key={profile.id}
                 profile={profile}
                 isActive={activeProfile.id === profile.id}
                 onClick={() => selectConversation(profile)}
+                lastMessage={lastMessage}
               />
             );
           })}
@@ -232,49 +407,64 @@ export default function MessagesView({ selectedProfile, onBack, onNotify, isLogg
             <div className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-400 border-2 border-white rounded-full" />
           </div>
           <div className="flex-1 min-w-0">
-            <h3 className="font-semibold text-slate-800 text-sm">{activeProfile.name}, {activeProfile.age} l.</h3>
+            <h3 className="font-semibold text-slate-800 text-sm">
+              {isAdvisorChat ? activeProfile.name : `${activeProfile.name}, ${activeProfile.age} l.`}
+            </h3>
             <div className="flex items-center gap-1 text-emerald-600 text-xs">
-              <ShieldCheck size={11} />
-              <span>Rozmowa chroniona · {activeProfile.city}</span>
+              {isAdvisorChat ? <Bot size={11} /> : <ShieldCheck size={11} />}
+              <span>{isAdvisorChat ? 'Doradca konta i rozmów' : `Rozmowa chroniona · ${activeProfile.city}`}</span>
             </div>
           </div>
-          {/* Przyciski akcji – zawsze widoczne */}
-          <div className="flex items-center gap-1 shrink-0">
-            <button
-              onClick={handleReport}
-              title="Zgłoś profil"
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs text-amber-600 hover:bg-amber-50 transition-colors font-medium"
-            >
-              <Flag size={13} />
-              <span className="hidden sm:inline">Zgłoś</span>
-            </button>
-            <button
-              onClick={handleBlock}
-              title="Zablokuj użytkownika"
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs text-orange-600 hover:bg-orange-50 transition-colors font-medium"
-            >
-              <Ban size={13} />
-              <span className="hidden sm:inline">Zablokuj</span>
-            </button>
-            <button
-              onClick={handleDelete}
-              title="Usuń rozmowę"
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs text-red-500 hover:bg-red-50 transition-colors font-medium"
-            >
-              <Trash2 size={13} />
-              <span className="hidden sm:inline">Usuń</span>
-            </button>
-          </div>
+          {/* Przyciski akcji – wyłącznie dla zwykłych rozmów */}
+          {!isAdvisorChat && (
+            <div className="flex items-center gap-1 shrink-0">
+              <button
+                onClick={handleReport}
+                title="Zgłoś profil"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs text-amber-600 hover:bg-amber-50 transition-colors font-medium"
+              >
+                <Flag size={13} />
+                <span className="hidden sm:inline">Zgłoś</span>
+              </button>
+              <button
+                onClick={handleBlock}
+                title="Zablokuj użytkownika"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs text-orange-600 hover:bg-orange-50 transition-colors font-medium"
+              >
+                <Ban size={13} />
+                <span className="hidden sm:inline">Zablokuj</span>
+              </button>
+              <button
+                onClick={handleDelete}
+                title="Usuń rozmowę"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs text-red-500 hover:bg-red-50 transition-colors font-medium"
+              >
+                <Trash2 size={13} />
+                <span className="hidden sm:inline">Usuń</span>
+              </button>
+            </div>
+          )}
         </div>
 
-        {/* TalkJS Chat */}
+        {/* Obszar rozmowy */}
         {activeProfile ? (
-          <TalkJSChat
-            currentUserId={MY_PROFILE_ID}
-            otherUserId={activeProfile.id}
-            otherUserName={activeProfile.name}
-            otherUserImage={activeProfile.image}
-          />
+          isAdvisorChat ? (
+            <AdvisorChatPanel
+              messages={advisorMessages}
+              input={advisorInput}
+              onInputChange={setAdvisorInput}
+              onSend={sendAdvisorMessage}
+              tokens={tokens}
+              isPremium={isPremium}
+            />
+          ) : (
+            <TalkJSChat
+              currentUserId={MY_PROFILE_ID}
+              otherUserId={activeProfile.id}
+              otherUserName={activeProfile.name}
+              otherUserImage={activeProfile.image}
+            />
+          )
         ) : (
           <div className="flex-1 overflow-y-auto bg-[#FDFCF9] px-4 py-4 flex items-center justify-center">
             <p className="text-slate-400 text-sm">Wybierz rozmowę aby zacząć czat</p>

@@ -8,140 +8,87 @@ POLITYKA PRYWATNOŚCI SERWISU FINDLOOVE.PL
 
 Ostatnia aktualizacja: 8 marca 2026
 
-I. WSTĘP
+Prywatność użytkowników jest dla nas priorytetem. Niniejsza Polityka Prywatności wyjaśnia, w jaki sposób zbieramy, wykorzystujemy, udostępniamy i chronimy Twoje dane osobowe podczas korzystania z serwisu randkowego FindLooove.pl (dalej: „Serwis").
 
-FindLooove.pl (dalej: "My", "Nasz" lub "FindLooove") poważnie traktuje Twoją prywatność. Niniejsza Polityka Prywatności wyjaśnia, jak zbieramy, wykorzystujemy i chronimy Twoje dane osobowe.
+I. ADMINISTRATOR DANYCH OSOBOWYCH
 
-II. ADMINISTRATOR DANYCH
+Administratorem Twoich danych osobowych jest właściciel serwisu FindLooove.pl. We wszystkich sprawach związanych z przetwarzaniem danych osobowych oraz realizacją Twoich praw możesz skontaktować się z nami drogą elektroniczną pod adresem e-mail: support@findloove.pl.
 
-Administrator danych: FindLooove.pl
-Adres biura: Warszawa, Polska
-Email: privacy@findloove.pl
+II. JAKIE DANE ZBIERAMY?
 
-III. DANE, KTÓRE ZBIERAMY
+Podczas korzystania z Serwisu gromadzimy następujące kategorie danych:
 
-A. Dane zbierane podczas rejestracji:
-- Imię i wiek
-- Adres e-mail
-- Numer telefonu (opcjonalnie)
-- Płeć i orientacja seksualna
-- Miasto zamieszkania
-- Zawód
-- Znaki zodiaku
-- Preferencje dotyczące relation (palenie, alkohol, dzieci)
-- Zainteresowania i hobby
+Dane podawane podczas rejestracji: adres e-mail, hasło (w formie zaszyfrowanej), data urodzenia (w celu weryfikacji pełnoletności), płeć oraz preferencje randkowe.
 
-B. Dane pobierane automatycznie:
-- Zdjęcia profilu
-- Historia wiadomości i konwersacji
-- Adres IP
-- Informacje o przeglądarce
-- Dane o geolokalizacji (jeśli wyrażysz zgodę)
-- Informacje o urządzeniu
-- Cookies i podobne technologie śledzące
+Dane profilowe: imię lub pseudonim, zdjęcia twarzy, opis profilu oraz inne informacje, którymi dobrowolnie dzielisz się w swoim profilu.
 
-C. Dane biometryczne:
-- Zdjęcia twarzy (do weryfikacji)
-- Dane z weryfikacji twarzy (analiza biometryczna)
+Dane komunikacyjne: treść wiadomości wysyłanych do innych użytkowników za pośrednictwem wbudowanego czatu (przetwarzane wyłącznie w celach technicznych i bezpieczeństwa).
 
-IV. CEL WYKORZYSTANIA DANYCH
+Dane transakcyjne: historia zakupów wirtualnej waluty („Serduszek"). Nie przechowujemy pełnych danych kart płatniczych – płatności obsługiwane są przez zewnętrznych, certyfikowanych operatorów płatności.
 
-Twoje dane wykorzystujemy do:
-1. Świadczenia usług FindLooove (matching, chat, profil)
-2. Weryfikacji Twojej tożsamości
-3. Zapobiegania oszustwom i nadużyciom
-4. Komunikacji z Tobą (support, aktualizacje)
-5. Personalnego dopasowania profili
-6. Analizy i poprawy jakości serwisu
-7. Marketingu i promocji (jeśli wyrażysz zgodę)
-8. Compliance z prawem
+Dane biometryczne (opcjonalnie): wyłącznie w przypadku wyrażenia przez Ciebie dobrowolnej, wyraźnej zgody na weryfikację autentyczności profilu za pomocą skanu twarzy.
 
-V. PODSTAWA PRAWNA PRZETWARZANIA
+Dane techniczne i eksploatacyjne: adres IP, typ przeglądarki, rodzaj urządzenia, logi systemowe oraz informacje o Twojej aktywności w Serwisie, zbierane m.in. za pomocą plików cookies.
 
-Przetwarzamy Twoje dane na podstawie:
-- Wyrażonej przez Ciebie zgody
-- Zawarcia i wykonania umowy (regulamin)
-- Obowiązków prawnych
-- Naszych uzasadnionych interesów
+III. CELE I PODSTAWY PRAWNE PRZETWARZANIA
 
-VI. UDOSTĘPNIANIE DANYCH
+Twoje dane przetwarzamy w następujących celach:
 
-Twoje dane mogą być udostępniane:
-- Dostawcom usług (hosting, płatności, analityka)
-- Służbom publicznym (jeśli wymagane przez prawo)
-- Innym użytkownikom FindLooove (tylko informacje z Twojego profilu)
+Świadczenie usług i realizacja umowy (art. 6 ust. 1 lit. b RODO) – założenie i utrzymanie konta, obsługa czatu, realizacja transakcji zakupu „Serduszek".
 
-Nie sprzedajemy danych osobowych stronom trzecim w celach marketingowych.
+Zapewnienie bezpieczeństwa i przeciwdziałanie oszustwom (art. 6 ust. 1 lit. f RODO) – moderacja treści, blokowanie fałszywych kont, weryfikacja podejrzanej aktywności.
 
-VII. BEZPIECZEŃSTWO DANYCH
+Weryfikacja tożsamości z użyciem biometrii (art. 9 ust. 2 lit. a RODO) – wyłącznie na podstawie Twojej dobrowolnej zgody.
 
-Chronimy Twoje dane poprzez:
-- Szyfrowanie SSL/TLS
-- Bezpieczne serwery
-- Ograniczony dostęp pracowników
-- Regularne audyty bezpieczeństwa
-- Backup i odzyskiwanie danych
+Rozpatrywanie reklamacji i wsparcie użytkownika (art. 6 ust. 1 lit. b i f RODO) – odpowiadanie na Twoje zgłoszenia wysyłane na adres support.
 
-Jednak żadne bezpieczeństwo nie jest niezawodne w 100%.
+Wypełnienie obowiązków prawnych (art. 6 ust. 1 lit. c RODO) – przechowywanie dokumentacji księgowej dla celów podatkowych.
 
-VIII. PRAWA UŻYTKOWNIKA
+IV. KOMU UDOSTĘPNIAMY TWOJE DANE?
 
-Masz prawo do:
-1. Dostępu do swoich danych osobowych
-2. Sprostowania danych
-3. Usunięcia danych ("prawo do bycia zapomnianym")
-4. Ograniczenia przetwarzania
-5. Przenoszenia danych
-6. Wycofania zgody
-7. Wzniesienia sprzeciwu
+Zapewniamy, że nie sprzedajemy Twoich danych osobowych. Mogą one zostać przekazane wyłącznie:
 
-Aby skorzystać z tych praw, skontaktuj się z: privacy@findloove.pl
+Zaufanym podmiotom przetwarzającym dane na nasze zlecenie (np. dostawcom hostingu, operatorom płatności, dostawcom usług e-mail), z którymi zawarliśmy odpowiednie umowy powierzenia przetwarzania danych.
 
-IX. PRZECHOWYWANIE DANYCH
+Uprawnionym organom państwowym (np. policji, prokuraturze), jeśli wymaga tego od nas obowiązujące prawo lub jest to niezbędne do wykrycia przestępstwa.
 
-- Dane aktywnego profilu: przechowywane tak długo jak konto jest aktywne
-- Dane archiwalny profilu: przechowywane przez max. 2 lata
-- Logi i cookies: przechowywane przez max. 1 rok
-- Po usunięciu konta: całkowite usunięcie w ciągu 30 dni
+Innym użytkownikom Serwisu – w zakresie danych, które dobrowolnie upubliczniasz na swoim profilu randkowym.
 
-X. COOKIES I TECHNOLOGIE ŚLEDZĄCE
+V. JAK DŁUGO PRZECHOWUJEMY DANE?
 
-Używamy:
-- Cookies sesyjnych (do zalogowania)
-- Cookies trwałych (do zapamiętania preferencji)
-- Pikseli śledzących (do analityki)
-- Local Storage (do offline support)
+Dane profilowe i dane konta przechowujemy przez okres posiadania przez Ciebie aktywnego konta w Serwisie.
 
-Możesz zarządzać cookies w ustawieniach przeglądarki.
+Po usunięciu konta Twoje dane są trwale usuwane w terminie do 30 dni, z wyjątkiem informacji, które musimy zachować dłużej ze względów prawnych (np. historia transakcji finansowych jest przechowywana przez 5 lat w celach podatkowych).
 
-XI. DANE DZIECI
+Dane biometryczne (jeśli wyraziłeś zgodę na weryfikację) są usuwane natychmiast po pomyślnym zakończeniu procesu weryfikacji zdjęcia.
 
-FindLooove jest dostępny tylko dla osób powyżej 18 lat. Nie zbieramy intencjonalnie danych od osób poniżej 18 lat. Jeśli się dowiedziemy, że dziecko korzysta z serwisu, natychmiast usuniemy jego konto.
+VI. TWOJE PRAWA (RODO)
 
-XII. ZMIANY POLITYKI PRYWATNOŚCI
+W związku z przetwarzaniem Twoich danych osobowych przysługują Ci następujące prawa:
 
-Możemy zmienić tę politykę. Powiadomimy Cię o znaczących zmianach emailem.
+Prawo dostępu do swoich danych oraz otrzymania ich kopii.
 
-XIII. KONTAKT
+Prawo do sprostowania (poprawiania) swoich danych, jeśli są błędne lub nieaktualne.
 
-Pytania dotyczące prywatności?
-Email: privacy@findloove.pl
-Telefon: +48 22 XXX XX XX
-Godziny: Pn-Pt 9:00-17:00
+Prawo do usunięcia danych („prawo do bycia zapomnianym"), np. poprzez samodzielne usunięcie konta w ustawieniach.
 
-XIV. SKARGI
+Prawo do ograniczenia przetwarzania danych.
 
-Jeśli uważasz, że naruszamy Twoją prywatność, możesz wnieść skargę do:
+Prawo do przenoszenia danych w powszechnie używanym formacie.
 
-Prezesa Urzędu Ochrony Danych Osobowych (UODO)
-ul. Stawki 2
-00-193 Warszawa
-www.uodo.gov.pl
+Prawo do wniesienia sprzeciwu wobec przetwarzania danych na podstawie naszego prawnie uzasadnionego interesu.
 
-XV. INNE INFORMACJE
+Prawo do cofnięcia zgody w dowolnym momencie (np. na weryfikację biometryczną), co nie wpływa na zgodność z prawem przetwarzania dokonanego przed jej cofnięciem.
 
-- Serwis FindLooove korzysta z Supabase do przechowywania danych
-- Serwis wykorzystuje TalkJS do obsługi wiadomości
-- Weryfikacja twarzy przetwarzana jest lokalnie w przeglądarce
-- Nie prowadzimy śledzenia trzecich stron
+Prawo wniesienia skargi do organu nadzorczego (w Polsce jest to Prezes Urzędu Ochrony Danych Osobowych – PUODO).
+
+VII. PLIKI COOKIES I TECHNOLOGIE ŚLEDZĄCE
+
+Serwis korzysta z plików cookies (ciasteczek) w celu zapewnienia prawidłowego działania strony, zapamiętywania Twoich sesji logowania oraz w celach analitycznych.
+
+Możesz zarządzać ustawieniami plików cookies z poziomu swojej przeglądarki internetowej. Zablokowanie niezbędnych plików cookies może uniemożliwić prawidłowe korzystanie z Serwisu.
+
+VIII. ZMIANY W POLITYCE PRYWATNOŚCI
+
+Zastrzegamy sobie prawo do aktualizacji niniejszej Polityki Prywatności w przypadku zmian w prawie lub nowych funkcjonalności Serwisu. O wszelkich istotnych zmianach poinformujemy Cię drogą mailową oraz poprzez komunikat w Serwisie z odpowiednim wyprzedzeniem.
 `;
