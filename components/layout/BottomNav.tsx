@@ -1,6 +1,6 @@
 'use client';
 
-import { Heart, Home, MessageCircle, ShieldCheck, HeartHandshake, User } from 'lucide-react';
+import { Heart, Home, MessageCircle, HeartHandshake, User, Search } from 'lucide-react';
 import { AppView, ViewType } from '@/lib/types';
 
 interface BottomNavProps {
@@ -12,9 +12,9 @@ interface BottomNavProps {
 const NAV_ITEMS: { id: ViewType | 'myprofile'; icon: React.ReactNode; label: string }[] = [
   { id: 'home', icon: <Home size={20} />, label: 'Start' },
   { id: 'discover', icon: <HeartHandshake size={22} />, label: 'Randki' },
+  { id: 'search', icon: <Search size={20} />, label: 'Szukaj' },
   { id: 'messages', icon: <MessageCircle size={22} />, label: 'Poczta' },
   { id: 'likes', icon: <Heart size={20} />, label: 'Lubię' },
-  { id: 'safety', icon: <ShieldCheck size={22} />, label: 'Tarcza' },
   { id: 'myprofile', icon: <User size={20} />, label: 'Profil' },
 ];
 
@@ -34,7 +34,10 @@ export default function BottomNav({ currentView, onNavigate, isLoggedIn = false 
             return (
           <button
             key={item.id}
-            onClick={() => onNavigate(item.id)}
+            onClick={() => {
+              const targetView: ViewType | 'myprofile' = !isLoggedIn && item.id === 'myprofile' ? 'auth' : item.id;
+              onNavigate(targetView);
+            }}
             className={`flex flex-col items-center gap-0.5 cursor-pointer transition-all px-1.5 py-1 rounded-xl active:scale-95 min-w-[44px] md:min-w-[52px] touch-manipulation ${
               isSpeedDating
                 ? active

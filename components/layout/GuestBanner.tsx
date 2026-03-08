@@ -17,35 +17,34 @@ export default function GuestBanner({ onRegister, clickCount, maxClicks }: Guest
   const remaining = maxClicks - clickCount;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-40 animate-in slide-in-from-bottom duration-500">
-      <div className="bg-gradient-to-r from-rose-600 via-rose-500 to-pink-500 text-white shadow-2xl">
-        <div className="max-w-6xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between gap-4">
+    <div className="fixed bottom-[58px] md:bottom-0 left-0 right-0 z-40 px-2 pb-2 md:px-0 md:pb-0 animate-in slide-in-from-bottom duration-500">
+      <div className="bg-gradient-to-r from-rose-600 via-rose-500 to-pink-500 text-white shadow-2xl rounded-xl md:rounded-none border border-white/20 md:border-0">
+        <div className="max-w-6xl mx-auto px-3 md:px-4 py-2.5 md:py-4">
+          <div className="flex items-center gap-2 md:gap-4">
             {/* Close button */}
             <button
               onClick={() => setIsVisible(false)}
-              className="text-white/80 hover:text-white transition-colors shrink-0"
+              className="text-white/80 hover:text-white transition-colors shrink-0 p-1 md:p-0"
+              aria-label="Zamknij baner"
             >
-              <X size={20} />
+              <X size={18} className="md:w-5 md:h-5" />
             </button>
 
             {/* Content */}
-            <div className="flex flex-col md:flex-row items-center gap-3 flex-1 text-center md:text-left">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-white/20 backdrop-blur rounded-xl flex items-center justify-center shrink-0">
-                  <Heart size={24} fill="white" />
-                </div>
-                <div>
-                  <p className="font-bold text-lg leading-tight">
-                    Załóż darmowe konto już dziś!
-                  </p>
-                  <p className="text-white/90 text-sm">
-                    {remaining > 0 
-                      ? `Jeszcze ${remaining} ${remaining === 1 ? 'kliknięcie' : 'kliknięcia'} do limitu`
-                      : 'Poznaj wszystkie profile bez ograniczeń'
-                    }
-                  </p>
-                </div>
+            <div className="flex items-center gap-2 md:gap-3 flex-1 min-w-0">
+              <div className="w-9 h-9 md:w-12 md:h-12 bg-white/20 backdrop-blur rounded-lg md:rounded-xl flex items-center justify-center shrink-0">
+                <Heart size={18} className="md:w-6 md:h-6" fill="white" />
+              </div>
+              <div className="min-w-0 text-left">
+                <p className="font-bold text-sm md:text-lg leading-tight truncate">
+                  Załóż darmowe konto już dziś!
+                </p>
+                <p className="text-white/90 text-[11px] md:text-sm leading-tight truncate">
+                  {remaining > 0
+                    ? `Pozostało ${remaining} ${remaining === 1 ? 'kliknięcie' : 'kliknięcia'} do limitu`
+                    : 'Poznaj wszystkie profile bez limitu'
+                  }
+                </p>
               </div>
 
               {/* Stats */}
@@ -65,10 +64,11 @@ export default function GuestBanner({ onRegister, clickCount, maxClicks }: Guest
             {/* CTA Button */}
             <button
               onClick={onRegister}
-              className="bg-white text-rose-600 px-6 py-3 rounded-xl font-bold hover:bg-rose-50 transition-all shadow-lg flex items-center gap-2 whitespace-nowrap shrink-0 group"
+              className="bg-white text-rose-600 px-3 md:px-6 py-2 md:py-3 rounded-lg md:rounded-xl font-bold text-xs md:text-base hover:bg-rose-50 transition-all shadow-lg flex items-center gap-1.5 md:gap-2 whitespace-nowrap shrink-0 group"
             >
-              <Sparkles size={18} className="group-hover:rotate-12 transition-transform" />
-              Dołącz za darmo
+              <Sparkles size={14} className="md:w-[18px] md:h-[18px] group-hover:rotate-12 transition-transform" />
+              <span className="md:hidden">Dołącz</span>
+              <span className="hidden md:inline">Dołącz za darmo</span>
             </button>
           </div>
         </div>
