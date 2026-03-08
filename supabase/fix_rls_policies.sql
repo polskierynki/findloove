@@ -2,19 +2,22 @@
 -- Problem: Brakuje polityki UPDATE, co uniemożliwia edycję profilu
 
 -- Dodaj brakującą politykę UPDATE
-create policy if not exists "Users can update own profile"
+drop policy if exists "Users can update own profile" on public.profiles;
+create policy "Users can update own profile"
   on public.profiles
   for update
   using (auth.uid() = id);
 
 -- Dodaj politykę DELETE (opcjonalnie, dla kompletności)
-create policy if not exists "Users can delete own profile"
+drop policy if exists "Users can delete own profile" on public.profiles;
+create policy "Users can delete own profile"
   on public.profiles
   for delete
   using (auth.uid() = id);
 
 -- Upewnij się że polityka INSERT pozwala użytkownikom tworzyć własne profile
 drop policy if exists "Public insert profiles" on public.profiles;
+drop policy if exists "Users can insert own profile" on public.profiles;
 create policy "Users can insert own profile"
   on public.profiles
   for insert
