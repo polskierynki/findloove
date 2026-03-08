@@ -1068,8 +1068,8 @@ export default function RegisterView({ onBack, onComplete }: RegisterViewProps) 
                   <p className="flex items-center gap-1.5"><User size={14} className="text-slate-500" /> <strong>{name}</strong>, {age} lat, {city}</p>
                   {orientation && <p className="flex items-center gap-1.5"><Search size={14} className="text-slate-500" /> {ORIENTATION_OPTIONS[gender]?.find(o => o.id === orientation)?.label} (wiek {seekingAgeMin}–{seekingAgeMax} lat)</p>}
                   <p className="flex items-center gap-1.5"><Target size={14} className="text-rose-500" /> {lookingFor ? LOOKING_FOR_STATUS[lookingFor] : '—'}</p>
-                  <p className="flex items-center gap-1.5"><Briefcase size={14} className="text-slate-500" /> {occupation}</p>
-                  <p className="flex items-center gap-1.5"><Wind size={14} className="text-slate-500" /> {interests.slice(0, 4).join(', ')}{interests.length > 4 ? ` +${interests.length - 4}` : ''}</p>
+                  {occupation && <p className="flex items-center gap-1.5"><Briefcase size={14} className="text-slate-500" /> {occupation}</p>}
+                  {interests.length > 0 && <p className="flex items-center gap-1.5"><Wind size={14} className="text-slate-500" /> {interests.slice(0, 4).join(', ')}{interests.length > 4 ? ` +${interests.length - 4}` : ''}</p>}
                   {faceStatus === 'verified' && <p className="flex items-center gap-1.5"><ShieldCheck size={14} className="text-green-600" /> Twarz zweryfikowana</p>}
                 </div>
 
