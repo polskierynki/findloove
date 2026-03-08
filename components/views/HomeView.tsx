@@ -1,7 +1,9 @@
 'use client';
 
+import { useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
-import { Heart, MapPin, ShieldCheck, Eye, Star, ChevronRight, Sparkles, Search, Bolt, Lock } from 'lucide-react';
+import { Heart, MapPin, ShieldCheck, Eye, ChevronRight, Sparkles, Search, HeartHandshake, Lock, MessageCircle } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 import { Profile, ViewType, LookingForCategory, LOOKING_FOR_OPTIONS } from '@/lib/types';
 
 interface HomeViewProps {
@@ -10,6 +12,7 @@ interface HomeViewProps {
   onSelectProfile: (profile: Profile) => void;
   onSearchFor: (cat: LookingForCategory) => void;
   userName?: string;
+  isLoggedIn?: boolean;
   guestRestrictions?: {
     isRestricted: boolean;
     shouldBlurPhoto: (index: number, total: number) => boolean;
@@ -19,14 +22,38 @@ interface HomeViewProps {
 }
 
 const MATCH_SCORES = [94, 87, 91, 78];
+const WEEK_IN_MS = 7 * 24 * 60 * 60 * 1000;
 
-export default function HomeView({ profiles, onNavigate, onSelectProfile, onSearchFor, userName, guestRestrictions }: HomeViewProps) {
+interface HomeHeroStats {
+  newMatches: number;
+  newProfiles: number;
+  likesReceived: number;
+  messagesReceived: number;
+}
+
+function isRecent(dateLike?: string): boolean {
+  if (!dateLike) return false;
+  const ts = new Date(dateLike).getTime();
+  if (Number.isNaN(ts)) return false;
+  return Date.now() - ts <= WEEK_IN_MS;
+}
+
+export default function HomeView({ profiles, onNavigate, onSelectProfile, onSearchFor, userName, isLoggedIn, guestRestrictions }: HomeViewProps) {
   // Wyciągnij imię z userName (jeśli to email, weź przed @, jeśli imię, zostaw)
   let displayName = userName || '';
   if (displayName && displayName.includes('@')) {
     displayName = displayName.split('@')[0];
     displayName = displayName.charAt(0).toUpperCase() + displayName.slice(1);
   }
+
+  const [heroPhoto, setHeroPhoto] = useState<string | null>(null);
+  const [heroStats, setHeroStats] = useState<HomeHeroStats>({
+    newMatches: 0,
+    newProfiles: 0,
+    likesReceived: 0,
+    messagesReceived: 0,
+  });
+  const [heroLoading, setHeroLoading] = useState(false);
   
   // Limit profili dla gości
   const visibleLimit = guestRestrictions?.getVisibleProfilesLimit() || 999;
@@ -35,7 +62,118 @@ export default function HomeView({ profiles, onNavigate, onSelectProfile, onSear
   // Liczba profili do wyświetlenia
   const featuredProfiles = limitedProfiles.slice(0, 6); // Dopasowania dnia
   const nearbyProfiles = limitedProfiles.slice(6, 10); // Nowe w okolicy (max 4)
-  const newMatches = limitedProfiles.length;
+
+  const fallbackHeroStats = useMemo<HomeHeroStats>(() => {
+    return {
+      newMatches: Math.max(0, limitedProfiles.length - 1),
+      newProfiles: limitedProfiles.filter((profile) => isRecent(profile.createdAt)).length,
+      likesReceived: 0,
+      messagesReceived: 0,
+    };
+  }, [limitedProfiles]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadHeroData = async () => {
+      setHeroStats(fallbackHeroStats);
+
+      if (!isLoggedIn) {
+        setHeroPhoto(null);
+        return;
+      }
+
+      setHeroLoading(true);
+
+      const { data: authData } = await supabase.auth.getUser();
+      const user = authData.user;
+
+      if (!user) {
+        if (!cancelled) {
+          setHeroPhoto(null);
+          setHeroStats(fallbackHeroStats);
+          setHeroLoading(false);
+        }
+        return;
+      }
+
+      const userId = user.id;
+
+      const [likesReceivedResponse, messagesReceivedResponse, likesSentResponse, sentMessagesResponse, receivedMessagesResponse, profileResponse] = await Promise.all([
+        supabase
+          .from('likes')
+          .select('*', { count: 'exact', head: true })
+          .eq('to_profile_id', userId),
+        supabase
+          .from('messages')
+          .select('*', { count: 'exact', head: true })
+          .eq('to_profile_id', userId),
+        supabase
+          .from('likes')
+          .select('to_profile_id')
+          .eq('from_profile_id', userId),
+        supabase
+          .from('messages')
+          .select('to_profile_id')
+          .eq('from_profile_id', userId),
+        supabase
+          .from('messages')
+          .select('from_profile_id')
+          .eq('to_profile_id', userId),
+        supabase
+          .from('profiles')
+          .select('image_url')
+          .eq('id', userId)
+          .maybeSingle(),
+      ]);
+
+      const interactedProfileIds = new Set<string>();
+
+      (likesSentResponse.data || []).forEach((row: { to_profile_id: string | null }) => {
+        if (row.to_profile_id) interactedProfileIds.add(row.to_profile_id);
+      });
+
+      (sentMessagesResponse.data || []).forEach((row: { to_profile_id: string | null }) => {
+        if (row.to_profile_id) interactedProfileIds.add(row.to_profile_id);
+      });
+
+      (receivedMessagesResponse.data || []).forEach((row: { from_profile_id: string | null }) => {
+        if (row.from_profile_id) interactedProfileIds.add(row.from_profile_id);
+      });
+
+      const availableMatches = profiles.filter((profile) => profile.id !== userId && !interactedProfileIds.has(profile.id));
+      const newProfilesCount = profiles.filter((profile) => profile.id !== userId && isRecent(profile.createdAt)).length;
+
+      if (cancelled) return;
+
+      setHeroStats({
+        newMatches: availableMatches.length,
+        newProfiles: newProfilesCount,
+        likesReceived: likesReceivedResponse.count || 0,
+        messagesReceived: messagesReceivedResponse.count || 0,
+      });
+
+      const mappedPhoto = ((profileResponse.data as { image_url?: string } | null)?.image_url) || null;
+      setHeroPhoto(mappedPhoto);
+      setHeroLoading(false);
+    };
+
+    loadHeroData();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [fallbackHeroStats, isLoggedIn, profiles]);
+
+  const effectiveStats = heroStats;
+  const profileInitial = (displayName?.trim()?.charAt(0) || 'U').toUpperCase();
+  const likeTeaserExtra = Math.max(0, effectiveStats.likesReceived - 3);
+  const likesHeadline =
+    effectiveStats.likesReceived > 0
+      ? `${effectiveStats.likesReceived} ${effectiveStats.likesReceived === 1 ? 'osoba polubiła' : 'osób polubiło'} Twój profil! ❤️`
+      : isLoggedIn
+        ? 'Na razie brak nowych polubień'
+        : 'Zaloguj się i sprawdź, kto Cię polubił ❤️';
 
   return (
     <div className="space-y-10 animate-in fade-in duration-500 -mt-6">
@@ -45,37 +183,61 @@ export default function HomeView({ profiles, onNavigate, onSelectProfile, onSear
         <div className="absolute inset-0 opacity-10"
           style={{ backgroundImage: 'radial-gradient(circle at 30% 50%, white 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
         <div className="relative px-8 py-10 flex flex-col md:flex-row items-center gap-8">
-          <div className="shrink-0">
-            <div className="w-20 h-20 bg-white/20 backdrop-blur rounded-2xl flex items-center justify-center text-5xl shadow-lg">
-              👨‍💼
+          <div className="relative shrink-0">
+            <div className="absolute -inset-2 rounded-[1.75rem] bg-white/30 blur-md" />
+            <div className="relative h-24 w-24 rounded-[1.75rem] bg-gradient-to-br from-amber-300 via-white to-rose-200 p-[3px] shadow-2xl">
+              <div className="relative h-full w-full overflow-hidden rounded-[1.5rem] border border-white/70 bg-white/30 backdrop-blur">
+                {heroPhoto ? (
+                  <Image
+                    src={heroPhoto}
+                    alt="Twoje zdjęcie profilowe"
+                    fill
+                    sizes="96px"
+                    className="object-cover"
+                  />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-rose-500 to-orange-400 text-3xl font-extrabold text-white">
+                    {profileInitial}
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="absolute -bottom-2 -right-2 rounded-full border-2 border-white bg-emerald-500 p-1.5 text-white shadow-lg">
+              <ShieldCheck size={13} />
+            </div>
+            <div className="absolute -left-2 -top-2 rounded-full bg-white/85 p-1 text-rose-500 shadow-md">
+              <Sparkles size={11} />
             </div>
           </div>
           <div className="flex-1 text-white text-center md:text-left">
             {displayName ? (
               <p className="text-rose-100 font-medium mb-1">Dzień dobry{displayName ? `, ${displayName}` : ''} 👋</p>
             ) : null}
-            {newMatches > 0 ? (
-              <h2 className="text-3xl font-bold mb-4 leading-tight">Dziś czeka na Ciebie<br/>{newMatches} nowych dopasowań!</h2>
+            {effectiveStats.newMatches > 0 ? (
+              <h2 className="text-3xl font-bold mb-4 leading-tight">Dziś czeka na Ciebie<br/>{effectiveStats.newMatches} nowych dopasowań!</h2>
             ) : (
               <h2 className="text-3xl font-bold mb-4 leading-tight">Brak nowych dopasowań na dziś</h2>
             )}
             <div className="flex flex-wrap gap-3 justify-center md:justify-start">
               <button onClick={() => onNavigate('discover')}
                 className="bg-amber-400 text-amber-950 px-6 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-amber-300 transition-all shadow-lg border border-amber-300">
-                <Bolt size={18} /> Szybkie Randki
+                <HeartHandshake size={18} /> Szybkie Randki
               </button>
               <button onClick={() => onNavigate('search')}
                 className="bg-white/20 backdrop-blur text-white border border-white/30 px-6 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-white/30 transition-all">
                 <Search size={18} /> Szukaj profili
               </button>
             </div>
+            {heroLoading && isLoggedIn && (
+              <p className="mt-2 text-xs font-semibold text-rose-100/90">Aktualizuję Twoje statystyki...</p>
+            )}
           </div>
           {/* Statystyki */}
           <div className="flex md:flex-col gap-3 shrink-0">
             {[
-              { label: 'Wyświetlenia', value: '24', icon: <Eye size={14} /> },
-              { label: 'Polubienia', value: '8', icon: <Heart size={14} /> },
-              { label: 'Wiadomości', value: '3', icon: <Star size={14} /> },
+              { label: 'Nowe profile', value: effectiveStats.newProfiles, icon: <Eye size={14} /> },
+              { label: 'Polubienia', value: effectiveStats.likesReceived, icon: <Heart size={14} /> },
+              { label: 'Wiadomości', value: effectiveStats.messagesReceived, icon: <MessageCircle size={14} /> },
             ].map(s => (
               <div key={s.label} className="bg-white/20 backdrop-blur rounded-xl px-4 py-2 text-center text-white">
                 <div className="flex items-center justify-center gap-1 text-xl font-bold">{s.icon}{s.value}</div>
@@ -210,11 +372,11 @@ export default function HomeView({ profiles, onNavigate, onSelectProfile, onSear
             </div>
           ))}
           <div className="w-16 h-16 rounded-full bg-rose-500 border-3 border-white flex items-center justify-center shadow-md text-white font-bold text-sm">
-            +5
+            {likeTeaserExtra > 0 ? `+${likeTeaserExtra}` : <Heart size={16} />}
           </div>
         </div>
         <div className="flex-1 text-center md:text-left">
-          <h4 className="text-xl font-bold text-slate-800 mb-1">8 osób polubiło Twój profil! ❤️</h4>
+          <h4 className="text-xl font-bold text-slate-800 mb-1">{likesHeadline}</h4>
           <p className="text-slate-500 text-sm">Sprawdź kto jest zainteresowany i odpowiedz na ich zaproszenie</p>
         </div>
         <button onClick={() => onNavigate('likes')}

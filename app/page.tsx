@@ -377,6 +377,7 @@ export default function App() {
                 onSelectProfile={openProfile}
                 onSearchFor={searchFor}
                 userName={userName}
+                isLoggedIn={isLoggedIn}
                 guestRestrictions={guestRestrictions}
               />
             )}
