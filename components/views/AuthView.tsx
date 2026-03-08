@@ -44,7 +44,7 @@ export default function AuthView({ onBack, onNotify, onRegister }: AuthViewProps
   type OAuthProvider = 'google' | 'facebook' | 'apple';
   const handleSocial = async (provider: OAuthProvider) => {
     try {
-      const redirectTo = `${window.location.origin}/`;
+      const redirectTo = window.location.origin;
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider,
         options: { redirectTo, skipBrowserRedirect: true },
