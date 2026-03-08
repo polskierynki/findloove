@@ -168,7 +168,7 @@ export default function ResetPasswordPage() {
 
     setStep(2);
     setOtpCode('');
-    setMessage('Kod zostal wyslany. Sprawdz skrzynke e-mail i wpisz 6-cyfrowy kod.');
+    setMessage('Kod zostal wyslany. Sprawdz skrzynke e-mail i wpisz kod OTP.');
 
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
@@ -194,8 +194,8 @@ export default function ResetPasswordPage() {
       return;
     }
 
-    if (normalizedCode.length !== 6) {
-      setError('Kod OTP musi miec 6 cyfr.');
+    if (normalizedCode.length < 6 || normalizedCode.length > 8) {
+      setError('Nieprawidlowy kod OTP.');
       return;
     }
 
@@ -323,10 +323,10 @@ export default function ResetPasswordPage() {
               type="text"
               value={otpCode}
               onChange={(e) => setOtpCode(e.target.value.replace(/[^0-9]/g, ''))}
-              placeholder="Wpisz 6-cyfrowy kod"
+              placeholder="Wpisz kod OTP"
               inputMode="numeric"
               pattern="[0-9]*"
-              maxLength={6}
+              maxLength={8}
               required
               className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 px-4 text-center text-xl tracking-[0.35em] outline-none transition-all focus:border-rose-300 focus:ring-2 focus:ring-rose-100"
             />
