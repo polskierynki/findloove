@@ -30,7 +30,7 @@ export default function BottomNav({ currentView, onNavigate }: BottomNavProps) {
           <button
             key={item.id}
             onClick={() => onNavigate(item.id)}
-            className={`flex flex-col items-center gap-1 transition-all px-3 ${
+            className={`flex flex-col items-center gap-1 cursor-pointer transition-all px-3 ${
               isSpeedDating
                 ? active
                   ? 'text-amber-600 scale-105'

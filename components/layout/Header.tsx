@@ -32,7 +32,7 @@ export default function Header({ onAssistantClick, currentView, onNavigate, assi
     <header className="bg-white border-b border-slate-100 sticky top-0 z-50 shadow-sm">
       <div className="max-w-6xl mx-auto px-6 h-14 flex items-center gap-6">
         {/* Logo */}
-        <button onClick={() => onNavigate('home')} className="flex items-center gap-2 group shrink-0">
+        <button onClick={() => onNavigate('home')} className="flex items-center gap-2 group shrink-0 cursor-pointer">
           <Image
             src="/logo/logo.jpg"
             alt="findloove.pl"
@@ -51,12 +51,13 @@ export default function Header({ onAssistantClick, currentView, onNavigate, assi
               <button
                 key={item.id}
                 onClick={() => onNavigate(item.id)}
-                className={`relative group flex flex-col items-center justify-center px-2 h-14 w-12 transition-all border-b-2
+                className={`relative group flex flex-col items-center justify-center px-2 h-14 w-12 cursor-pointer transition-all border-b-2
                   ${active ? 'border-rose-500 text-rose-500 bg-rose-50' : 'border-transparent text-slate-500 hover:text-rose-500 hover:bg-rose-50/60'}`}
                 title={item.label}
               >
                 {item.icon}
-                <span className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-12 z-50 px-2 py-1 rounded-md bg-slate-800 text-white text-xs font-semibold opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap shadow-lg">
+                <span className="pointer-events-none absolute left-1/2 top-full z-50 mt-2 -translate-x-1/2 px-2 py-1 rounded-md bg-slate-800 text-white text-xs font-semibold opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap shadow-lg">
+                  <span className="absolute -top-1 left-1/2 h-2 w-2 -translate-x-1/2 rotate-45 bg-slate-800" aria-hidden="true" />
                   {item.label}
                 </span>
               </button>
@@ -75,7 +76,7 @@ export default function Header({ onAssistantClick, currentView, onNavigate, assi
                 </div>
                 <button
                   onClick={() => onNavigate('profile')}
-                  className="flex items-center gap-1.5 bg-slate-100 border border-slate-300 text-slate-700 px-2.5 py-1.5 rounded-lg text-sm font-semibold hover:bg-slate-200 transition-colors"
+                  className="flex items-center gap-1.5 bg-slate-100 border border-slate-300 text-slate-700 px-2.5 py-1.5 rounded-lg text-sm font-semibold hover:bg-slate-200 transition-colors cursor-pointer"
                   title="Mój profil"
                 >
                   <User size={16} />
@@ -83,7 +84,7 @@ export default function Header({ onAssistantClick, currentView, onNavigate, assi
                 </button>
                 <button
                   onClick={onAssistantClick}
-                  className={`flex items-center gap-1.5 bg-rose-50 border border-rose-200 text-rose-500 px-2.5 py-1.5 rounded-lg text-sm font-semibold hover:bg-rose-100 transition-colors ${assistantOpen ? 'bg-rose-500 text-white' : ''}`}
+                  className={`flex items-center gap-1.5 bg-rose-50 border border-rose-200 text-rose-500 px-2.5 py-1.5 rounded-lg text-sm font-semibold hover:bg-rose-100 transition-colors cursor-pointer ${assistantOpen ? 'bg-rose-500 text-white' : ''}`}
                   title="Asystent AI"
                 >
                   <Bot size={16} />
@@ -94,7 +95,7 @@ export default function Header({ onAssistantClick, currentView, onNavigate, assi
               {isAdmin && (
                 <button
                   onClick={() => onNavigate('admin')}
-                  className="flex items-center gap-1.5 bg-yellow-50 border border-yellow-200 text-yellow-700 px-2.5 py-1.5 rounded-lg text-sm font-semibold hover:bg-yellow-100 transition-colors"
+                  className="flex items-center gap-1.5 bg-yellow-50 border border-yellow-200 text-yellow-700 px-2.5 py-1.5 rounded-lg text-sm font-semibold hover:bg-yellow-100 transition-colors cursor-pointer"
                   title="Panel administratora"
                 >
                   <Crown size={16} />
@@ -104,7 +105,7 @@ export default function Header({ onAssistantClick, currentView, onNavigate, assi
               {/* Przycisk wylogowania */}
               <button
                 onClick={logout}
-                className="flex items-center gap-1.5 bg-slate-100 border border-slate-300 text-slate-700 px-2.5 py-1.5 rounded-lg text-sm font-semibold hover:bg-slate-200 transition-colors"
+                className="flex items-center gap-1.5 bg-slate-100 border border-slate-300 text-slate-700 px-2.5 py-1.5 rounded-lg text-sm font-semibold hover:bg-slate-200 transition-colors cursor-pointer"
                 title="Wyloguj się"
               >
                 <LogOut size={15} />
@@ -114,7 +115,7 @@ export default function Header({ onAssistantClick, currentView, onNavigate, assi
           ) : (
             <button
               onClick={() => onNavigate('auth')}
-              className="flex items-center gap-1.5 bg-rose-500 hover:bg-rose-600 text-white px-4 py-1.5 rounded-lg text-sm font-semibold shadow-sm transition-colors"
+              className="flex items-center gap-1.5 bg-rose-500 hover:bg-rose-600 text-white px-4 py-1.5 rounded-lg text-sm font-semibold shadow-sm transition-colors cursor-pointer"
               title="Zaloguj się"
             >
               <LogIn size={18} />
