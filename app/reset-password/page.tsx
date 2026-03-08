@@ -51,7 +51,8 @@ export default function ResetPasswordPage() {
 
         if (!isActive) return;
 
-        if (recoveryType === 'recovery' && session?.user) {
+        // If we have a valid session with a user, the recovery link was valid
+        if (session?.user) {
           setStatus('ready');
           setStatusMessage('Ustaw nowe hasło i zatwierdź zmianę.');
 

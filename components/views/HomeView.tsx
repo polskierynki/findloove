@@ -284,10 +284,10 @@ export default function HomeView({ profiles, onNavigate, onSelectProfile, onSear
           ) : (
             <div className="w-full max-w-4xl mx-auto text-white text-center md:text-left">
               <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur px-3 py-1.5 rounded-full text-xs font-semibold mb-3">
-                <ShieldCheck size={14} /> Społeczność 50+ z weryfikacją profili
+                <ShieldCheck size={14} /> Społeczność z weryfikacją profili
               </div>
               <h2 className="text-2xl md:text-4xl font-bold leading-tight mb-3">
-                Poznaj osoby 50+ z Twojej okolicy
+                Poznaj osoby z Twojej okolicy
               </h2>
               <p className="text-rose-100 text-sm md:text-base mb-5 md:mb-6 max-w-3xl">
                 Zobacz, kto jest online teraz, sprawdź najnowsze profile i dołącz za darmo.
