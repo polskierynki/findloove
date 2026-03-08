@@ -86,8 +86,10 @@ alter table public.profiles enable row level security;
 drop policy if exists "Public read profiles" on public.profiles;
 drop policy if exists "Authenticated insert profiles" on public.profiles;
 drop policy if exists "Authenticated update profiles" on public.profiles;
+drop policy if exists "Authenticated delete profiles" on public.profiles;
 drop policy if exists "Public insert profiles" on public.profiles;
 drop policy if exists "Public update profiles" on public.profiles;
+drop policy if exists "Public delete profiles" on public.profiles;
 
 -- Anyone can read profiles
 create policy "Public read profiles"
@@ -95,20 +97,27 @@ create policy "Public read profiles"
   for select
   using (true);
 
--- Authenticated users can insert their own profile
+-- Authenticated users can insert/upsert their own profile
 create policy "Authenticated insert profiles"
   on public.profiles
   for insert
   to authenticated
   with check (id = auth.uid());
 
--- Authenticated users can update their own profile
+-- Authenticated users can update their own profile (required for UPSERT)
 create policy "Authenticated update profiles"
   on public.profiles
   for update
   to authenticated
   using (id = auth.uid())
   with check (id = auth.uid());
+
+-- Authenticated users can delete their own profile
+create policy "Authenticated delete profiles"
+  on public.profiles
+  for delete
+  to authenticated
+  using (id = auth.uid());
 
 -- TABLE: public.profile_photos
 alter table public.profile_photos enable row level security;

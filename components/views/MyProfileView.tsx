@@ -89,7 +89,7 @@ export default function MyProfile() {
           console.error('Error fetching profile:', error);
         }
         
-        // Jeśli profil nie istnieje, utwórz pusty
+        // Jeśli profil nie istnieje (lub nie jest widoczny przez RLS), utwórz/zaktualizuj
         if (!prof && error?.code === 'PGRST116') {
           const newProfile = {
             id: user.id,
@@ -111,23 +111,28 @@ export default function MyProfile() {
             seeking_age_min: 18,
             seeking_age_max: 82,
           };
-          const { data: insertedProfile, error: insertError } = await supabase
+          
+          // Użyj UPSERT - jeśli profil istnieje, zaktualizuj go (napraw RLS)
+          const { data: upsertedProfile, error: upsertError } = await supabase
             .from('profiles')
-            .insert(newProfile)
+            .upsert(newProfile, { onConflict: 'id' })
             .select()
             .single();
           
-          if (insertError) {
-            console.error('Error creating profile:', insertError);
+          if (upsertError) {
+            console.error('=== ERROR UPSERTING PROFILE ===');
+            console.error('Error object:', upsertError);
+            console.error('User ID:', user.id);
+            console.error('User email:', user.email);
             alert(
-              `Nie udalo sie utworzyc profilu w bazie.\n\nSzczegoly: ${insertError.message}\n\nUpewnij sie, ze wykonales SQL: supabase/fix_photo_permissions_relaxed.sql`,
+              `Nie udalo sie utworzyc/zaktualizowac profilu.\n\nSzczegoly: ${upsertError.message}\n\nOtworz konsole (F12) aby zobaczyc wiecej szczegolow.\n\nUpewnij sie, ze wykonales SQL: supabase/fix_photo_permissions_relaxed.sql`,
             );
             setLoading(false);
             return;
           }
           
-          setProfile(insertedProfile || newProfile);
-          setForm(insertedProfile || newProfile);
+          setProfile(upsertedProfile || newProfile);
+          setForm(upsertedProfile || newProfile);
           setEdit(true); // Włącz tryb edycji dla nowego profilu
         } else {
           setProfile(prof);
