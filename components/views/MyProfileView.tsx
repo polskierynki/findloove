@@ -372,15 +372,15 @@ export default function MyProfile() {
         </div>
       ) : (
         <div className="space-y-2">
-          <div><b>Imię:</b> {profile?.name || <span className="text-slate-400 italic">Nie podano</span>}</div>
-          <div><b>Wiek:</b> {profile?.age || <span className="text-slate-400 italic">Nie podano</span>}</div>
+          <div><b>Imię:</b> {profile?.name ? profile.name : <span className="text-slate-400 italic">Nie podano</span>}</div>
+          <div><b>Wiek:</b> {profile?.age ? profile.age : <span className="text-slate-400 italic">Nie podano</span>}</div>
           <div><b>Płeć:</b> {profile?.gender ? GENDERS.find(g => g.id === profile.gender)?.label : <span className="text-slate-400 italic">Nie podano</span>}</div>
-          <div><b>Miasto:</b> {profile?.city || <span className="text-slate-400 italic">Nie podano</span>}</div>
-          <div><b>O sobie:</b> {profile?.bio || <span className="text-slate-400 italic">Nie podano</span>}</div>
-          <div><b>Zawód:</b> {profile?.occupation || <span className="text-slate-400 italic">Nie podano</span>}</div>
-          <div><b>Znak zodiaku:</b> {profile?.zodiac || <span className="text-slate-400 italic">Nie podano</span>}</div>
-          <div><b>Palenie:</b> {profile?.smoking || <span className="text-slate-400 italic">Nie podano</span>}</div>
-          <div><b>Dzieci:</b> {profile?.children || <span className="text-slate-400 italic">Nie podano</span>}</div>
+          <div><b>Miasto:</b> {profile?.city ? profile.city : <span className="text-slate-400 italic">Nie podano</span>}</div>
+          <div><b>O sobie:</b> {profile?.bio ? profile.bio : <span className="text-slate-400 italic">Nie podano</span>}</div>
+          <div><b>Zawód:</b> {profile?.occupation ? profile.occupation : <span className="text-slate-400 italic">Nie podano</span>}</div>
+          <div><b>Znak zodiaku:</b> {profile?.zodiac ? profile.zodiac : <span className="text-slate-400 italic">Nie podano</span>}</div>
+          <div><b>Palenie:</b> {profile?.smoking ? profile.smoking : <span className="text-slate-400 italic">Nie podano</span>}</div>
+          <div><b>Dzieci:</b> {profile?.children ? profile.children : <span className="text-slate-400 italic">Nie podano</span>}</div>
           <div><b>Zainteresowania:</b> {profile?.interests?.length > 0 ? profile.interests.join(', ') : <span className="text-slate-400 italic">Nie podano</span>}</div>
           <button onClick={() => setEdit(true)} className="bg-rose-500 text-white px-4 py-2 rounded mt-4 hover:bg-rose-600">Edytuj dane</button>
         </div>
