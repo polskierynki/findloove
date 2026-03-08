@@ -360,14 +360,14 @@ export default function ProfileDetailView({
 
       {/* Back */}
       <button onClick={onBack}
-        className="flex items-center gap-1.5 text-slate-500 font-semibold mb-4 hover:text-rose-500 transition-colors group">
-        <ChevronLeft size={20} className="group-hover:-translate-x-1 transition-transform" /> Wróć
+        className="flex items-center gap-1 md:gap-1.5 text-slate-500 font-semibold mb-3 md:mb-4 hover:text-rose-500 transition-colors group active:scale-95 touch-manipulation text-sm md:text-base">
+        <ChevronLeft size={18} className="md:w-5 md:h-5 group-hover:-translate-x-1 transition-transform" /> Wróć
       </button>
 
       {/* ── HERO PHOTO ── */}
       <div
-        className="relative rounded-3xl overflow-hidden mb-4 shadow-xl cursor-pointer group"
-        style={{ height: '420px' }}
+        className="relative rounded-2xl md:rounded-3xl overflow-hidden mb-3 md:mb-4 shadow-xl cursor-pointer group active:scale-[0.99] transition-transform"
+        style={{ height: window.innerWidth < 768 ? '380px' : '420px' }}
         onClick={() => openLightbox(0)}
       >
         <ProfileAvatar src={p.image} name={p.name} className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-500" />
@@ -595,7 +595,7 @@ export default function ProfileDetailView({
       </div>
 
       {/* ── CTA BUTTONS (sticky bottom) ── */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur border-t border-slate-100 px-6 py-4 flex gap-3 z-40 shadow-2xl">
+      <div className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur border-t border-slate-200 px-3 md:px-6 py-3 md:py-4 pb-safe flex gap-2 md:gap-3 z-40 shadow-2xl">
         <button 
           onClick={() => {
             if (guestRestrictions?.isRestricted && !guestRestrictions.canSendMessage()) {
@@ -604,8 +604,8 @@ export default function ProfileDetailView({
             }
             onMessage();
           }}
-          className="flex-1 bg-rose-500 text-white py-4 rounded-2xl text-base font-bold flex items-center justify-center gap-2 hover:bg-rose-600 transition-all shadow-lg shadow-rose-200 active:scale-95">
-          <MessageCircle size={20} /> Napisz wiadomość
+          className="flex-1 bg-rose-500 text-white py-3.5 md:py-4 rounded-xl md:rounded-2xl text-sm md:text-base font-bold flex items-center justify-center gap-1.5 md:gap-2 hover:bg-rose-600 transition-all shadow-lg shadow-rose-200 active:scale-95 touch-manipulation">
+          <MessageCircle size={18} className="md:w-5 md:h-5" /> <span className="hidden sm:inline">Napisz </span>wiadomość
         </button>
         <button 
           onClick={() => {
@@ -615,8 +615,8 @@ export default function ProfileDetailView({
             }
             onContactRequest(p.name);
           }}
-          className="flex-1 bg-white border-2 border-emerald-500 text-emerald-600 py-4 rounded-2xl text-base font-bold flex items-center justify-center gap-2 hover:bg-emerald-50 transition-all active:scale-95">
-          <Phone size={20} /> Poproś o numer
+          className="flex-1 bg-white border-2 border-emerald-500 text-emerald-600 py-3.5 md:py-4 rounded-xl md:rounded-2xl text-sm md:text-base font-bold flex items-center justify-center gap-1.5 md:gap-2 hover:bg-emerald-50 transition-all active:scale-95 touch-manipulation">
+          <Phone size={18} className="md:w-5 md:h-5" /> <span className="hidden sm:inline">Poproś o </span>numer
         </button>
       </div>
 
