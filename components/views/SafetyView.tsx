@@ -39,7 +39,7 @@ const TIPS = [
     icon: <Phone size={24} className="text-violet-500" />,
     bg: 'bg-violet-50 border-violet-100',
     title: 'Powiedz komuś bliskim',
-    text: 'Przed każdym spotkaniem poinformuj dziecko, wnuka lub przyjaciela: gdzie idziesz, z kim i o której wracasz. Wyślij im adres miejsca spotkania.',
+    text: 'Przed każdym spotkaniem poinformuj zaufaną osobę: gdzie idziesz, z kim i o której wracasz. Wyślij jej adres miejsca spotkania.',
   },
   {
     icon: <Eye size={24} className="text-slate-500" />,
@@ -98,7 +98,7 @@ export default function SafetyView({ onBack }: SafetyViewProps) {
           <h1 className="text-2xl font-bold">Twoje bezpieczeństwo jest dla nas priorytetem</h1>
         </div>
         <p className="text-emerald-50 text-sm leading-relaxed">
-          findloove.pl to miejsce dla dojrzałych, ufających siebie ludzi. Przeczytaj nasze zasady, by każda znajomość była przyjemna i spokojna.
+          findloove.pl to miejsce dla dorosłych osób, które chcą budować wartościowe relacje. Przeczytaj nasze zasady, by każda znajomość była przyjemna i spokojna.
         </p>
         <div className="flex gap-4 mt-5">
           <div className="bg-white/15 rounded-xl px-4 py-2 text-center">

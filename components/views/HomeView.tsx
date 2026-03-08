@@ -57,11 +57,11 @@ export default function HomeView({ profiles, onNavigate, onSelectProfile, onSear
   
   // Limit profili dla gości
   const visibleLimit = guestRestrictions?.getVisibleProfilesLimit() || 999;
-  const limitedProfiles = profiles.slice(0, visibleLimit);
+  const limitedProfiles = useMemo(() => profiles.slice(0, visibleLimit), [profiles, visibleLimit]);
   
   // Liczba profili do wyświetlenia
-  const featuredProfiles = limitedProfiles.slice(0, 6); // Dopasowania dnia
-  const nearbyProfiles = limitedProfiles.slice(6, 10); // Nowe w okolicy (max 4)
+  const featuredProfiles = useMemo(() => limitedProfiles.slice(0, 6), [limitedProfiles]); // Dopasowania dnia
+  const nearbyProfiles = useMemo(() => limitedProfiles.slice(6, 10), [limitedProfiles]); // Nowe w okolicy (max 4)
 
   const fallbackHeroStats = useMemo<HomeHeroStats>(() => {
     return {

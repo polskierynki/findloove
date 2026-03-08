@@ -643,7 +643,7 @@ export default function RegisterView({ onBack, onComplete }: RegisterViewProps) 
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2.5">👨‍👩‍👧 Dzieci / Wnuki</label>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2.5">👨‍👩‍👧‍👦 Dzieci / Rodzina</label>
                   <div className="grid grid-cols-2 gap-2">
                     {CHILDREN_OPTIONS.map(o => (
                       <button

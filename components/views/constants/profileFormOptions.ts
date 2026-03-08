@@ -29,20 +29,20 @@ export const ZODIAC_SIGNS = [
 ];
 
 export const OCCUPATION_OPTIONS = [
-  'Emeryt/ka', 'Rencista/ka', 'Nauczyciel/ka', 'Lekarz/ka', 'Inżynier/ka',
-  'Przedsiębiorca', 'Prawnik/czka', 'Urzędnik/czka', 'Ksiądz/Siostra', 'Artysta/ka',
+  'Nauczyciel/ka', 'Lekarz/ka', 'Inżynier/ka', 'Programista/ka', 'Przedsiębiorca',
+  'Prawnik/czka', 'Urzędnik/czka', 'Ksiądz/Siostra', 'Artysta/ka',
   'Muzyk', 'Rolnik/czka', 'Kierowca', 'Pielęgniarka/rz', 'Inne',
 ];
 
 export const SMOKING_OPTIONS = ['Niepalący/a', 'Okazyjnie', 'Palący/a'];
 
 export const CHILDREN_OPTIONS = [
-  'Bezdzietny/a', 'Mam dzieci', 'Mam dorosłe dzieci', 'Mam wnukata/ki',
+  'Bezdzietny/a', 'Mam dzieci', 'Mam dorosłe dzieci', 'Wolę nie odpowiadać',
 ];
 
 export const ALL_INTERESTS = [
   'Ogrodnictwo', 'Teatr', 'Literatura', 'Podróże', 'Muzyka', 'Gotowanie',
   'Taniec', 'Sport', 'Kino', 'Fotografia', 'Szachy', 'Historia', 'Kościół',
   'Wędkarstwo', 'Majsterkowanie', 'Rowerowanie', 'Spacery', 'Koty', 'Psy',
-  'Krzyżówki', 'Nordic Walking', 'Joga', 'Basen', 'Wnuki', 'Wolontariat',
+  'Krzyżówki', 'Nordic Walking', 'Joga', 'Basen', 'Rodzina', 'Wolontariat',
 ];

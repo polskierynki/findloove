@@ -25,7 +25,7 @@ const ALL_INTERESTS = [
 ];
 
 const SMOKING_OPTIONS = ['Dowolnie', 'Niepalący/a', 'Okazyjnie', 'Palący/a'];
-const CHILDREN_OPTIONS = ['Dowolnie', 'Bezdzietny/a', 'Mam dzieci', 'Mam wnuki'];
+const CHILDREN_OPTIONS = ['Dowolnie', 'Bezdzietny/a', 'Mam dzieci', 'Mam dorosłe dzieci'];
 const RADIUS_OPTIONS = [0, 20, 50, 100, 200] as const;
 type RadiusOption = typeof RADIUS_OPTIONS[number];
 
@@ -99,8 +99,8 @@ type SortOption = 'match' | 'age_asc' | 'age_desc' | 'name';
 
 export default function SearchView({ profiles, onSelectProfile, onBack, initialLookingFor, guestRestrictions }: SearchViewProps) {
   const [query, setQuery] = useState('');
-  const [ageMin, setAgeMin] = useState(55);
-  const [ageMax, setAgeMax] = useState(85);
+  const [ageMin, setAgeMin] = useState(25);
+  const [ageMax, setAgeMax] = useState(80);
   const [cityInput, setCityInput] = useState('');
   const [citySelected, setCitySelected] = useState('');
   const [radius, setRadius] = useState<RadiusOption>(0);

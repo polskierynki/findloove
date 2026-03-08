@@ -10,12 +10,12 @@ import {
   Clock3,
   ThumbsDown,
   ThumbsUp,
+  Bot,
   CheckCircle,
   MessageCircle,
-  Sparkles,
   Heart,
+  Sparkles,
   Send,
-  Bot,
   Loader2,
 } from 'lucide-react';
 
@@ -141,7 +141,7 @@ function useAssistant(chatMessages: SpeedMessage[], stage: SpeedStage) {
       suggestions: [
         'Czym się zajmujesz na co dzień?',
         'Co najbardziej lubisz w swojej pracy?',
-        'Czy jesteś już na emeryturze?',
+        'Jak wygląda Twój typowy dzień?',
       ],
     },
     {
@@ -153,9 +153,9 @@ function useAssistant(chatMessages: SpeedMessage[], stage: SpeedStage) {
       ],
     },
     {
-      keywords: ['rodzina', 'dzieci', 'wnuki'],
+      keywords: ['rodzina', 'dzieci', 'bliscy'],
       suggestions: [
-        'Czy masz dzieci lub wnuki?',
+        'Czy masz dzieci albo bliskich, z którymi często spędzasz czas?',
         'Jak spędzasz czas z rodziną?',
         'Co najbardziej lubisz w rodzinnych spotkaniach?',
       ],
@@ -331,12 +331,12 @@ export default function DiscoverView({
   
   // Generuj losowy profil bota za każdym razem
   const [botProfile] = useState<Profile>(() => {
-    const names = ['Basia', 'Krysia', 'Zosia', 'Jadzia', 'Halina', 'Stanisław', 'Józef', 'Henryk'];
+    const names = ['Alicja', 'Kasia', 'Natalia', 'Marta', 'Michał', 'Kamil', 'Paweł', 'Tomek'];
     const cities = ['Warszawa', 'Kraków', 'Gdańsk', 'Wrocław', 'Poznań', 'Łódź'];
     const randomName = names[Math.floor(Math.random() * names.length)];
-    const randomAge = 60 + Math.floor(Math.random() * 15);
+    const randomAge = 25 + Math.floor(Math.random() * 30);
     const randomCity = cities[Math.floor(Math.random() * cities.length)];
-    const isFemale = ['Basia', 'Krysia', 'Zosia', 'Jadzia', 'Halina'].includes(randomName);
+    const isFemale = ['Alicja', 'Kasia', 'Natalia', 'Marta'].includes(randomName);
     
     return {
       id: `bot-${Date.now()}`,
@@ -349,7 +349,7 @@ export default function DiscoverView({
       image: `https://ui-avatars.com/api/?name=${randomName}&background=f0abfc&color=831843&size=256`,
       isVerified: true,
       details: { 
-        occupation: 'Emeryt/ka', 
+        occupation: 'Specjalista/ka', 
         zodiac: ['Baran', 'Byk', 'Bliźnięta', 'Rak', 'Lew', 'Panna'][Math.floor(Math.random() * 6)],
         smoking: 'Niepalący/a', 
         children: 'Mam dorosłe dzieci' 
@@ -576,9 +576,9 @@ export default function DiscoverView({
     if (/książk|czytasz|czytać|literatur/i.test(userMsg)) return 'Uwielbiam czytać powieści obyczajowe.';
     if (/film|oglądasz|serial/i.test(userMsg)) return 'Ostatnio oglądałam świetny serial na Netflixie.';
     if (/podróż|wakacj|miejsce|miasto/i.test(userMsg)) return 'Chciałabym kiedyś pojechać do Włoch.';
-    if (/rodzina|dzieci|wnuki/i.test(userMsg)) return 'Rodzina jest dla mnie bardzo ważna.';
+    if (/rodzina|dzieci|bliscy/i.test(userMsg)) return 'Rodzina i bliscy są dla mnie bardzo ważni.';
     if (/sport|ćwiczysz|rower|basen|bieganie/i.test(userMsg)) return 'Staram się być aktywna, lubię spacery.';
-    if (/praca|zawód|firma/i.test(userMsg)) return 'Jestem już na emeryturze, ale lubię być zajęta.';
+    if (/praca|zawód|firma/i.test(userMsg)) return 'Lubię to, czym się zajmuję, i cenię równowagę między pracą a życiem.';
     if (/hobby|zainteresowania|pasja/i.test(userMsg)) return 'Moje hobby to ogród i książki.';
     if (/jedzenie|gotujesz|kuchnia|restauracja|obiad|smak/i.test(userMsg)) return 'Lubię gotować, szczególnie zupy.';
     if (/pogoda|słońce|deszcz|zima|lato/i.test(userMsg)) return 'Lubię lato, ale każda pora roku ma swój urok.';

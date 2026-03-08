@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { Heart, Mail, Phone, MapPin, Facebook, Twitter, Instagram } from 'lucide-react';
+import { Mail, Phone, MapPin } from 'lucide-react';
 import { ViewType } from '@/lib/types';
 
 interface FooterProps {
@@ -79,25 +79,8 @@ export default function Footer({ onNavigate }: FooterProps) {
         {/* ── Separacja ── */}
         <div className="border-t border-slate-700 py-8"></div>
 
-        {/* ── Dolna część: social + legal ── */}
+        {/* ── Dolna część: legal + copyright ── */}
         <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-          
-          {/* Social media */}
-          <div className="flex items-center gap-4">
-            <span className="text-xs text-slate-400 uppercase tracking-wider font-semibold">Obserwuj nas:</span>
-            <div className="flex gap-3">
-              <a href="#" className="bg-slate-800 hover:bg-rose-500 p-2 rounded-lg transition-colors text-slate-300 hover:text-white" title="Facebook">
-                <Facebook size={18} />
-              </a>
-              <a href="#" className="bg-slate-800 hover:bg-rose-500 p-2 rounded-lg transition-colors text-slate-300 hover:text-white" title="Twitter">
-                <Twitter size={18} />
-              </a>
-              <a href="#" className="bg-slate-800 hover:bg-rose-500 p-2 rounded-lg transition-colors text-slate-300 hover:text-white" title="Instagram">
-                <Instagram size={18} />
-              </a>
-            </div>
-          </div>
-
           {/* Legal links */}
           <div className="flex flex-wrap justify-center gap-6 text-xs text-slate-400">
             <button onClick={() => onNavigate?.('terms')} className="hover:text-rose-400 transition-colors cursor-pointer">Regulamin</button>
@@ -109,7 +92,7 @@ export default function Footer({ onNavigate }: FooterProps) {
           {/* Copyright */}
           <div className="text-xs text-slate-500 text-center md:text-right">
             <p>© {currentYear} findloove.pl. Wszelkie prawa zastrzeżone.</p>
-            <p className="mt-1">Zrobione z ❤️ dla siniorów</p>
+            <p className="mt-1">Zrobione z ❤️ dla osób szukających relacji</p>
           </div>
         </div>
 

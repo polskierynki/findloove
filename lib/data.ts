@@ -6,12 +6,12 @@ export const MOCK_PROFILES: Profile[] = [
     name: "Anna",
     age: 68,
     city: "Kraków",
-    bio: "Emerytowana nauczycielka biologii. Kocham spacery po ogrodzie botanicznym i dobrą herbatę przy książce. Szukam kogoś do wspólnych wyjść do teatru i rozmów o życiu.",
+    bio: "Nauczycielka biologii z wieloletnim doświadczeniem. Kocham spacery po ogrodzie botanicznym i dobrą herbatę przy książce. Szukam kogoś do wspólnych wyjść do teatru i rozmów o życiu.",
     interests: ["Ogrodnictwo", "Teatr", "Literatura", "Podróże"],
     status: "Szuka przyjaźni",
     image: "https://images.unsplash.com/photo-1566616213894-2d4e1baee5d8?auto=format&fit=crop&q=80&w=600",
     details: {
-      occupation: "Emerytka (Nauczycielka)",
+      occupation: "Nauczycielka biologii",
       zodiac: "Panna",
       smoking: "Niepaląca",
       children: "Mam dorosłe dzieci"
@@ -37,10 +37,10 @@ export const MOCK_PROFILES: Profile[] = [
     status: "Szuka miłości",
     image: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=600",
     details: {
-      occupation: "Inżynier na emeryturze",
+      occupation: "Inżynier",
       zodiac: "Byk",
       smoking: "Okazyjnie",
-      children: "Dziadek trójki wnucząt"
+      children: "Mam dorosłe dzieci"
     },
     isVerified: true,
     gender: 'M',
@@ -111,11 +111,11 @@ export const MOCK_PROFILES: Profile[] = [
     name: 'Halina',
     age: 63,
     city: 'Warszawa',
-    bio: 'Ciepła i rodzinna kobieta z pasją do gotowania i ogrodnictwa. Wychowałam troje dzieci, teraz delektuję się wnukami i wolnym czasem. Szukam spokojnego, dobrego mężczyzny do wspólnych wieczorów przy herbacie i długich spacerów.',
-    interests: ['Gotowanie', 'Ogrodnictwo', 'Wnuki', 'Spacery', 'Kościół'],
+    bio: 'Ciepła i rodzinna kobieta z pasją do gotowania i ogrodnictwa. Wychowałam troje dzieci, teraz cenię bliskość rodziny i wolny czas. Szukam spokojnego, dobrego mężczyzny do wspólnych wieczorów przy herbacie i długich spacerów.',
+    interests: ['Gotowanie', 'Ogrodnictwo', 'Rodzina', 'Spacery', 'Kościół'],
     status: 'Szuka miłości',
     image: 'https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?auto=format&fit=crop&q=80&w=600',
-    details: { occupation: 'Emerytka (Pielęgniarka)', zodiac: 'Byk', smoking: 'Niepaląca', children: 'Mam wnukata/ki' },
+    details: { occupation: 'Pielęgniarka', zodiac: 'Byk', smoking: 'Niepaląca', children: 'Mam dorosłe dzieci' },
     isVerified: true, gender: 'K', seeking_gender: 'M', seeking_age_min: 58, seeking_age_max: 75,
     photos: [
       'https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?auto=format&fit=crop&q=80&w=600',
@@ -131,7 +131,7 @@ export const MOCK_PROFILES: Profile[] = [
     interests: ['Literatura', 'Muzyka', 'Teatr', 'Kino', 'Fotografia'],
     status: 'Szuka przyjaźni',
     image: 'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?auto=format&fit=crop&q=80&w=600',
-    details: { occupation: 'Lekarz na emeryturze', zodiac: 'Panna', smoking: 'Niepaląca', children: 'Mam dorosłe dzieci' },
+    details: { occupation: 'Lekarz', zodiac: 'Panna', smoking: 'Niepaląca', children: 'Mam dorosłe dzieci' },
     isVerified: true, gender: 'K', seeking_gender: 'M', seeking_age_min: 63, seeking_age_max: 80,
     photos: [
       'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?auto=format&fit=crop&q=80&w=600',
@@ -147,7 +147,7 @@ export const MOCK_PROFILES: Profile[] = [
     interests: ['Taniec', 'Nordic Walking', 'Joga', 'Rowerowanie', 'Koty'],
     status: 'Szuka przygody',
     image: 'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?auto=format&fit=crop&q=80&w=600',
-    details: { occupation: 'Nauczycielka (emerytka)', zodiac: 'Waga', smoking: 'Okazyjnie', children: 'Bezdzietna' },
+    details: { occupation: 'Nauczycielka', zodiac: 'Waga', smoking: 'Okazyjnie', children: 'Bezdzietna' },
     isVerified: false, gender: 'K', seeking_gender: 'K', seeking_age_min: 55, seeking_age_max: 73,
     photos: [
       'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?auto=format&fit=crop&q=80&w=600',
@@ -180,7 +180,7 @@ export const MOCK_PROFILES: Profile[] = [
     interests: ['Majsterkowanie', 'Szachy', 'Wędkarstwo', 'Historia', 'Las'],
     status: 'Szuka miłości',
     image: 'https://images.unsplash.com/photo-1463453091185-61582044d556?auto=format&fit=crop&q=80&w=600',
-    details: { occupation: 'Inżynier na emeryturze', zodiac: 'Koziorożec', smoking: 'Niepalący', children: 'Mam dorosłe dzieci' },
+    details: { occupation: 'Inżynier', zodiac: 'Koziorożec', smoking: 'Niepalący', children: 'Mam dorosłe dzieci' },
     isVerified: true, gender: 'M', seeking_gender: 'K', seeking_age_min: 58, seeking_age_max: 72,
     photos: [
       'https://images.unsplash.com/photo-1463453091185-61582044d556?auto=format&fit=crop&q=80&w=600',
@@ -196,7 +196,7 @@ export const MOCK_PROFILES: Profile[] = [
     interests: ['Muzyka', 'Literatura', 'Spacery', 'Kościół', 'Szachy'],
     status: 'Szuka przyjaźni',
     image: 'https://images.unsplash.com/photo-1504257432389-52343af06ae3?auto=format&fit=crop&q=80&w=600',
-    details: { occupation: 'Muzyk (emeryt)', zodiac: 'Skorpion', smoking: 'Niepalący', children: 'Mam wnukata/ki' },
+    details: { occupation: 'Muzyk', zodiac: 'Skorpion', smoking: 'Niepalący', children: 'Mam dorosłe dzieci' },
     isVerified: true, gender: 'M', seeking_gender: 'K', seeking_age_min: 60, seeking_age_max: 78,
     photos: [
       'https://images.unsplash.com/photo-1504257432389-52343af06ae3?auto=format&fit=crop&q=80&w=600',
@@ -224,11 +224,11 @@ export const MOCK_PROFILES: Profile[] = [
     name: 'Henryk',
     age: 70,
     city: 'Gdańsk',
-    bio: 'Emerytowany kardiolog z miłością do historii i ogrodnictwa. Mój ogród to moje sanktuarium. Jestem człowiekiem spokojnym, uważnym i czułym. Szukam kobiety, która doceni ciszę, dobrą książkę i wspólne gotowanie.',
+    bio: 'Kardiolog z miłością do historii i ogrodnictwa. Mój ogród to moje sanktuarium. Jestem człowiekiem spokojnym, uważnym i czułym. Szukam kobiety, która doceni ciszę, dobrą książkę i wspólne gotowanie.',
     interests: ['Historia', 'Literatura', 'Ogrodnictwo', 'Gotowanie', 'Muzyka'],
     status: 'Szuka miłości',
     image: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=600',
-    details: { occupation: 'Lekarz na emeryturze', zodiac: 'Ryby', smoking: 'Niepalący', children: 'Mam dorosłe dzieci' },
+    details: { occupation: 'Lekarz', zodiac: 'Ryby', smoking: 'Niepalący', children: 'Mam dorosłe dzieci' },
     isVerified: true, gender: 'M', seeking_gender: 'K', seeking_age_min: 57, seeking_age_max: 72,
     photos: [
       'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=600',

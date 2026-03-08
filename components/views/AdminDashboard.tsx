@@ -105,6 +105,24 @@ function formatMoney(gross: number, currency = 'PLN'): string {
   }).format(amount);
 }
 
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timeoutId = setTimeout(() => {
+      reject(new Error(`${label} (timeout ${ms}ms)`));
+    }, ms);
+
+    promise
+      .then((value) => {
+        clearTimeout(timeoutId);
+        resolve(value);
+      })
+      .catch((error) => {
+        clearTimeout(timeoutId);
+        reject(error);
+      });
+  });
+}
+
 function isProfilePremium(profile: Profile): boolean {
   if (profile.isPremium) return true;
   if (!profile.premiumUntil) return false;
@@ -249,21 +267,25 @@ export default function AdminDashboard() {
         messages24hResponse,
         likes24hResponse,
         subscriptionsResponse,
-      ] = await Promise.all([
-        supabase.from('profiles').select('*').order('created_at', { ascending: false }),
-        supabase.from('admin_reports').select('*').order('created_at', { ascending: false }),
-        supabase
-          .from('messages')
-          .select('*', { count: 'exact', head: true })
-          .gte('created_at', dayAgoIso),
-        supabase.from('likes').select('*', { count: 'exact', head: true }).gte('created_at', dayAgoIso),
-        supabase
-          .from('subscriptions')
-          .select(
-            'id, profile_id, provider, plan_code, status, amount_gross, currency, current_period_start, current_period_end, updated_at',
-          )
-          .order('created_at', { ascending: false }),
-      ]);
+      ] = await withTimeout(
+        Promise.all([
+          supabase.from('profiles').select('*').order('created_at', { ascending: false }),
+          supabase.from('admin_reports').select('*').order('created_at', { ascending: false }),
+          supabase
+            .from('messages')
+            .select('*', { count: 'exact', head: true })
+            .gte('created_at', dayAgoIso),
+          supabase.from('likes').select('*', { count: 'exact', head: true }).gte('created_at', dayAgoIso),
+          supabase
+            .from('subscriptions')
+            .select(
+              'id, profile_id, provider, plan_code, status, amount_gross, currency, current_period_start, current_period_end, updated_at',
+            )
+            .order('created_at', { ascending: false }),
+        ]),
+        12000,
+        'Pobieranie danych panelu admina przekroczyło limit czasu',
+      );
 
       const fallbackProfiles = filterNonAdminProfiles(MOCK_PROFILES);
       const partialErrors: string[] = [];

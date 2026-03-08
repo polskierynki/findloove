@@ -17,6 +17,6 @@ if (!supabaseKey) {
 
 export const supabase = createClient(supabaseUrl, supabaseKey, {
 	auth: {
-		lock: processLock,
+		lock: typeof window === 'undefined' ? processLock : undefined,
 	},
 });
