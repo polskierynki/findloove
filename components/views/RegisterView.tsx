@@ -273,7 +273,7 @@ export default function RegisterView({ onBack, onComplete }: RegisterViewProps) 
         email,
         password,
         options: {
-          emailRedirectTo: typeof window !== 'undefined' ? window.location.origin : undefined,
+          emailRedirectTo: typeof window !== 'undefined' ? `${window.location.origin}/auth` : undefined,
         },
       });
 

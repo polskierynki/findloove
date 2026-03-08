@@ -1,64 +1,99 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { AlertTriangle, CheckCircle2, Eye, EyeOff, Loader2, Lock, ShieldCheck } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Eye, EyeOff, Loader2, Lock, Mail, ShieldCheck } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { sendPasswordResetOtp, setNewPassword as updateUserPassword, verifyOtpCode } from '@/lib/authService';
 
-type RecoveryStatus = 'checking' | 'ready' | 'invalid' | 'done';
+type ResetStep = 1 | 2 | 3 | 4;
+
+function decodeSupabaseErrorDescription(value: string | null): string {
+  if (!value) return '';
+  return decodeURIComponent(value.replace(/\+/g, ' '));
+}
 
 export default function ResetPasswordPage() {
   const router = useRouter();
-  const [status, setStatus] = useState<RecoveryStatus>('checking');
-  const [statusMessage, setStatusMessage] = useState('Weryfikuję link resetu hasła...');
-  const [newPassword, setNewPassword] = useState('');
+
+  const [step, setStep] = useState<ResetStep>(1);
+  const [email, setEmail] = useState('');
+  const [otpCode, setOtpCode] = useState('');
+  const [newPassword, setNewPasswordValue] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+
+  const [isLoading, setIsLoading] = useState(false);
+  const [isCheckingLink, setIsCheckingLink] = useState(false);
+  const [error, setError] = useState('');
+  const [message, setMessage] = useState('Podaj adres e-mail, aby otrzymać kod resetujący.');
+
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [submitError, setSubmitError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     let isActive = true;
 
-    const resolveRecoverySession = async () => {
+    const initializeFromUrl = async () => {
       if (typeof window === 'undefined') return;
 
       const searchParams = new URLSearchParams(window.location.search);
       const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+
+      const emailFromUrl = searchParams.get('email');
+      const sent = searchParams.get('sent');
+
+      if (emailFromUrl) {
+        setEmail(emailFromUrl);
+      }
+
+      if (sent === '1') {
+        setStep(2);
+        setMessage('Kod zostal wyslany. Sprawdz skrzynke e-mail i wpisz kod OTP.');
+      }
+
       const errorCode = hashParams.get('error_code') || searchParams.get('error_code');
-      const errorDescription = hashParams.get('error_description') || searchParams.get('error_description');
-      const recoveryType = hashParams.get('type') || searchParams.get('type');
+      const errorDescription =
+        hashParams.get('error_description') || searchParams.get('error_description');
       const code = searchParams.get('code');
       const accessToken = hashParams.get('access_token');
       const refreshToken = hashParams.get('refresh_token');
+      const hasRecoveryPayload = Boolean(
+        errorCode || code || (accessToken && refreshToken) || hashParams.get('type') === 'recovery',
+      );
 
-      // Check if Supabase returned an error
+      if (!hasRecoveryPayload) {
+        return;
+      }
+
       if (errorCode) {
         if (!isActive) return;
-        setStatus('invalid');
-        
-        if (errorCode === 'otp_expired') {
-          setStatusMessage('Link resetu hasła wygasł. Linki są ważne przez 1 godzinę. Poproś o nowy link.');
-        } else {
-          const decodedDescription = errorDescription ? decodeURIComponent(errorDescription.replace(/\+/g, ' ')) : '';
-          setStatusMessage(decodedDescription || 'Link resetu hasła jest nieprawidłowy. Poproś o nowy link.');
-        }
+        const decodedDescription = decodeSupabaseErrorDescription(errorDescription);
+        const errorMsg =
+          errorCode === 'otp_expired'
+            ? 'Link lub kod resetu wygasl. Wygeneruj nowy kod i sprobuj ponownie.'
+            : decodedDescription || 'Link resetu hasla jest nieprawidlowy.';
+
+        setError(errorMsg);
+        setMessage('Nie udalo sie zweryfikowac linku. Mozesz uzyc kodu OTP z e-maila.');
+        setStep(emailFromUrl ? 2 : 1);
         return;
       }
 
       try {
+        setIsCheckingLink(true);
+        setMessage('Weryfikuje link resetu hasla...');
+
         if (code) {
-          const { error } = await supabase.auth.exchangeCodeForSession(code);
-          if (error) throw error;
+          const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+          if (exchangeError) throw exchangeError;
         }
 
         if (!code && accessToken && refreshToken) {
-          const { error } = await supabase.auth.setSession({
+          const { error: sessionError } = await supabase.auth.setSession({
             access_token: accessToken,
             refresh_token: refreshToken,
           });
-          if (error) throw error;
+          if (sessionError) throw sessionError;
         }
 
         const {
@@ -67,80 +102,158 @@ export default function ResetPasswordPage() {
 
         if (!isActive) return;
 
-        // If we have a valid session with a user, the recovery link was valid
         if (session?.user) {
-          setStatus('ready');
-          setStatusMessage('Ustaw nowe hasło i zatwierdź zmianę.');
+          setError('');
+          setStep(3);
+          setMessage('Link zweryfikowany poprawnie. Ustaw nowe haslo.');
 
-          // Clean sensitive auth hash params from URL.
-          if (window.location.hash) {
-            const cleanUrl = `${window.location.pathname}${window.location.search}`;
-            window.history.replaceState(null, '', cleanUrl);
-          }
+          // Usun czułe parametry z URL.
+          const cleanParams = new URLSearchParams(window.location.search);
+          cleanParams.delete('code');
+          cleanParams.delete('type');
+          cleanParams.delete('error');
+          cleanParams.delete('error_code');
+          cleanParams.delete('error_description');
+          const nextQuery = cleanParams.toString();
+          const nextUrl = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ''}`;
+          window.history.replaceState(null, '', nextUrl);
           return;
         }
 
-        setStatus('invalid');
-        setStatusMessage('Link resetu hasła jest nieprawidłowy albo wygasł. Poproś o nowy link.');
-      } catch (error: any) {
+        setError('Link resetu hasla jest nieprawidlowy albo wygasl.');
+        setMessage('Wygeneruj nowy kod OTP i wpisz go recznie.');
+        setStep(emailFromUrl ? 2 : 1);
+      } catch (linkError: any) {
         if (!isActive) return;
-        setStatus('invalid');
-        setStatusMessage(error?.message || 'Nie udało się zweryfikować linku resetu hasła.');
+        setError(linkError?.message || 'Nie udalo sie zweryfikowac linku resetu hasla.');
+        setMessage('Wygeneruj nowy kod OTP i wpisz go recznie.');
+        setStep(emailFromUrl ? 2 : 1);
+      } finally {
+        if (!isActive) return;
+        setIsCheckingLink(false);
       }
     };
 
-    resolveRecoverySession();
-
-    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
-      if (!isActive) return;
-      if (event === 'PASSWORD_RECOVERY' || (event === 'SIGNED_IN' && session?.user)) {
-        setStatus('ready');
-        setStatusMessage('Ustaw nowe hasło i zatwierdź zmianę.');
-      }
-    });
+    initializeFromUrl();
 
     return () => {
       isActive = false;
-      listener.subscription.unsubscribe();
     };
   }, []);
 
-  const redirectToLogin = () => {
-    router.replace('/auth');
+  const canSubmitNewPassword = useMemo(() => {
+    return newPassword.length >= 6 && confirmPassword.length >= 6 && newPassword === confirmPassword;
+  }, [newPassword, confirmPassword]);
+
+  const handleRequestOtp = async (event: FormEvent) => {
+    event.preventDefault();
+    const normalizedEmail = email.trim().toLowerCase();
+
+    setError('');
+    setMessage('');
+
+    if (!normalizedEmail) {
+      setError('Podaj adres e-mail.');
+      return;
+    }
+
+    setIsLoading(true);
+    const result = await sendPasswordResetOtp(normalizedEmail);
+    setIsLoading(false);
+
+    if (!result.success) {
+      setError(result.error || 'Nie udalo sie wyslac kodu OTP.');
+      return;
+    }
+
+    setStep(2);
+    setOtpCode('');
+    setMessage('Kod zostal wyslany. Sprawdz skrzynke e-mail i wpisz 6-cyfrowy kod.');
+
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      params.set('email', normalizedEmail);
+      params.set('sent', '1');
+      const nextQuery = params.toString();
+      window.history.replaceState(null, '', `${window.location.pathname}?${nextQuery}`);
+    }
   };
 
-  const handleSubmit = async (event: React.FormEvent) => {
+  const handleVerifyOtp = async (event: FormEvent) => {
     event.preventDefault();
-    setSubmitError(null);
+
+    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedCode = otpCode.replace(/\s+/g, '');
+
+    setError('');
+    setMessage('');
+
+    if (!normalizedEmail) {
+      setError('Podaj adres e-mail.');
+      setStep(1);
+      return;
+    }
+
+    if (normalizedCode.length !== 6) {
+      setError('Kod OTP musi miec 6 cyfr.');
+      return;
+    }
+
+    setIsLoading(true);
+    const result = await verifyOtpCode(normalizedEmail, normalizedCode);
+    setIsLoading(false);
+
+    if (!result.success) {
+      setError('Nieprawidlowy lub wygasly kod. Sprobuj ponownie.');
+      return;
+    }
+
+    setStep(3);
+    setMessage('Kod zweryfikowany poprawnie. Mozesz ustawic nowe haslo.');
+
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      params.delete('sent');
+      const nextQuery = params.toString();
+      const nextUrl = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ''}`;
+      window.history.replaceState(null, '', nextUrl);
+    }
+  };
+
+  const handleUpdatePassword = async (event: FormEvent) => {
+    event.preventDefault();
+
+    setError('');
+    setMessage('');
 
     if (newPassword.length < 6) {
-      setSubmitError('Hasło musi mieć minimum 6 znaków.');
+      setError('Haslo musi miec minimum 6 znakow.');
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      setSubmitError('Hasła nie są identyczne.');
+      setError('Hasla nie sa identyczne.');
       return;
     }
 
-    setSubmitting(true);
+    setIsLoading(true);
+    const result = await updateUserPassword(newPassword);
 
-    const { error } = await supabase.auth.updateUser({ password: newPassword });
-
-    if (error) {
-      setSubmitting(false);
-      setSubmitError('Błąd zmiany hasła: ' + error.message);
+    if (!result.success) {
+      setIsLoading(false);
+      setError(result.error || 'Wystapil blad podczas zmiany hasla.');
       return;
     }
 
     await supabase.auth.signOut();
-    setSubmitting(false);
-    setStatus('done');
-    setStatusMessage('Hasło zostało zmienione. Przekierowuję do logowania...');
+
+    setIsLoading(false);
+    setStep(4);
+    setMessage('Twoje haslo zostalo pomyslnie zmienione. Za chwile przeniesiemy Cie do logowania.');
 
     window.setTimeout(() => {
       router.replace('/auth?reset=success');
-    }, 1200);
+    }, 1500);
   };
 
   return (
@@ -148,43 +261,107 @@ export default function ResetPasswordPage() {
       <div className="mx-auto w-full max-w-md rounded-2xl border border-rose-100 bg-white/95 p-6 md:p-7 shadow-xl">
         <div className="mb-5 flex items-center gap-2 text-rose-600">
           <ShieldCheck size={18} />
-          <span className="text-xs font-semibold uppercase tracking-wide">Bezpieczny reset hasła</span>
+          <span className="text-xs font-semibold uppercase tracking-wide">Bezpieczny reset hasla</span>
         </div>
 
-        <h1 className="mb-2 text-2xl font-bold text-slate-800">Ustaw nowe hasło</h1>
-        <p className="mb-6 text-sm text-slate-500">{statusMessage}</p>
+        <h1 className="mb-2 text-2xl font-bold text-slate-800">Resetowanie hasla</h1>
+        <p className="mb-6 text-sm text-slate-500">{message}</p>
 
-        {status === 'checking' && (
-          <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+        {isCheckingLink && (
+          <div className="mb-4 flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
             <Loader2 size={16} className="animate-spin" />
-            Trwa weryfikacja linku...
+            Trwa przetwarzanie...
           </div>
         )}
 
-        {status === 'invalid' && (
-          <div className="space-y-4">
-            <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-              <AlertTriangle size={16} className="mt-0.5 shrink-0" />
-              <span>Ten link resetu nie może zostać użyty. Wygeneruj nowy link w oknie logowania.</span>
+        {error && (
+          <div className="mb-4 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
+
+        {step === 1 && (
+          <form onSubmit={handleRequestOtp} className="space-y-4">
+            <div className="relative">
+              <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Adres e-mail"
+                required
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-10 pr-4 text-sm outline-none transition-all focus:border-rose-300 focus:ring-2 focus:ring-rose-100"
+              />
             </div>
+
             <button
-              onClick={redirectToLogin}
-              className="w-full rounded-xl bg-rose-500 py-3 font-semibold text-white transition-colors hover:bg-rose-600"
+              type="submit"
+              disabled={isLoading}
+              className="w-full rounded-xl bg-rose-500 py-3 font-semibold text-white transition-colors hover:bg-rose-600 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              Przejdź do logowania
+              {isLoading ? 'Wysylanie...' : 'Wyslij kod OTP'}
             </button>
-          </div>
+          </form>
         )}
 
-        {status === 'ready' && (
-          <form onSubmit={handleSubmit} className="space-y-4">
+        {step === 2 && (
+          <form onSubmit={handleVerifyOtp} className="space-y-4">
+            <div className="relative">
+              <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Adres e-mail"
+                required
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-10 pr-4 text-sm outline-none transition-all focus:border-rose-300 focus:ring-2 focus:ring-rose-100"
+              />
+            </div>
+
+            <input
+              type="text"
+              value={otpCode}
+              onChange={(e) => setOtpCode(e.target.value.replace(/[^0-9]/g, ''))}
+              placeholder="Wpisz 6-cyfrowy kod"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              maxLength={6}
+              required
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 px-4 text-center text-xl tracking-[0.35em] outline-none transition-all focus:border-rose-300 focus:ring-2 focus:ring-rose-100"
+            />
+
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="w-full rounded-xl bg-rose-500 py-3 font-semibold text-white transition-colors hover:bg-rose-600 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isLoading ? 'Sprawdzanie...' : 'Zweryfikuj kod'}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setStep(1);
+                setError('');
+                setMessage('Podaj adres e-mail, aby otrzymac nowy kod.');
+              }}
+              className="w-full rounded-xl border border-slate-200 bg-white py-3 font-semibold text-slate-700 transition-colors hover:bg-slate-50"
+            >
+              Wroc do wpisania e-maila
+            </button>
+          </form>
+        )}
+
+        {step === 3 && (
+          <form onSubmit={handleUpdatePassword} className="space-y-4">
             <div className="relative">
               <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
                 type={showPassword ? 'text' : 'password'}
                 value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="Nowe hasło"
+                onChange={(e) => setNewPasswordValue(e.target.value)}
+                placeholder="Nowe haslo"
                 minLength={6}
                 required
                 className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-10 pr-10 text-sm outline-none transition-all focus:border-rose-300 focus:ring-2 focus:ring-rose-100"
@@ -193,7 +370,7 @@ export default function ResetPasswordPage() {
                 type="button"
                 onClick={() => setShowPassword((prev) => !prev)}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                aria-label="Pokaż/ukryj hasło"
+                aria-label="Pokaz/ukryj haslo"
               >
                 {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
@@ -205,7 +382,7 @@ export default function ResetPasswordPage() {
                 type={showConfirmPassword ? 'text' : 'password'}
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="Powtórz nowe hasło"
+                placeholder="Powtorz nowe haslo"
                 minLength={6}
                 required
                 className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-10 pr-10 text-sm outline-none transition-all focus:border-rose-300 focus:ring-2 focus:ring-rose-100"
@@ -214,39 +391,33 @@ export default function ResetPasswordPage() {
                 type="button"
                 onClick={() => setShowConfirmPassword((prev) => !prev)}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                aria-label="Pokaż/ukryj powtórzone hasło"
+                aria-label="Pokaz/ukryj powtorzone haslo"
               >
                 {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
             </div>
 
-            {submitError && (
-              <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                {submitError}
-              </div>
-            )}
-
             <button
               type="submit"
-              disabled={submitting}
+              disabled={isLoading || !canSubmitNewPassword}
               className="w-full rounded-xl bg-rose-500 py-3 font-semibold text-white transition-colors hover:bg-rose-600 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {submitting ? 'Zmieniam hasło...' : 'Zmień hasło'}
+              {isLoading ? 'Zapisywanie...' : 'Zapisz nowe haslo'}
             </button>
           </form>
         )}
 
-        {status === 'done' && (
+        {step === 4 && (
           <div className="space-y-4">
             <div className="flex items-start gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
               <CheckCircle2 size={16} className="mt-0.5 shrink-0" />
-              <span>Hasło zostało zmienione poprawnie. Za chwilę zobaczysz ekran logowania.</span>
+              <span>Haslo zostalo zmienione. Mozesz teraz zalogowac sie nowym haslem.</span>
             </div>
             <button
-              onClick={redirectToLogin}
+              onClick={() => router.replace('/auth')}
               className="w-full rounded-xl border border-slate-200 bg-white py-3 font-semibold text-slate-700 transition-colors hover:bg-slate-50"
             >
-              Przejdź do logowania teraz
+              Przejdz do logowania
             </button>
           </div>
         )}

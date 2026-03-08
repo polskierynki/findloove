@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import Image from 'next/image';
 import { supabase } from '../../lib/supabase';
+import { sendPasswordResetOtp } from '../../lib/authService';
 import { sendMagicLink } from '../../lib/magicLink';
 import { ChevronLeft, Eye, EyeOff, Mail, Lock, User, Heart } from 'lucide-react';
 
@@ -23,17 +24,26 @@ export default function AuthView({ onBack, onNotify, onRegister }: AuthViewProps
     // Obsługa resetowania hasła przez Supabase
     const handlePasswordReset = async (e?: React.FormEvent) => {
       if (e) e.preventDefault();
+      const emailToSend = resetEmail.trim().toLowerCase();
+      if (!emailToSend) {
+        onNotify('Podaj adres e-mail.');
+        return;
+      }
+
       setResetLoading(true);
-      const emailToSend = resetEmail;
-      const { error } = await supabase.auth.resetPasswordForEmail(emailToSend, {
-        redirectTo: typeof window !== 'undefined' ? `${window.location.origin}/reset-password` : undefined,
-      });
+      const result = await sendPasswordResetOtp(emailToSend);
       setResetLoading(false);
-      if (error) {
-        onNotify('Błąd resetowania: ' + error.message);
+
+      if (!result.success) {
+        onNotify('Błąd resetowania: ' + (result.error || 'Nieznany błąd.'));
       } else {
-        onNotify('Wysłano link do resetu hasła na podany e-mail.');
+        onNotify('Wysłaliśmy kod OTP do resetu hasła. Sprawdź swoją skrzynkę e-mail.');
         setShowReset(false);
+
+        if (typeof window !== 'undefined') {
+          const nextUrl = `/reset-password?email=${encodeURIComponent(emailToSend)}&sent=1`;
+          window.location.assign(nextUrl);
+        }
       }
     };
   const [mode, setMode] = useState<AuthMode>('login');
@@ -123,7 +133,7 @@ export default function AuthView({ onBack, onNotify, onRegister }: AuthViewProps
         password,
         options: {
           data: { name },
-          emailRedirectTo: typeof window !== 'undefined' ? window.location.origin : undefined,
+          emailRedirectTo: typeof window !== 'undefined' ? `${window.location.origin}/auth` : undefined,
         }
       });
       if (error) {
@@ -502,10 +512,10 @@ export default function AuthView({ onBack, onNotify, onRegister }: AuthViewProps
                 disabled={resetLoading}
                 className="w-full bg-rose-500 hover:bg-rose-600 text-white py-3 rounded-xl font-semibold text-sm shadow-sm transition-colors mt-1 disabled:opacity-60"
               >
-                {resetLoading ? 'Wysyłanie...' : 'Wyślij link resetujący'}
+                {resetLoading ? 'Wysyłanie...' : 'Wyślij kod OTP'}
               </button>
             </form>
-            <p className="text-xs text-slate-400 mt-3">Po kliknięciu otrzymasz e-mail z linkiem do zmiany hasła.</p>
+            <p className="text-xs text-slate-400 mt-3">Po kliknięciu otrzymasz e-mail z kodem OTP do resetu hasła.</p>
           </div>
         </div>,
         document.body
