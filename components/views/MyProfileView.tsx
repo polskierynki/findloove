@@ -93,7 +93,7 @@ export default function MyProfile() {
         if (!prof && error?.code === 'PGRST116') {
           const newProfile = {
             id: user.id,
-            email: user.email || '',
+            // email: user.email || '', // NIE wysyłaj email w UPSERT - to dane auth, mogą się konfliktować
             name: '',
             age: 18,
             city: '',

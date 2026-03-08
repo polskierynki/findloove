@@ -80,6 +80,15 @@ grant usage on schema storage to anon, authenticated;
 grant select on storage.objects to anon;
 grant select, insert, update, delete on storage.objects to authenticated;
 
+-- Fix email constraint to allow NULL and fix UPSERT conflicts
+-- Drop old unique constraint on email if it exists
+alter table public.profiles drop constraint if exists profiles_email_unique;
+
+-- Create new unique constraint that allows NULL (email IS NOT NULL)
+create unique index if not exists profiles_email_unique_idx 
+  on public.profiles (email) 
+  where email is not null;
+
 -- TABLE: public.profiles (ensure users can create and update their profiles)
 alter table public.profiles enable row level security;
 
