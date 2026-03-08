@@ -193,250 +193,421 @@ export default function MyProfile() {
     setPhotos(ph || []);
   };
 
-  if (loading) return <div className="p-8 text-center">Ładowanie profilu...</div>;
+  if (loading) {
+    return (
+      <div className="mx-auto w-full max-w-5xl px-4 py-8">
+        <div className="animate-pulse rounded-3xl border border-rose-100 bg-white p-6 shadow-sm">
+          <div className="mb-4 h-7 w-40 rounded bg-slate-200" />
+          <div className="mb-6 h-4 w-72 rounded bg-slate-100" />
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="h-28 rounded-2xl bg-slate-100" />
+            <div className="h-28 rounded-2xl bg-slate-100" />
+            <div className="h-28 rounded-2xl bg-slate-100" />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const handleFaceSuccess = async (imageSrc: string) => {
     setVerifying(true);
-    // Tu można dodać upload selfie do Supabase Storage lub API detekcji twarzy
-    // Przykład: await supabase.storage.from('face-verification').upload(...)
-    // Po pozytywnej weryfikacji ustawiamy is_verified na true
     await supabase.from('profiles').update({ is_verified: true }).eq('id', profile.id);
     setProfile({ ...profile, is_verified: true });
     setShowFaceModal(false);
     setVerifying(false);
   };
 
+  const mainPhotoUrl =
+    photos.find((photo) => photo.is_main)?.url ||
+    photos[0]?.url ||
+    profile?.image_url ||
+    '/logo/logo.jpg';
+
+  const completionChecks = [
+    Boolean(profile?.name),
+    Boolean(profile?.age),
+    Boolean(profile?.city),
+    Boolean(profile?.bio),
+    Boolean(profile?.interests?.length),
+    photos.length > 0,
+  ];
+  const completionPercent = Math.round(
+    (completionChecks.filter(Boolean).length / completionChecks.length) * 100,
+  );
+
+  const renderValue = (value: string | number | undefined | null) =>
+    value ? value : <span className="text-slate-400 italic">Nie podano</span>;
+
   return (
-    <div className="max-w-xl mx-auto p-6">
-      <h2 className="text-2xl font-bold mb-4">Mój profil</h2>
-      
-      {!profile?.name && !edit && (
-        <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl">
-          <p className="text-sm text-amber-800">
-            Twój profil jest niekompletny. Uzupełnij swoje dane, aby inni mogli Cię poznać!
-          </p>
-        </div>
-      )}
-      
-      <div className="mb-4 flex items-center gap-2">
-        {profile?.is_verified ? (
-          <span className="inline-flex items-center px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-semibold">Profil zweryfikowany ✓</span>
-        ) : (
-          <>
-            <span className="inline-flex items-center px-2 py-1 bg-yellow-100 text-yellow-700 rounded text-xs font-semibold">Niezweryfikowany</span>
+    <div className="mx-auto w-full max-w-5xl px-4 py-6 md:py-8">
+      <section className="relative overflow-hidden rounded-3xl border border-rose-100 bg-gradient-to-r from-rose-50 via-white to-amber-50 p-5 md:p-7 shadow-sm">
+        <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-rose-100/60 blur-2xl" />
+        <div className="pointer-events-none absolute -left-20 bottom-0 h-44 w-44 rounded-full bg-amber-100/60 blur-2xl" />
+
+        <div className="relative grid gap-4 md:grid-cols-[96px_1fr_auto] md:items-center">
+          <img
+            src={mainPhotoUrl}
+            alt="Zdjecie glowne profilu"
+            className="h-24 w-24 rounded-2xl object-cover border-2 border-white shadow"
+          />
+
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-rose-500">Moj profil</p>
+            <h2 className="mt-1 text-2xl font-bold text-slate-800">
+              {profile?.name || 'Uzupelnij swoja wizytowke'}
+            </h2>
+            <p className="mt-1 text-sm text-slate-600">
+              {profile?.city ? `${profile.city} · ` : ''}
+              {profile?.age ? `${profile.age} lat` : 'Brak podstawowych danych'}
+            </p>
+
+            <div className="mt-3">
+              <div className="mb-1 flex items-center justify-between text-xs font-medium text-slate-600">
+                <span>Kompletnosc profilu</span>
+                <span>{completionPercent}%</span>
+              </div>
+              <div className="h-2 overflow-hidden rounded-full bg-white/80">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-rose-500 to-amber-400 transition-all"
+                  style={{ width: `${completionPercent}%` }}
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-2 md:flex-col md:items-end">
             <button
-              className="ml-2 bg-blue-600 text-white px-3 py-1 rounded text-xs hover:bg-blue-700 disabled:opacity-60"
-              onClick={() => setShowFaceModal(true)}
-              disabled={verifying}
+              onClick={() => setEdit(true)}
+              className="rounded-xl bg-rose-500 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-600"
             >
-              {verifying ? 'Weryfikacja...' : 'Zweryfikuj przez selfie'}
+              Edytuj profil
             </button>
-          </>
-        )}
-      </div>
+            {profile?.is_verified ? (
+              <span className="inline-flex items-center rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700">
+                Zweryfikowany profil
+              </span>
+            ) : (
+              <button
+                className="rounded-xl border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-700 hover:bg-sky-100 disabled:opacity-60"
+                onClick={() => setShowFaceModal(true)}
+                disabled={verifying}
+              >
+                {verifying ? 'Weryfikacja...' : 'Zweryfikuj przez selfie'}
+              </button>
+            )}
+          </div>
+        </div>
+      </section>
+
       <FaceVerificationModal
         isOpen={showFaceModal}
         onClose={() => setShowFaceModal(false)}
         onSuccess={handleFaceSuccess}
       />
-      {/* Statystyki aktywności */}
-      {stats && (
-        <div className="mb-6 grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-          <div className="bg-slate-50 rounded-lg p-3">
-            <div className="text-lg font-bold text-rose-500">{stats.sentMessages}</div>
-            <div className="text-xs text-slate-500">Wysłane wiadomości</div>
-          </div>
-          <div className="bg-slate-50 rounded-lg p-3">
-            <div className="text-lg font-bold text-rose-500">{stats.receivedMessages}</div>
-            <div className="text-xs text-slate-500">Otrzymane wiadomości</div>
-          </div>
-          <div className="bg-slate-50 rounded-lg p-3">
-            <div className="text-lg font-bold text-rose-500">{stats.sentLikes}</div>
-            <div className="text-xs text-slate-500">Polubienia wysłane</div>
-          </div>
-          <div className="bg-slate-50 rounded-lg p-3">
-            <div className="text-lg font-bold text-rose-500">{stats.receivedLikes}</div>
-            <div className="text-xs text-slate-500">Polubienia otrzymane</div>
-          </div>
-        </div>
-      )}
-      
-      {/* Sekcja zdjęć */}
-      <div className="mb-6">
-        <h3 className="text-sm font-semibold mb-3 text-slate-700">Galeria zdjęć</h3>
-        {photos.length === 0 && (
-          <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-xl">
-            <p className="text-xs text-blue-800">
-              📸 Dodaj swoje zdjęcia, aby zwiększyć swoje szanse na poznanie kogoś wyjątkowego!
-            </p>
-          </div>
-        )}
-        <div className="flex gap-4 flex-wrap">
-          {photos.map(photo => (
-            <div key={photo.id} className="relative group">
-              <img src={photo.url} alt="Profil" className={`w-28 h-28 object-cover rounded-xl border-2 ${photo.is_main ? 'border-rose-500' : 'border-slate-200'}`} />
-              <button onClick={() => handleRemovePhoto(photo.id)} className="absolute top-1 right-1 bg-white/80 rounded-full p-1 text-xs">✕</button>
-              {!photo.is_main && (
-                <button onClick={() => handleSetMain(photo.id)} className="absolute bottom-1 left-1 bg-white/80 rounded-full px-2 py-0.5 text-xs text-rose-600">Ustaw główne</button>
-              )}
+
+      <div className="mt-6 grid gap-6 lg:grid-cols-[1.65fr_1fr]">
+        <section className="rounded-3xl border border-slate-200 bg-white p-5 md:p-6 shadow-sm">
+          {!profile?.name && !edit && (
+            <div className="mb-5 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+              Profil jest niekompletny. Uzupelnij dane, aby wygladac wiarygodnie i pojawiac sie wyzej w wynikach.
             </div>
-          ))}
-          <label className="w-28 h-28 flex items-center justify-center border-2 border-dashed rounded-xl cursor-pointer text-slate-400 hover:border-rose-400">
-            <input type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} disabled={uploading} />
-            {uploading ? 'Wysyłanie...' : '+'}
-          </label>
-        </div>
-      </div>
-      {edit ? (
-        <div className="space-y-3">
-          {/* Imię */}
-          <div>
-            <label className="block text-sm font-semibold mb-1">Imię</label>
-            <input 
-              name="name" 
-              value={form.name || ''} 
-              onChange={handleChange} 
-              className="w-full border rounded px-3 py-2" 
-              placeholder="Twoje imię" 
-              required
-            />
-          </div>
-          {/* Wiek */}
-          <div>
-            <label className="block text-sm font-semibold mb-1">Wiek</label>
-            <input 
-              name="age" 
-              value={form.age || ''} 
-              onChange={handleChange} 
-              className="w-full border rounded px-3 py-2" 
-              placeholder="Wiek" 
-              type="number" 
-              min="18" 
-              max="120" 
-              required
-            />
-          </div>
-          {/* Płeć */}
-          <div>
-            <label className="block text-sm font-semibold mb-1">Płeć</label>
-            <select name="gender" value={form.gender || ''} onChange={handleChange} className="w-full border rounded px-3 py-2">
-              <option value="">Wybierz...</option>
-              {GENDERS.map(g => <option key={g.id} value={g.id}>{g.label}</option>)}
-            </select>
-          </div>
-          {/* Orientacja */}
-          <div>
-            <label className="block text-sm font-semibold mb-1">Kogo szukasz?</label>
-            <select name="seeking_gender" value={form.seeking_gender || ''} onChange={handleChange} className="w-full border rounded px-3 py-2">
-              <option value="">Wybierz...</option>
-              <option value="K">Kobiety</option>
-              <option value="M">Mężczyzny</option>
-            </select>
-          </div>
-          {/* Miasto z podpowiedziami */}
-          <div>
-            <label className="block text-sm font-semibold mb-1">Miasto</label>
-            <input name="city" value={form.city || ''} onChange={handleChange} className="w-full border rounded px-3 py-2" placeholder="Miasto" list="cities" />
-            <datalist id="cities">
-              {POLISH_CITIES.map(city => <option key={city} value={city} />)}
-            </datalist>
-          </div>
-          {/* Cel */}
-          <div>
-            <label className="block text-sm font-semibold mb-1">Cel</label>
-            <select name="status" value={form.status || ''} onChange={handleChange} className="w-full border rounded px-3 py-2">
-              <option value="">Wybierz...</option>
-              {LOOKING_FOR_OPTIONS.map(opt => <option key={opt.id} value={opt.label}>{opt.label}</option>)}
-            </select>
-          </div>
-          {/* O sobie */}
-          <div>
-            <label className="block text-sm font-semibold mb-1">O sobie</label>
-            <textarea name="bio" value={form.bio || ''} onChange={handleChange} className="w-full border rounded px-3 py-2" placeholder="Opowiedz coś o sobie..." rows={4} />
-          </div>
-          {/* Zawód */}
-          <div>
-            <label className="block text-sm font-semibold mb-1">Zawód</label>
-            <select name="occupation" value={form.occupation || ''} onChange={handleChange} className="w-full border rounded px-3 py-2">
-              <option value="">Wybierz...</option>
-              {OCCUPATION_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-            </select>
-          </div>
-          {/* Znak zodiaku */}
-          <div>
-            <label className="block text-sm font-semibold mb-1">Znak zodiaku</label>
-            <select name="zodiac" value={form.zodiac || ''} onChange={handleChange} className="w-full border rounded px-3 py-2">
-              <option value="">Wybierz...</option>
-              {ZODIAC_SIGNS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-            </select>
-          </div>
-          {/* Palenie */}
-          <div>
-            <label className="block text-sm font-semibold mb-1">Palenie</label>
-            <select name="smoking" value={form.smoking || ''} onChange={handleChange} className="w-full border rounded px-3 py-2">
-              <option value="">Wybierz...</option>
-              {SMOKING_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-            </select>
-          </div>
-          {/* Dzieci */}
-          <div>
-            <label className="block text-sm font-semibold mb-1">Dzieci</label>
-            <select name="children" value={form.children || ''} onChange={handleChange} className="w-full border rounded px-3 py-2">
-              <option value="">Wybierz...</option>
-              {CHILDREN_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-            </select>
-          </div>
-          {/* Zainteresowania */}
-          <div>
-            <label className="block text-sm font-semibold mb-1">Zainteresowania</label>
-            <div className="flex flex-wrap gap-2">
-              {ALL_INTERESTS.map(interest => (
-                <label key={interest} className={`px-3 py-1 rounded-full border cursor-pointer text-sm ${form.interests?.includes(interest) ? 'bg-rose-100 border-rose-400 text-rose-700' : 'bg-white border-slate-300 text-slate-500'}`}>
+          )}
+
+          {edit ? (
+            <div className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-sm font-semibold text-slate-700">Imie</label>
                   <input
-                    type="checkbox"
-                    name="interests"
-                    value={interest}
-                    checked={form.interests?.includes(interest) || false}
-                    onChange={e => {
-                      const checked = e.target.checked;
-                      setForm((prev: any) => ({
-                        ...prev,
-                        interests: checked
-                          ? [...(prev.interests || []), interest]
-                          : (prev.interests || []).filter((i: string) => i !== interest)
-                      }));
-                    }}
-                    className="mr-1"
+                    name="name"
+                    value={form.name || ''}
+                    onChange={handleChange}
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-rose-300 focus:ring-2 focus:ring-rose-100"
+                    placeholder="Twoje imie"
+                    required
                   />
-                  {interest}
-                </label>
-              ))}
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-sm font-semibold text-slate-700">Wiek</label>
+                  <input
+                    name="age"
+                    value={form.age || ''}
+                    onChange={handleChange}
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-rose-300 focus:ring-2 focus:ring-rose-100"
+                    placeholder="Wiek"
+                    type="number"
+                    min="18"
+                    max="120"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-sm font-semibold text-slate-700">Plec</label>
+                  <select
+                    name="gender"
+                    value={form.gender || ''}
+                    onChange={handleChange}
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-rose-300 focus:ring-2 focus:ring-rose-100"
+                  >
+                    <option value="">Wybierz...</option>
+                    {GENDERS.map((g) => <option key={g.id} value={g.id}>{g.label}</option>)}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-sm font-semibold text-slate-700">Kogo szukasz?</label>
+                  <select
+                    name="seeking_gender"
+                    value={form.seeking_gender || ''}
+                    onChange={handleChange}
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-rose-300 focus:ring-2 focus:ring-rose-100"
+                  >
+                    <option value="">Wybierz...</option>
+                    <option value="K">Kobiety</option>
+                    <option value="M">Mezczyzni</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-sm font-semibold text-slate-700">Miasto</label>
+                  <input
+                    name="city"
+                    value={form.city || ''}
+                    onChange={handleChange}
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-rose-300 focus:ring-2 focus:ring-rose-100"
+                    placeholder="Miasto"
+                    list="cities"
+                  />
+                  <datalist id="cities">
+                    {POLISH_CITIES.map((city) => <option key={city} value={city} />)}
+                  </datalist>
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-sm font-semibold text-slate-700">Cel</label>
+                  <select
+                    name="status"
+                    value={form.status || ''}
+                    onChange={handleChange}
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-rose-300 focus:ring-2 focus:ring-rose-100"
+                  >
+                    <option value="">Wybierz...</option>
+                    {LOOKING_FOR_OPTIONS.map((opt) => <option key={opt.id} value={opt.label}>{opt.label}</option>)}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-sm font-semibold text-slate-700">Zawod</label>
+                  <select
+                    name="occupation"
+                    value={form.occupation || ''}
+                    onChange={handleChange}
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-rose-300 focus:ring-2 focus:ring-rose-100"
+                  >
+                    <option value="">Wybierz...</option>
+                    {OCCUPATION_OPTIONS.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-sm font-semibold text-slate-700">Znak zodiaku</label>
+                  <select
+                    name="zodiac"
+                    value={form.zodiac || ''}
+                    onChange={handleChange}
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-rose-300 focus:ring-2 focus:ring-rose-100"
+                  >
+                    <option value="">Wybierz...</option>
+                    {ZODIAC_SIGNS.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-sm font-semibold text-slate-700">Palenie</label>
+                  <select
+                    name="smoking"
+                    value={form.smoking || ''}
+                    onChange={handleChange}
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-rose-300 focus:ring-2 focus:ring-rose-100"
+                  >
+                    <option value="">Wybierz...</option>
+                    {SMOKING_OPTIONS.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
+                  </select>
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="mb-1 block text-sm font-semibold text-slate-700">Dzieci</label>
+                  <select
+                    name="children"
+                    value={form.children || ''}
+                    onChange={handleChange}
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-rose-300 focus:ring-2 focus:ring-rose-100"
+                  >
+                    <option value="">Wybierz...</option>
+                    {CHILDREN_OPTIONS.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="mb-1 block text-sm font-semibold text-slate-700">O sobie</label>
+                <textarea
+                  name="bio"
+                  value={form.bio || ''}
+                  onChange={handleChange}
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-rose-300 focus:ring-2 focus:ring-rose-100"
+                  placeholder="Opowiedz cos o sobie..."
+                  rows={4}
+                />
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-slate-700">Zainteresowania</label>
+                <div className="flex flex-wrap gap-2">
+                  {ALL_INTERESTS.map((interest) => (
+                    <label
+                      key={interest}
+                      className={`rounded-full border px-3 py-1 text-sm cursor-pointer transition-colors ${form.interests?.includes(interest) ? 'border-rose-300 bg-rose-50 text-rose-700' : 'border-slate-200 bg-white text-slate-600 hover:border-rose-200'}`}
+                    >
+                      <input
+                        type="checkbox"
+                        name="interests"
+                        value={interest}
+                        checked={form.interests?.includes(interest) || false}
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          setForm((prev: any) => ({
+                            ...prev,
+                            interests: checked
+                              ? [...(prev.interests || []), interest]
+                              : (prev.interests || []).filter((i: string) => i !== interest),
+                          }));
+                        }}
+                        className="mr-1"
+                      />
+                      {interest}
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  onClick={handleSave}
+                  className="flex-1 rounded-xl bg-rose-500 px-4 py-2.5 font-semibold text-white hover:bg-rose-600"
+                  disabled={loading}
+                >
+                  {loading ? 'Zapisywanie...' : 'Zapisz zmiany'}
+                </button>
+                <button
+                  onClick={() => { setEdit(false); setForm(profile); }}
+                  className="rounded-xl border border-slate-300 px-4 py-2.5 font-semibold text-slate-700 hover:bg-slate-50"
+                >
+                  Anuluj
+                </button>
+              </div>
             </div>
-          </div>
-          <div className="flex gap-2 pt-4">
-            <button onClick={handleSave} className="flex-1 bg-rose-500 text-white px-4 py-2 rounded hover:bg-rose-600 font-semibold" disabled={loading}>
-              {loading ? 'Zapisywanie...' : 'Zapisz zmiany'}
-            </button>
-            <button onClick={() => { setEdit(false); setForm(profile); }} className="px-4 py-2 border border-slate-300 rounded text-slate-700 hover:bg-slate-50">
-              Anuluj
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div className="space-y-2">
-          <div><b>Imię:</b> {profile?.name ? profile.name : <span className="text-slate-400 italic">Nie podano</span>}</div>
-          <div><b>Wiek:</b> {profile?.age ? profile.age : <span className="text-slate-400 italic">Nie podano</span>}</div>
-          <div><b>Płeć:</b> {profile?.gender ? GENDERS.find(g => g.id === profile.gender)?.label : <span className="text-slate-400 italic">Nie podano</span>}</div>
-          <div><b>Miasto:</b> {profile?.city ? profile.city : <span className="text-slate-400 italic">Nie podano</span>}</div>
-          <div><b>O sobie:</b> {profile?.bio ? profile.bio : <span className="text-slate-400 italic">Nie podano</span>}</div>
-          <div><b>Zawód:</b> {profile?.occupation ? profile.occupation : <span className="text-slate-400 italic">Nie podano</span>}</div>
-          <div><b>Znak zodiaku:</b> {profile?.zodiac ? profile.zodiac : <span className="text-slate-400 italic">Nie podano</span>}</div>
-          <div><b>Palenie:</b> {profile?.smoking ? profile.smoking : <span className="text-slate-400 italic">Nie podano</span>}</div>
-          <div><b>Dzieci:</b> {profile?.children ? profile.children : <span className="text-slate-400 italic">Nie podano</span>}</div>
-          <div><b>Zainteresowania:</b> {profile?.interests?.length > 0 ? profile.interests.join(', ') : <span className="text-slate-400 italic">Nie podano</span>}</div>
-          <button onClick={() => setEdit(true)} className="bg-rose-500 text-white px-4 py-2 rounded mt-4 hover:bg-rose-600">Edytuj dane</button>
-        </div>
-      )}
+          ) : (
+            <div className="space-y-5">
+              <div>
+                <h3 className="text-lg font-semibold text-slate-800">Twoja wizytowka</h3>
+                <p className="mt-1 text-sm text-slate-500">
+                  Profil przypomina karte randkowa: konkretne informacje + naturalny opis + dobre zdjecie glowne.
+                </p>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"><p className="text-xs text-slate-500">Imie</p><p className="mt-1 font-semibold text-slate-800">{renderValue(profile?.name)}</p></div>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"><p className="text-xs text-slate-500">Wiek</p><p className="mt-1 font-semibold text-slate-800">{renderValue(profile?.age)}</p></div>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"><p className="text-xs text-slate-500">Plec</p><p className="mt-1 font-semibold text-slate-800">{renderValue(GENDERS.find((g) => g.id === profile?.gender)?.label)}</p></div>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"><p className="text-xs text-slate-500">Miasto</p><p className="mt-1 font-semibold text-slate-800">{renderValue(profile?.city)}</p></div>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"><p className="text-xs text-slate-500">Zawod</p><p className="mt-1 font-semibold text-slate-800">{renderValue(profile?.occupation)}</p></div>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"><p className="text-xs text-slate-500">Znak zodiaku</p><p className="mt-1 font-semibold text-slate-800">{renderValue(profile?.zodiac)}</p></div>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"><p className="text-xs text-slate-500">Palenie</p><p className="mt-1 font-semibold text-slate-800">{renderValue(profile?.smoking)}</p></div>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"><p className="text-xs text-slate-500">Dzieci</p><p className="mt-1 font-semibold text-slate-800">{renderValue(profile?.children)}</p></div>
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                <p className="text-xs text-slate-500">O sobie</p>
+                <p className="mt-1 text-sm text-slate-700">{renderValue(profile?.bio)}</p>
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                <p className="text-xs text-slate-500">Zainteresowania</p>
+                {profile?.interests?.length > 0 ? (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {profile.interests.map((interest: string) => (
+                      <span key={interest} className="rounded-full bg-rose-100 px-3 py-1 text-xs font-semibold text-rose-700">
+                        {interest}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="mt-1 text-sm text-slate-400 italic">Nie podano</p>
+                )}
+              </div>
+
+              <button
+                onClick={() => setEdit(true)}
+                className="rounded-xl bg-rose-500 px-4 py-2.5 font-semibold text-white hover:bg-rose-600"
+              >
+                Edytuj dane
+              </button>
+            </div>
+          )}
+        </section>
+
+        <aside className="space-y-6">
+          {stats && (
+            <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+              <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-600">Aktywnosc</h3>
+              <div className="grid grid-cols-2 gap-3 text-center">
+                <div className="rounded-xl bg-slate-50 p-3"><p className="text-xl font-bold text-rose-500">{stats.sentMessages}</p><p className="text-[11px] text-slate-500">Wyslane</p></div>
+                <div className="rounded-xl bg-slate-50 p-3"><p className="text-xl font-bold text-rose-500">{stats.receivedMessages}</p><p className="text-[11px] text-slate-500">Otrzymane</p></div>
+                <div className="rounded-xl bg-slate-50 p-3"><p className="text-xl font-bold text-rose-500">{stats.sentLikes}</p><p className="text-[11px] text-slate-500">Lajki wyslane</p></div>
+                <div className="rounded-xl bg-slate-50 p-3"><p className="text-xl font-bold text-rose-500">{stats.receivedLikes}</p><p className="text-[11px] text-slate-500">Lajki otrzymane</p></div>
+              </div>
+            </section>
+          )}
+
+          <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-600">Galeria</h3>
+              <span className="text-xs font-medium text-slate-500">{photos.length}/6</span>
+            </div>
+
+            {photos.length === 0 && (
+              <div className="mb-3 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-800">
+                Dodaj minimum 1 zdjecie. Profile ze zdjeciem sa znacznie czesciej otwierane.
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-3">
+              {photos.map((photo) => (
+                <div key={photo.id} className="group relative overflow-hidden rounded-xl border border-slate-200">
+                  <img src={photo.url} alt="Profil" className="h-28 w-full object-cover" />
+                  {photo.is_main && (
+                    <span className="absolute left-2 top-2 rounded-full bg-rose-500 px-2 py-0.5 text-[10px] font-bold text-white">Glowne</span>
+                  )}
+                  <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-black/45 px-2 py-1 text-[11px] text-white opacity-0 transition-opacity group-hover:opacity-100">
+                    <button onClick={() => handleRemovePhoto(photo.id)} className="font-semibold">Usun</button>
+                    {!photo.is_main && (
+                      <button onClick={() => handleSetMain(photo.id)} className="font-semibold text-amber-200">Ustaw glowne</button>
+                    )}
+                  </div>
+                </div>
+              ))}
+
+              <label className="flex h-28 cursor-pointer items-center justify-center rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 text-sm font-semibold text-slate-500 hover:border-rose-300 hover:text-rose-500">
+                <input type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} disabled={uploading} />
+                {uploading ? 'Wysylanie...' : '+ Dodaj'}
+              </label>
+            </div>
+          </section>
+        </aside>
+      </div>
     </div>
   );
 }

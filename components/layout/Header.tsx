@@ -99,24 +99,13 @@ export default function Header({ onAssistantClick, currentView, onNavigate, assi
         <div className="flex items-center gap-1 md:gap-2 shrink-0 ml-auto sm:ml-0">
           {isLoggedIn ? (
             <div className="flex items-center gap-1 md:gap-2">
-              {/* Użytkownik: serduszka, profil, asystent, wyloguj */}
+              {/* Użytkownik: serduszka, asystent, wyloguj */}
               {!isAdmin && <>
                 <div className="flex items-center gap-1 md:gap-1.5 bg-amber-50 border border-amber-200 text-amber-700 px-1.5 md:px-2.5 py-1 md:py-1.5 rounded-lg text-xs md:text-sm font-bold">
                   <span className="text-sm md:text-base">💛</span>
                   <span className="hidden md:inline">{tokens ?? 0} Serduszek</span>
                   <span className="md:hidden">{tokens ?? 0}</span>
                 </div>
-                <button
-                  onClick={() => onNavigate('myprofile')}
-                  className="relative flex items-center gap-1 md:gap-1.5 bg-slate-100 border border-slate-300 text-slate-700 px-1.5 md:px-2.5 py-1 md:py-1.5 rounded-lg text-xs md:text-sm font-semibold hover:bg-slate-200 transition-colors cursor-pointer"
-                  title="Moj profil"
-                >
-                  <User size={14} className="md:w-4 md:h-4" />
-                  <span className="hidden lg:inline">Moj profil</span>
-                  <span className="absolute -top-1 -right-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white">
-                    i
-                  </span>
-                </button>
                 <button
                   onClick={onAssistantClick}
                   className={`flex items-center gap-1 md:gap-1.5 bg-rose-50 border border-rose-200 text-rose-500 px-1.5 md:px-2.5 py-1 md:py-1.5 rounded-lg text-xs md:text-sm font-semibold hover:bg-rose-100 transition-colors cursor-pointer ${assistantOpen ? 'bg-rose-500 text-white' : ''}`}
