@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import {
   ChevronLeft, Heart, MapPin, MessageCircle, Phone, ShieldCheck,
   Cigarette, Baby, Star, Briefcase, User, X, ChevronRight, Lock, LogIn, Hand, Gift, SmilePlus, Users, Sparkles,
+  Search, CheckCircle,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { Profile, LOOKING_FOR_OPTIONS, getLookingFor } from '@/lib/types';
@@ -372,8 +373,8 @@ export default function ProfileDetailView({
         <ProfileAvatar src={p.image} name={p.name} className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-500" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-transparent" />
 
-        <div className="absolute top-4 left-4 bg-white/20 backdrop-blur border border-white/30 text-white text-xs font-semibold px-2.5 py-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
-          🔍 Kliknij, aby powiększyć
+        <div className="absolute top-4 left-4 bg-white/20 backdrop-blur border border-white/30 text-white text-xs font-semibold px-2.5 py-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+          <Search size={12} /> Kliknij, aby powiększyć
         </div>
 
         <div className="absolute top-4 right-4 flex flex-col gap-2 items-end">
@@ -440,7 +441,7 @@ export default function ProfileDetailView({
 
         {isGalleryUnlocked && (
           <div className="shrink-0 w-24 h-24 rounded-2xl bg-emerald-50 border-2 border-emerald-200 flex flex-col items-center justify-center text-emerald-600 text-xs font-bold gap-1">
-            <span className="text-2xl">✅</span>
+            <CheckCircle size={24} />
             Odblokowane
           </div>
         )}

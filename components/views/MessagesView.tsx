@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useRef, useEffect, useMemo } from 'react';
-import { ChevronLeft, Send, Search, ShieldCheck, Flag, Ban, Trash2, LogIn } from 'lucide-react';
+import { ChevronLeft, Send, Search, ShieldCheck, Flag, Ban, Trash2, LogIn, Mail, Heart, FileText } from 'lucide-react';
 import { Profile, filterNonAdminProfiles, SupabaseMessage } from '@/lib/types';
 import { useProfiles } from '@/lib/hooks/useProfiles';
 import { useMessages } from '@/lib/hooks/useMessages';
+import TalkJSChat from '@/components/layout/TalkJSChat';
 
 const MY_PROFILE_ID = '00000000-0000-0000-0000-000000000001';
 
@@ -22,7 +23,7 @@ interface MessagesViewProps {
 const getTime = (iso: string) =>
   new Date(iso).toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' });
 
-const QUICK_STARTERS = ['Dzień dobry! 😊', 'Jak minął dzień?', 'Mam pytanie o zainteresowania'];
+const QUICK_STARTERS = ['Dzień dobry!', 'Jak minął dzień?', 'Mam pytanie o zainteresowania'];
 
 /* ─── Sub-components for clarity ─── */
 
@@ -97,7 +98,7 @@ function EmptyChatPlaceholder({
 }) {
   return (
     <div className="flex flex-col items-center justify-center h-full text-center gap-3 pb-8">
-      <div className="text-5xl">💌</div>
+      <Mail size={48} className="text-rose-400" />
       <p className="text-slate-500 text-sm font-medium">Zacznij rozmowę z {activeProfile.name}!</p>
       <div className="flex flex-wrap gap-2 justify-center mt-1">
         {QUICK_STARTERS.map((q) => (
@@ -241,7 +242,7 @@ export default function MessagesView({ selectedProfile, onBack, onNotify, isLogg
               : 'bg-slate-50 border-slate-100 text-slate-500'
           }`}>
             <span>Rozmowy dziś: <strong>{messagedToday.length}/{FREE_DAILY_LIMIT}</strong></span>
-            {messagedToday.length >= DAILY_LIMIT && <span>💛 Wydaj Serduszko</span>}
+            {messagedToday.length >= DAILY_LIMIT && <span className="flex items-center gap-1"><Heart size={12} className="fill-amber-700" /> Wydaj Serduszko</span>}
           </div>
         )}
 
@@ -277,7 +278,7 @@ export default function MessagesView({ selectedProfile, onBack, onNotify, isLogg
         {/* \u2500\u2500\u2500 Limit modal \u2500\u2500\u2500 */}
         {!isPremium && showLimitModal && (
           <div className="absolute inset-0 z-20 bg-white/95 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center">
-            <div className="text-5xl mb-3">\ud83d\udccc</div>
+            <FileText size={48} className="text-slate-400 mb-3" />
             <h3 className="text-xl font-bold text-slate-800 mb-2">Dzienny limit wiadomo\u015bci</h3>
             <p className="text-slate-500 text-sm leading-relaxed mb-4 max-w-xs">
               Mo\u017cesz napisa\u0107 do <strong>{FREE_DAILY_LIMIT} nowych rozm\u00f3wc\u00f3w dziennie</strong>.
@@ -292,7 +293,7 @@ export default function MessagesView({ selectedProfile, onBack, onNotify, isLogg
               </button>
             ) : tokens > 0 ? (
               <>
-                <p className="text-xs text-slate-400 mb-3">Masz: {tokens} \ud83d\udc9b Serduszek</p>
+                <p className="text-xs text-slate-400 mb-3 flex items-center justify-center gap-1">Masz: {tokens} <Heart size={14} className="fill-amber-500 text-amber-500" /> Serduszek</p>
                 <button
                   onClick={() => {
                     const ok = onSpendToken?.() ?? false;
@@ -303,7 +304,7 @@ export default function MessagesView({ selectedProfile, onBack, onNotify, isLogg
                   }}
                   className="w-full max-w-xs py-3 bg-gradient-to-r from-amber-400 to-yellow-400 text-white font-bold rounded-xl shadow-md hover:shadow-amber-200 transition-all flex items-center justify-center gap-2 mb-3"
                 >
-                  \ud83d\udc9b Odblokuj rozmow\u0119 za 1 Serduszko
+                  <Heart size={17} className="fill-white" /> Odblokuj rozmow\u0119 za 1 Serduszko
                 </button>
               </>
             ) : (
@@ -371,45 +372,19 @@ export default function MessagesView({ selectedProfile, onBack, onNotify, isLogg
           </div>
         </div>
 
-        {/* Bańki wiadomości */}
-        <div className="flex-1 overflow-y-auto bg-[#FDFCF9] px-4 py-4 space-y-2">
-          {messagesLoading ? (
-            <div className="flex items-center justify-center h-full">
-              <div className="text-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-rose-500 mx-auto mb-2"></div>
-                <p className="text-slate-500 text-sm">Ładowanie wiadomości...</p>
-              </div>
-            </div>
-          ) : messages.length === 0 ? (
-            <EmptyChatPlaceholder activeProfile={activeProfile} onQuickStart={setMessageText} />
-          ) : (
-            <>
-              {messages.map((msg) => (
-                <MessageBubble key={msg.id} msg={msg} isMine={msg.from_profile_id === MY_PROFILE_ID} activeProfile={activeProfile} />
-              ))}
-              <div ref={bottomRef} />
-            </>
-          )}
-        </div>
-
-        {/* Pasek wpisywania */}
-        <div className="px-4 py-3 bg-white border-t border-slate-100 flex items-center gap-2 shrink-0">
-          <input
-            type="text"
-            value={messageText}
-            onChange={(e) => setMessageText(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={`Napisz do ${activeProfile?.name}…`}
-            className="flex-1 bg-slate-50 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-rose-200 border border-slate-100 transition-all placeholder:text-slate-400"
+        {/* TalkJS Chat */}
+        {activeProfile ? (
+          <TalkJSChat
+            currentUserId={MY_PROFILE_ID}
+            otherUserId={activeProfile.id}
+            otherUserName={activeProfile.name}
+            otherUserImage={activeProfile.image}
           />
-          <button
-            onClick={handleSend}
-            disabled={!messageText.trim()}
-            className="bg-rose-500 text-white p-2.5 rounded-xl shadow-sm hover:bg-rose-600 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
-          >
-            <Send size={17} />
-          </button>
-        </div>
+        ) : (
+          <div className="flex-1 overflow-y-auto bg-[#FDFCF9] px-4 py-4 flex items-center justify-center">
+            <p className="text-slate-400 text-sm">Wybierz rozmowę aby zacząć czat</p>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -1,16 +1,16 @@
 export const GENDERS = [
-  { id: 'K', label: 'Kobieta', emoji: '👩' },
-  { id: 'M', label: 'Mężczyzna', emoji: '👨' },
+  { id: 'K', label: 'Kobieta', emoji: '♀' },
+  { id: 'M', label: 'Mężczyzna', emoji: '♂' },
 ];
 
 export const ORIENTATION_OPTIONS: Record<string, { id: string; label: string; emoji: string; seeking: string }[]> = {
   K: [
-    { id: 'KM', label: 'Pani pozna Pana',   emoji: '👩‍❤️‍👨', seeking: 'M' },
-    { id: 'KK', label: 'Pani pozna Panią', emoji: '👩‍❤️‍👩', seeking: 'K' },
+    { id: 'KM', label: 'Pani pozna Pana',   emoji: '♀♂', seeking: 'M' },
+    { id: 'KK', label: 'Pani pozna Panią', emoji: '♀♀', seeking: 'K' },
   ],
   M: [
-    { id: 'MK', label: 'Pan pozna Panią',   emoji: '👨‍❤️‍👩', seeking: 'K' },
-    { id: 'MM', label: 'Pan pozna Pana',     emoji: '👨‍❤️‍👨', seeking: 'M' },
+    { id: 'MK', label: 'Pan pozna Panią',   emoji: '♂♀', seeking: 'K' },
+    { id: 'MM', label: 'Pan pozna Pana',     emoji: '♂♂', seeking: 'M' },
   ],
 };
 

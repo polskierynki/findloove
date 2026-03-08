@@ -6,6 +6,7 @@ import {
   ChevronLeft, ChevronRight, Check, Camera, Eye, EyeOff,
   Mail, Lock, Heart, User, MapPin, Sparkles, ShieldCheck,
   AlertCircle, ImagePlus, Search, MessageCircle, Users, Wind, Briefcase, Target,
+  Venus, Mars, VenusAndMars, FileText,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { LookingForCategory, LOOKING_FOR_OPTIONS } from '@/lib/types';
@@ -21,12 +22,6 @@ const STEPS = [
   'Płeć',
   'Dane',
   'Miasto',
-  'Cel',
-  'O sobie',
-  'Styl życia',
-  'Zainteresowania',
-  'Weryfikacja',
-  'Zdjęcia',
   'Konto',
   'Gotowe',
 ];
@@ -230,13 +225,7 @@ export default function RegisterView({ onBack, onComplete }: RegisterViewProps) 
       case 0: return gender !== '' && orientation !== '';
       case 1: return name.trim().length >= 2 && Number(age) >= 18 && Number(age) <= 120;
       case 2: return city !== '';
-      case 3: return lookingFor !== null;
-      case 4: return bio.trim().length >= 20 && occupation !== '';
-      case 5: return smoking !== '' && children !== '';
-      case 6: return interests.length >= 2;
-      case 7: return faceStatus === 'verified';
-      case 8: return true; // photos optional
-      case 9: 
+      case 3: 
         return validateEmail(email) && 
                password.length >= 6 && 
                password === confirmPassword &&
@@ -277,31 +266,45 @@ export default function RegisterView({ onBack, onComplete }: RegisterViewProps) 
     setSubmitting(true);
     setError('');
     try {
+      // Tworzenie konta użytkownika
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email,
+        password,
+      });
+
+      if (authError) throw authError;
+      if (!authData.user) throw new Error('Nie udało się utworzyć konta');
+
+      // Tworzenie profilu z minimalnymi danymi
       const status = lookingFor ? LOOKING_FOR_STATUS[lookingFor] : 'Szuka znajomości';
       const seekingGender = orientation ? orientation[1] : '';
+      
       await supabase.from('profiles').insert({
+        id: authData.user.id,
+        email: email,
         name: name.trim(),
         age: Number(age),
         city,
-        bio: bio.trim(),
-        interests,
+        bio: bio.trim() || 'Uzupełnię później...', // Domyślna wartość
+        interests: interests.length > 0 ? interests : ['Spotkania'], // Domyślne zainteresowanie
         status,
         image_url: photoUrl.trim() || 'https://images.unsplash.com/photo-1530268729831-4b0b9e170218?auto=format&fit=crop&q=80&w=600',
         is_verified: faceStatus === 'verified',
-        occupation,
+        occupation: occupation || 'Nie podano',
         zodiac: zodiac || 'Nieznany',
-        smoking,
-        children,
+        smoking: smoking || 'Wolę nie mówić',
+        children: children || 'Wolę nie mówić',
         gender,
         seeking_gender: seekingGender,
         seeking_age_min: seekingAgeMin,
         seeking_age_max: seekingAgeMax,
       });
+      
       // Clear localStorage after successful registration
       localStorage.removeItem('registerFormData');
-      setStep(10); // success screen
-    } catch (err) {
-      setError('Błąd podczas tworzenia profilu. Spróbuj ponownie.');
+      setStep(4); // success screen (now step 4 instead of 10)
+    } catch (err: any) {
+      setError(err.message || 'Błąd podczas tworzenia profilu. Spróbuj ponownie.');
       console.error(err);
     } finally {
       setSubmitting(false);
@@ -317,7 +320,7 @@ export default function RegisterView({ onBack, onComplete }: RegisterViewProps) 
       <div className="w-full max-w-lg">
 
         {/* ── Header / Progress ── */}
-        {step < 10 && (
+        {step < 4 && (
           <div className="mb-6">
             <div className="flex items-center justify-between mb-2">
               <button onClick={handleBack} className="flex items-center gap-1 text-slate-500 hover:text-slate-800 transition-colors text-sm font-medium">
@@ -354,20 +357,23 @@ export default function RegisterView({ onBack, onComplete }: RegisterViewProps) 
 
               {/* Gender picker */}
               <div className="grid grid-cols-2 gap-4 mb-6">
-                {GENDERS.map(g => (
-                  <button
-                    key={g.id}
-                    onClick={() => { setGender(g.id); setOrientation(''); }}
-                    className={`py-7 rounded-2xl border-2 flex flex-col items-center gap-3 transition-all font-semibold ${
-                      gender === g.id
-                        ? 'border-rose-500 bg-rose-50 text-rose-700 shadow-md'
-                        : 'border-slate-200 text-slate-600 hover:border-rose-300 hover:bg-rose-50/50'
-                    }`}
-                  >
-                    <span className="text-5xl">{g.emoji}</span>
-                    <span>{g.label}</span>
-                  </button>
-                ))}
+                {GENDERS.map(g => {
+                  const Icon = g.id === 'K' ? Venus : Mars;
+                  return (
+                    <button
+                      key={g.id}
+                      onClick={() => { setGender(g.id); setOrientation(''); }}
+                      className={`py-7 rounded-2xl border-2 flex flex-col items-center gap-3 transition-all font-semibold ${
+                        gender === g.id
+                          ? 'border-rose-500 bg-rose-50 text-rose-700 shadow-md'
+                          : 'border-slate-200 text-slate-600 hover:border-rose-300 hover:bg-rose-50/50'
+                      }`}
+                    >
+                      <Icon size={44} strokeWidth={1.5} />
+                      <span>{g.label}</span>
+                    </button>
+                  );
+                })}
               </div>
 
               {/* Orientation picker — shown after gender selected */}
@@ -377,6 +383,12 @@ export default function RegisterView({ onBack, onComplete }: RegisterViewProps) 
                   <div className="space-y-2">
                     {ORIENTATION_OPTIONS[gender].map(opt => {
                       const active = orientation === opt.id;
+                      // Determine icons based on orientation ID
+                      const isSameSex = opt.id[0] === opt.id[1];
+                      const isHeterosexual = opt.id[0] !== opt.id[1];
+                      const FirstIcon = opt.id[0] === 'K' ? Venus : Mars;
+                      const SecondIcon = opt.id[1] === 'K' ? Venus : Mars;
+                      
                       return (
                         <button
                           key={opt.id}
@@ -387,7 +399,14 @@ export default function RegisterView({ onBack, onComplete }: RegisterViewProps) 
                               : 'border-slate-200 text-slate-600 hover:border-rose-300 hover:bg-rose-50/40'
                           }`}
                         >
-                          <span className="text-3xl flex-shrink-0">{opt.emoji}</span>
+                          {isHeterosexual ? (
+                            <VenusAndMars size={22} strokeWidth={2} className="flex-shrink-0" />
+                          ) : (
+                            <div className="relative flex items-center w-7 h-6 flex-shrink-0">
+                              <FirstIcon size={20} strokeWidth={2} className="absolute left-0" />
+                              <SecondIcon size={20} strokeWidth={2} className="absolute left-3 opacity-70" />
+                            </div>
+                          )}
                           <span className="font-semibold text-base">{opt.label}</span>
                           {active && <Check size={20} className="ml-auto text-rose-500" />}
                         </button>
@@ -507,9 +526,9 @@ export default function RegisterView({ onBack, onComplete }: RegisterViewProps) 
                       <button
                         key={c}
                         onClick={() => { setCity(c); setCityInput(c); setShowCitySuggestions(false); }}
-                        className="w-full text-left px-4 py-3 hover:bg-rose-50 text-slate-700 text-sm border-b border-slate-50 last:border-0 transition-colors"
+                        className="w-full text-left px-4 py-3 hover:bg-rose-50 text-slate-700 text-sm border-b border-slate-50 last:border-0 transition-colors flex items-center gap-2"
                       >
-                        <span className="text-rose-400 mr-2">📍</span>{c}
+                        <MapPin size={14} className="text-rose-400" />{c}
                       </button>
                     ))}
                   </div>
@@ -810,7 +829,7 @@ export default function RegisterView({ onBack, onComplete }: RegisterViewProps) 
                         <Check size={40} className="text-green-600" />
                       </div>
                     )}
-                    <p className="text-green-700 font-bold text-lg animate-in fade-in duration-300">Twarz zweryfikowana! ✅</p>
+                    <p className="text-green-700 font-bold text-lg animate-in fade-in duration-300 flex items-center gap-2"><ShieldCheck size={20} /> Twarz zweryfikowana!</p>
                     <p className="text-slate-500 text-xs mt-1">Twój profil otrzyma odznakę weryfikacji</p>
                   </div>
                 )}
@@ -900,7 +919,7 @@ export default function RegisterView({ onBack, onComplete }: RegisterViewProps) 
 
                 {/* Token info */}
                 <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-sm text-amber-700 flex items-start gap-3">
-                  <span className="text-2xl">💛</span>
+                  <Heart size={24} className="text-amber-500 fill-amber-500 flex-shrink-0" />
                   <div>
                     <p className="font-semibold mb-0.5">Serduszka na start!</p>
                     <p className="text-xs leading-relaxed">
@@ -910,17 +929,18 @@ export default function RegisterView({ onBack, onComplete }: RegisterViewProps) 
                 </div>
 
                 {/* Tips */}
-                <div className="text-xs text-slate-400 leading-relaxed">
-                  <p>💡 Wskazówka: Użyj linku do zdjęcia z dowolnej strony (np. Unsplash, Google Photos, Imgur). Zdjęcia możesz też dodać później z poziomu profilu.</p>
+                <div className="text-xs text-slate-400 leading-relaxed flex items-start gap-2">
+                  <Sparkles size={14} className="mt-0.5 flex-shrink-0" />
+                  <p>Wskazówka: Użyj linku do zdjęcia z dowolnej strony (np. Unsplash, Google Photos, Imgur). Zdjęcia możesz też dodać później z poziomu profilu.</p>
                 </div>
               </div>
             </div>
           )}
 
           {/* ════════════════════════════════
-              KROK 9: Konto
+              KROK 3: Konto
           ════════════════════════════════ */}
-          {step === 9 && (
+          {step === 3 && (
             <div className="p-7">
               <SectionHeader icon={<Mail size={22} className="text-rose-500" />} title="Utwórz konto" subtitle="Prawie gotowe! Podaj e-mail i hasło do logowania" />
               <div className="space-y-4 mt-5">
@@ -1045,12 +1065,12 @@ export default function RegisterView({ onBack, onComplete }: RegisterViewProps) 
 
                 {/* Summary card */}
                 <div className="rounded-xl border border-slate-100 bg-slate-50 p-4 text-sm text-slate-600 space-y-1">
-                  <p>👤 <strong>{name}</strong>, {age} lat, {city}</p>
-                  {orientation && <p>🔍 {ORIENTATION_OPTIONS[gender]?.find(o => o.id === orientation)?.label} (wiek {seekingAgeMin}–{seekingAgeMax} lat)</p>}
+                  <p className="flex items-center gap-1.5"><User size={14} className="text-slate-500" /> <strong>{name}</strong>, {age} lat, {city}</p>
+                  {orientation && <p className="flex items-center gap-1.5"><Search size={14} className="text-slate-500" /> {ORIENTATION_OPTIONS[gender]?.find(o => o.id === orientation)?.label} (wiek {seekingAgeMin}–{seekingAgeMax} lat)</p>}
                   <p className="flex items-center gap-1.5"><Target size={14} className="text-rose-500" /> {lookingFor ? LOOKING_FOR_STATUS[lookingFor] : '—'}</p>
                   <p className="flex items-center gap-1.5"><Briefcase size={14} className="text-slate-500" /> {occupation}</p>
-                  <p>🏷️ {interests.slice(0, 4).join(', ')}{interests.length > 4 ? ` +${interests.length - 4}` : ''}</p>
-                  {faceStatus === 'verified' && <p>✅ Twarz zweryfikowana</p>}
+                  <p className="flex items-center gap-1.5"><Wind size={14} className="text-slate-500" /> {interests.slice(0, 4).join(', ')}{interests.length > 4 ? ` +${interests.length - 4}` : ''}</p>
+                  {faceStatus === 'verified' && <p className="flex items-center gap-1.5"><ShieldCheck size={14} className="text-green-600" /> Twarz zweryfikowana</p>}
                 </div>
 
                 {error && (
@@ -1084,31 +1104,42 @@ export default function RegisterView({ onBack, onComplete }: RegisterViewProps) 
           )}
 
           {/* ══════════════════════════════════
-              KROK 10: Sukces!
+              KROK 4: Sukces!
           ════════════════════════════════ */}
-          {step === 10 && (
+          {step === 4 && (
             <div className="p-8 text-center">
               <div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-green-100 border-4 border-green-300 mb-5">
                 <Check size={44} className="text-green-600" strokeWidth={2.5} />
               </div>
               <h2 className="text-2xl font-bold text-slate-800 mb-2">Witaj, {name}! 🎉</h2>
-              <p className="text-slate-500 text-sm leading-relaxed mb-7">
-                Twój profil został założony i czeka na innych użytkowników.<br />
-                {faceStatus === 'verified' && <><strong className="text-green-600">Twoja twarz została zweryfikowana</strong> — Twój profil będzie wyróżniony odznaką ✅.<br /></>}
-                Przeglądaj profile i nawiązuj nowe znajomości!
+              <p className="text-slate-500 text-sm leading-relaxed mb-5">
+                Twoje konto zostało utworzone!<br />
+                Teraz czas uzupełnić profil i odblokować pełny dostęp do portalu.
               </p>
 
-              <div className="grid grid-cols-3 gap-3 mb-7">
-                {[
-                  { icon: <Search size={20} />, label: 'Odkrywaj profile', color: 'rose' },
-                  { icon: <Heart size={20} />, label: 'Polub kogoś', color: 'pink' },
-                  { icon: <MessageCircle size={20} />, label: 'Napisz wiadomość', color: 'violet' },
-                ].map(item => (
-                  <div key={item.label} className="bg-slate-50 rounded-xl p-3 text-center border border-slate-100">
-                    <div className="flex justify-center mb-1 text-slate-600">{item.icon}</div>
-                    <p className="text-xs text-slate-500 font-medium leading-tight">{item.label}</p>
+              {/* Info o systemie odblokowywania */}
+              <div className="bg-gradient-to-r from-rose-50 to-pink-50 border border-rose-200 rounded-2xl p-5 mb-6">
+                <h3 className="text-sm font-bold text-slate-800 mb-3 flex items-center justify-center gap-2">
+                  <Lock size={16} className="text-rose-500" />
+                  Jak odblokować więcej treści?
+                </h3>
+                <div className="space-y-2.5 text-left text-xs">
+                  <div className="flex items-start gap-2">
+                    <Camera size={14} className="text-rose-500 mt-0.5 flex-shrink-0" />
+                    <p><strong>Dodaj zdjęcie</strong> → widzisz zdjęcia innych</p>
                   </div>
-                ))}
+                  <div className="flex items-start gap-2">
+                    <FileText size={14} className="text-amber-500 mt-0.5 flex-shrink-0" />
+                    <p><strong>Napisz opis</strong> → czytasz opisy profili</p>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <MessageCircle size={14} className="text-emerald-500 mt-0.5 flex-shrink-0" />
+                    <p><strong>Uzupełnij profil</strong> → wysyłasz wiadomości</p>
+                  </div>
+                </div>
+                <p className="text-[10px] text-slate-400 mt-3 leading-relaxed">
+                  "Zdjęcie za zdjęcie, opis za opis" — chronimy prywatność wszystkich użytkowników
+                </p>
               </div>
 
               <button
@@ -1116,13 +1147,16 @@ export default function RegisterView({ onBack, onComplete }: RegisterViewProps) 
                 className="w-full py-3.5 bg-gradient-to-r from-rose-500 to-pink-500 text-white font-bold rounded-xl shadow-md hover:shadow-rose-200 hover:from-rose-600 hover:to-pink-600 transition-all flex items-center justify-center gap-2"
               >
                 <Heart size={18} fill="currentColor" />
-                Przeglądaj profile
+                Rozpocznij przeglądanie
               </button>
+              <p className="text-xs text-slate-400 mt-3">
+                Później możesz uzupełnić profil w ustawieniach
+              </p>
             </div>
           )}
 
-          {/* ── Next button (steps 0-8 have Dalej; step 9 Konto has its own submit; step 10 is Success) ── */}
-          {step < 9 && (
+          {/* ── Next button (steps 0-2 have Dalej; step 3 Konto has its own submit; step 4 is Success) ── */}
+          {step < 3 && (
             <div className="px-7 pb-7">
               <button
                 onClick={handleNext}

@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import { useState, useMemo, useRef, useEffect } from 'react';
-import { Search, MapPin, ShieldCheck, SlidersHorizontal, X, ChevronLeft, Check, Lock, Heart, Users, Sparkles, User } from 'lucide-react';
+import { Search, MapPin, ShieldCheck, SlidersHorizontal, X, ChevronLeft, Check, Lock, Heart, Users, Sparkles, User, Venus, Mars, VenusAndMars } from 'lucide-react';
 import { Profile, LookingForCategory, LOOKING_FOR_OPTIONS, getLookingFor, filterNonAdminProfiles } from '@/lib/types';
 import { 
   ALL_INTERESTS, 
@@ -293,12 +293,16 @@ export default function SearchView({ profiles, onSelectProfile, onBack, initialL
         <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Kto kogo szuka</p>
         <div className="grid grid-cols-2 gap-2">
           {[
-            { id: 'MK', label: 'Pan pozna Panią',   icon: <User size={16} /> },
-            { id: 'KM', label: 'Pani pozna Pana',   icon: <User size={16} /> },
-            { id: 'KK', label: 'Pani pozna Panią',  icon: <Users size={16} /> },
-            { id: 'MM', label: 'Pan pozna Pana',    icon: <Users size={16} /> },
+            { id: 'MK', label: 'Pan pozna Panią' },
+            { id: 'KM', label: 'Pani pozna Pana' },
+            { id: 'KK', label: 'Pani pozna Panią' },
+            { id: 'MM', label: 'Pan pozna Pana' },
           ].map((opt) => {
             const active = orientationFilter === opt.id;
+            const isHeterosexual = opt.id[0] !== opt.id[1];
+            const FirstIcon = opt.id[0] === 'K' ? Venus : Mars;
+            const SecondIcon = opt.id[1] === 'K' ? Venus : Mars;
+            
             return (
               <button
                 key={opt.id}
@@ -309,7 +313,14 @@ export default function SearchView({ profiles, onSelectProfile, onBack, initialL
                     : 'bg-white text-slate-600 border-slate-200 hover:border-rose-300 hover:bg-rose-50'
                 }`}
               >
-                {opt.icon}
+                {isHeterosexual ? (
+                  <VenusAndMars size={16} strokeWidth={2.5} className="flex-shrink-0" />
+                ) : (
+                  <div className="relative flex items-center w-5 h-4 flex-shrink-0">
+                    <FirstIcon size={14} strokeWidth={2.5} className="absolute left-0" />
+                    <SecondIcon size={14} strokeWidth={2.5} className="absolute left-2 opacity-60" />
+                  </div>
+                )}
                 <span className="text-xs leading-tight">{opt.label}</span>
                 {active && <Check size={14} className="ml-auto flex-shrink-0" />}
               </button>

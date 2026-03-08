@@ -8,6 +8,7 @@ import { AppView, ViewType, Profile, LookingForCategory, SupabaseProfile, mapSup
 import { useProfiles } from '@/lib/hooks/useProfiles';
 import { useLikes } from '@/lib/hooks/useLikes';
 import { useGuestRestrictions } from '@/lib/hooks/useGuestRestrictions';
+import { useProfileCompletion } from '@/lib/hooks/useProfileCompletion';
 
 import Header from '@/components/layout/Header';
 import BottomNav from '@/components/layout/BottomNav';
@@ -16,6 +17,7 @@ import Notification from '@/components/layout/Notification';
 import AIAssistant from '@/components/layout/AIAssistant';
 import GuestModal from '@/components/layout/GuestModal';
 import GuestBanner from '@/components/layout/GuestBanner';
+import ProfileCompletionModal from '@/components/layout/ProfileCompletionModal';
 
 import HomeView from '@/components/views/HomeView';
 import AdminDashboard from '@/components/views/AdminDashboard';
@@ -75,6 +77,7 @@ export default function App() {
   const [chatOpen, setChatOpen] = useState(false);
   const [searchLookingFor, setSearchLookingFor] = useState<LookingForCategory | undefined>(undefined);
   const [showPremiumView, setShowPremiumView] = useState(false);
+  const [showCompletionModal, setShowCompletionModal] = useState(false);
   const hideGuestModalOnAuthViews = view === 'auth' || view === 'register';
 
   /* ─── Auth & token state ─── */
@@ -191,6 +194,9 @@ export default function App() {
 
   // Guest restrictions hook
   const guestRestrictions = useGuestRestrictions(isLoggedIn);
+
+  // Profile completion restrictions hook
+  const profileCompletion = useProfileCompletion(isLoggedIn);
 
   // Funkcja do sprawdzania limitu randek (3/h dla darmowych)
   const canStartSpeedDate = () => {
@@ -380,6 +386,8 @@ export default function App() {
                 userName={userName}
                 isLoggedIn={isLoggedIn}
                 guestRestrictions={guestRestrictions}
+                profileCompletion={profileCompletion}
+                onShowCompletionModal={() => setShowCompletionModal(true)}
               />
             )}
             {view === 'auth' && (
@@ -542,6 +550,19 @@ export default function App() {
             />
           )}
         </>
+      )}
+
+      {/* Profile completion modal for logged-in users */}
+      {isLoggedIn && (
+        <ProfileCompletionModal
+          isOpen={showCompletionModal}
+          onClose={() => setShowCompletionModal(false)}
+          completionLevel={profileCompletion.completionLevel}
+          onGoToProfile={() => {
+            setShowCompletionModal(false);
+            setView('myprofile');
+          }}
+        />
       )}
     </div>
   );

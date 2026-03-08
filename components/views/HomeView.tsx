@@ -19,6 +19,13 @@ interface HomeViewProps {
     getVisibleProfilesLimit: () => number;
     canViewFullProfile: () => boolean;
   };
+  profileCompletion?: {
+    shouldBlurPhotos: boolean;
+    shouldBlurBios: boolean;
+    canContact: boolean;
+    message: string;
+  };
+  onShowCompletionModal?: () => void;
 }
 
 const MATCH_SCORES = [94, 87, 91, 78];
@@ -38,7 +45,7 @@ function isRecent(dateLike?: string): boolean {
   return Date.now() - ts <= WEEK_IN_MS;
 }
 
-export default function HomeView({ profiles, onNavigate, onSelectProfile, onSearchFor, userName, isLoggedIn, guestRestrictions }: HomeViewProps) {
+export default function HomeView({ profiles, onNavigate, onSelectProfile, onSearchFor, userName, isLoggedIn, guestRestrictions, profileCompletion, onShowCompletionModal }: HomeViewProps) {
   // Wyciągnij imię z userName (jeśli to email, weź przed @, jeśli imię, zostaw)
   let displayName = userName || '';
   if (displayName && displayName.includes('@')) {
@@ -318,26 +325,41 @@ export default function HomeView({ profiles, onNavigate, onSelectProfile, onSear
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {featuredProfiles.map((p, i) => (
-            <div key={p.id} onClick={() => onSelectProfile(p)}
-              className="relative rounded-2xl overflow-hidden cursor-pointer group shadow-md hover:shadow-xl transition-all hover:-translate-y-1 aspect-[3/4]">
-              <Image
-                src={p.image}
-                alt={p.name}
-                fill
-                sizes="(min-width: 768px) 25vw, 50vw"
-                className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ${
-                  guestRestrictions?.shouldBlurPhoto(i, featuredProfiles.length) ? 'blur-md' : ''
-                }`}
-              />
-                            {/* Lock overlay for blurred photos */}
-                            {guestRestrictions?.shouldBlurPhoto(i, featuredProfiles.length) && (
-                              <div className="absolute inset-0 flex items-center justify-center bg-black/10">
-                                <div className="bg-white/90 backdrop-blur-sm rounded-full p-3 shadow-lg">
-                                  <Lock size={24} className="text-rose-500" />
-                                </div>
-                              </div>
-                            )}
+          {featuredProfiles.map((p, i) => {
+            // Determine if photo should be blurred
+            const guestBlur = guestRestrictions?.shouldBlurPhoto(i, featuredProfiles.length) || false;
+            const profileBlur = isLoggedIn && profileCompletion?.shouldBlurPhotos;
+            const shouldBlur = guestBlur || profileBlur;
+
+            return (
+              <div 
+                key={p.id} 
+                onClick={() => {
+                  if (profileBlur && onShowCompletionModal) {
+                    onShowCompletionModal();
+                  } else {
+                    onSelectProfile(p);
+                  }
+                }}
+                className="relative rounded-2xl overflow-hidden cursor-pointer group shadow-md hover:shadow-xl transition-all hover:-translate-y-1 aspect-[3/4]"
+              >
+                <Image
+                  src={p.image}
+                  alt={p.name}
+                  fill
+                  sizes="(min-width: 768px) 25vw, 50vw"
+                  className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ${
+                    shouldBlur ? 'blur-md' : ''
+                  }`}
+                />
+                {/* Lock overlay for blurred photos */}
+                {shouldBlur && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/10">
+                    <div className="bg-white/90 backdrop-blur-sm rounded-full p-3 shadow-lg">
+                      <Lock size={24} className="text-rose-500" />
+                    </div>
+                  </div>
+                )}
               {/* gradient overlay */}
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
               {/* badges */}
@@ -353,20 +375,21 @@ export default function HomeView({ profiles, onNavigate, onSelectProfile, onSear
               </div>
               {/* info */}
               <div className="absolute bottom-0 left-0 right-0 p-4">
-                <h4 className="text-white font-bold text-lg leading-tight">
+                <h4 className={`text-white font-bold text-lg leading-tight ${profileCompletion?.shouldBlurBios && isLoggedIn ? 'blur-sm select-none' : ''}`}>
                   {p.name}, {p.age}
                 </h4>
-                <p className="text-white/80 text-sm flex items-center gap-1">
+                <p className={`text-white/80 text-sm flex items-center gap-1 ${profileCompletion?.shouldBlurBios && isLoggedIn ? 'blur-sm select-none' : ''}`}>
                   <MapPin size={12} /> {p.city}
                 </p>
                 <div className="flex gap-1 flex-wrap mt-2">
                   {p.interests.slice(0, 2).map(t => (
-                    <span key={t} className="bg-white/20 backdrop-blur text-white text-xs px-2 py-0.5 rounded-full">{t}</span>
+                    <span key={t} className={`bg-white/20 backdrop-blur text-white text-xs px-2 py-0.5 rounded-full ${profileCompletion?.shouldBlurBios && isLoggedIn ? 'blur-sm select-none' : ''}`}>{t}</span>
                   ))}
                 </div>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       </section>
 
