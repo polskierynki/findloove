@@ -60,11 +60,12 @@ export default function MyProfile() {
   const [showFaceModal, setShowFaceModal] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [photos, setPhotos] = useState<any[]>([]);
+  const [pendingPhotos, setPendingPhotos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [edit, setEdit] = useState(false);
   const [form, setForm] = useState<any>({});
   const [uploading, setUploading] = useState(false);
-  const [photoSaved, setPhotoSaved] = useState(false);
+  const [savingPhotos, setSavingPhotos] = useState(false);
   const [stats, setStats] = useState<any>(null);
 
   // Pobierz dane profilu i zdjęcia po zalogowaniu
@@ -167,28 +168,14 @@ export default function MyProfile() {
   const handleSave = async () => {
     setLoading(true);
     try {
-      // Sprawdź czy profil będzie kompletny po zapisaniu
-      const isComplete =
-        Boolean(form?.name) &&
-        Boolean(form?.age) &&
-        Boolean(form?.city) &&
-        Boolean(form?.bio) &&
-        Boolean(form?.interests?.length) &&
-        photos.length > 0;
-
-      // Jeśli kompletny, ustaw status na 'active'
-      const updateData = isComplete && form?.status !== 'active' ? { ...form, status: 'active' } : form;
-
-      const { error } = await supabase.from('profiles').update(updateData).eq('id', profile.id);
+      const { error } = await supabase.from('profiles').update(form).eq('id', profile.id);
       if (error) {
         console.error('Error updating profile:', error);
         alert('Błąd podczas zapisywania profilu. Sprawdź konsolę.');
       } else {
-        setProfile(updateData);
+        setProfile(form);
         setEdit(false);
-        if (isComplete && form?.status !== 'active') {
-          alert('✓ Profil uzupełniony i aktywowany!');
-        }
+        alert('✓ Dane profilu zostały zapisane!');
       }
     } catch (err) {
       console.error('Unexpected error saving profile:', err);
@@ -198,7 +185,7 @@ export default function MyProfile() {
     }
   };
 
-  // Upload nowego zdjęcia
+  // Upload nowego zdjęcia do storage (bez zapisu do DB - tylko dodanie do pendingPhotos)
   const handlePhotoUpload = async (e: any) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -220,43 +207,71 @@ export default function MyProfile() {
       return;
     }
 
-    const added = await addPhotoToProfilePhotos(profile.id, url, photos.length === 0, photos.length);
-    if (!added.success) {
-      const errorMsg = `BLAD DODAWANIA ZDJECIA\n\nProfile ID: ${profile.id}\nURL: ${url}\n\nSzczegoly bledu:\n${added.error || 'brak dodatkowych informacji'}\n\nOtworz konsole przegladarki (F12) aby zobaczyc wiecej szczegolow.`;
-      console.error('ALERT TEXT:', errorMsg);
-      alert(errorMsg);
-      setUploading(false);
-      return;
+    // Dodaj do oczekujących zdjęć (jeszcze nie zapisanych do DB)
+    const tempId = `temp-${Date.now()}`;
+    setPendingPhotos((prev) => [...prev, { id: tempId, url, is_main: false }]);
+
+    setUploading(false);
+  };
+
+  // Zapisz wszystkie oczekujące zdjęcia do bazy danych
+  const handleSavePhotos = async () => {
+    if (pendingPhotos.length === 0) return;
+
+    setSavingPhotos(true);
+    try {
+      const totalPhotos = photos.length + pendingPhotos.length;
+      
+      for (let i = 0; i < pendingPhotos.length; i++) {
+        const pending = pendingPhotos[i];
+        const isMain = photos.length === 0 && i === 0; // Pierwsze zdjęcie jako główne
+        const sortOrder = photos.length + i;
+
+        const added = await addPhotoToProfilePhotos(profile.id, pending.url, isMain, sortOrder);
+        if (!added.success) {
+          throw new Error(added.error || 'Nie udalo sie zapisac zdjecia');
+        }
+      }
+
+      // Pobierz zaktualizowaną listę zdjęć
+      const { data: ph } = await supabase
+        .from('profile_photos')
+        .select('*')
+        .eq('profile_id', profile.id)
+        .order('sort_order');
+      setPhotos(ph || []);
+      setPendingPhotos([]);
+
+      alert(`✓ ${pendingPhotos.length} zdjęcie(cia) zostało zapisane!`);
+    } catch (err) {
+      console.error('Error saving photos:', err);
+      alert(`Błąd przy zapisywaniu zdjęć: ${err}`);
+    } finally {
+      setSavingPhotos(false);
     }
+  };
 
-    const { data: ph } = await supabase
-      .from('profile_photos')
-      .select('*')
-      .eq('profile_id', profile.id)
-      .order('sort_order');
-    setPhotos(ph || []);
-
-    // Sprawdź czy profil jest teraz kompletny - jeśli tak, zmień status na 'active'
-    const isNowComplete =
-      Boolean(profile?.name) &&
-      Boolean(profile?.age) &&
-      Boolean(profile?.city) &&
-      Boolean(profile?.bio) &&
-      Boolean(profile?.interests?.length) &&
-      (ph?.length || 0) > 0;
-
-    if (isNowComplete && profile?.status !== 'active') {
-      console.log('Profile is now complete! Updating status to active...');
-      await supabase
+  // Aktywuj profil (zmień status na 'active')
+  const handleActivateProfile = async () => {
+    setLoading(true);
+    try {
+      const { error } = await supabase
         .from('profiles')
         .update({ status: 'active' })
         .eq('id', profile.id);
-      setProfile({ ...profile, status: 'active' });
-    }
 
-    setUploading(false);
-    setPhotoSaved(true);
-    setTimeout(() => setPhotoSaved(false), 3000); // Schowaj komunikat po 3 sekundach
+      if (error) {
+        alert(`Błąd przy aktywacji profilu: ${error.message}`);
+      } else {
+        setProfile({ ...profile, status: 'active' });
+        alert('✓ Profil aktywowany! Jesteś teraz widoczny dla innych użytkowników.');
+      }
+    } catch (err) {
+      console.error('Error activating profile:', err);
+      alert('Błąd przy aktywacji profilu');
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Usuń zdjęcie
@@ -321,24 +336,11 @@ export default function MyProfile() {
     Boolean(profile?.city),
     Boolean(profile?.bio),
     Boolean(profile?.interests?.length),
-    photos.length > 0,
+    photos.length > 0 || pendingPhotos.length > 0,
   ];
   const completionPercent = Math.round(
     (completionChecks.filter(Boolean).length / completionChecks.length) * 100,
   );
-
-  // Debug logging
-  if (photos.length > 0) {
-    console.log('=== COMPLETION PROGRESS ===');
-    console.log('Profile name:', profile?.name);
-    console.log('Profile age:', profile?.age);
-    console.log('Profile city:', profile?.city);
-    console.log('Profile bio:', profile?.bio);
-    console.log('Profile interests:', profile?.interests?.length);
-    console.log('Photos count:', photos.length);
-    console.log('Completion checks:', completionChecks);
-    console.log('Completion percent:', completionPercent);
-  }
 
   const renderValue = (value: string | number | undefined | null) =>
     value ? value : <span className="text-slate-400 italic">Nie podano</span>;
@@ -383,13 +385,28 @@ export default function MyProfile() {
           <div className="flex flex-wrap gap-2 md:flex-col md:items-end">
             <button
               onClick={() => setEdit(true)}
-              className="rounded-xl bg-rose-500 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-600"
+              className="rounded-xl bg-rose-500 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-600 disabled:opacity-60"
+              disabled={loading}
             >
               Edytuj profil
             </button>
-            {profile?.is_verified ? (
+            {profile?.status !== 'active' && completionPercent === 100 && (
+              <button
+                onClick={handleActivateProfile}
+                className="rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-600 disabled:opacity-60"
+                disabled={loading}
+              >
+                ✓ Aktywuj profil
+              </button>
+            )}
+            {profile?.status === 'active' && (
               <span className="inline-flex items-center rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700">
-                Zweryfikowany profil
+                ✓ Profil aktywny
+              </span>
+            )}
+            {profile?.is_verified ? (
+              <span className="inline-flex items-center rounded-xl border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-700">
+                Zweryfikowany
               </span>
             ) : (
               <button
@@ -680,16 +697,16 @@ export default function MyProfile() {
           <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
             <div className="mb-3 flex items-center justify-between">
               <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-600">Galeria</h3>
-              <span className="text-xs font-medium text-slate-500">{photos.length}/6</span>
+              <span className="text-xs font-medium text-slate-500">{photos.length + pendingPhotos.length}/6</span>
             </div>
 
-            {photoSaved && (
-              <div className="mb-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700">
-                ✓ Zdjęcie zapisane
+            {pendingPhotos.length > 0 && (
+              <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-700">
+                ⚠️ {pendingPhotos.length} zdjęcie(cia) oczekuje zapisu - kliknij przycisk poniżej
               </div>
             )}
 
-            {photos.length === 0 && (
+            {photos.length === 0 && pendingPhotos.length === 0 && (
               <div className="mb-3 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-800">
                 Dodaj minimum 1 zdjecie. Profile ze zdjeciem sa znacznie czesciej otwierane.
               </div>
@@ -711,11 +728,38 @@ export default function MyProfile() {
                 </div>
               ))}
 
-              <label className="flex h-28 cursor-pointer items-center justify-center rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 text-sm font-semibold text-slate-500 hover:border-rose-300 hover:text-rose-500">
-                <input type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} disabled={uploading} />
-                {uploading ? 'Wysylanie...' : '+ Dodaj'}
-              </label>
+              {pendingPhotos.map((photo) => (
+                <div key={photo.id} className="group relative overflow-hidden rounded-xl border-2 border-amber-300 bg-amber-50">
+                  <img src={photo.url} alt="Profil (oczekuje zapisu)" className="h-28 w-full object-cover opacity-70" />
+                  <span className="absolute inset-0 flex items-center justify-center bg-black/30 text-[10px] font-bold text-white">
+                    Oczekuje zapisu
+                  </span>
+                  <button
+                    onClick={() => setPendingPhotos((prev) => prev.filter((p) => p.id !== photo.id))}
+                    className="absolute right-1 top-1 rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-bold text-white hover:bg-red-600"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+
+              {photos.length + pendingPhotos.length < 6 && (
+                <label className="flex h-28 cursor-pointer items-center justify-center rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 text-sm font-semibold text-slate-500 hover:border-rose-300 hover:text-rose-500">
+                  <input type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} disabled={uploading} />
+                  {uploading ? 'Wysylanie...' : '+ Dodaj'}
+                </label>
+              )}
             </div>
+
+            {pendingPhotos.length > 0 && (
+              <button
+                onClick={handleSavePhotos}
+                disabled={savingPhotos}
+                className="mt-4 w-full rounded-xl bg-emerald-500 px-4 py-2.5 font-semibold text-white hover:bg-emerald-600 disabled:opacity-60"
+              >
+                {savingPhotos ? 'Zapisywanie...' : `✓ Zapisz ${pendingPhotos.length} zdjęcie(cia)`}
+              </button>
+            )}
           </section>
         </aside>
       </div>
