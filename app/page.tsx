@@ -77,6 +77,60 @@ function isRoutableAppView(value: string | null): value is AppView {
   return Boolean(value) && ROUTABLE_APP_VIEWS.includes(value as AppView);
 }
 
+const STATIC_PATH_TO_VIEW: Record<string, AppView> = {
+  '/': 'home',
+  '/discover': 'discover',
+  '/messages': 'messages',
+  '/safety': 'safety',
+  '/likes': 'likes',
+  '/search': 'search',
+  '/auth': 'auth',
+  '/register': 'register',
+  '/terms': 'terms',
+  '/privacy': 'privacy',
+  '/cookies': 'cookies',
+  '/admin': 'admin',
+  '/myprofile': 'myprofile',
+};
+
+function normalizePathname(pathname: string): string {
+  if (!pathname) return '/';
+  const trimmed = pathname.replace(/\/+$/, '');
+  return trimmed || '/';
+}
+
+function extractProfileIdFromPath(pathname: string): string | null {
+  const normalizedPath = normalizePathname(pathname);
+  if (!normalizedPath.startsWith('/profile/')) return null;
+
+  const parts = normalizedPath.split('/').filter(Boolean);
+  if (parts.length < 2) return null;
+
+  try {
+    return decodeURIComponent(parts[1]);
+  } catch {
+    return parts[1];
+  }
+}
+
+function getViewFromPathname(pathname: string): AppView | null {
+  const normalizedPath = normalizePathname(pathname);
+
+  if (normalizedPath === '/profile' || normalizedPath.startsWith('/profile/')) {
+    return 'profile';
+  }
+
+  return STATIC_PATH_TO_VIEW[normalizedPath] || null;
+}
+
+function getPathForView(view: AppView, profileId?: string | null): string {
+  if (view === 'home') return '/';
+  if (view === 'profile') {
+    return profileId ? `/profile/${encodeURIComponent(profileId)}` : '/profile';
+  }
+  return `/${view}`;
+}
+
 export default function App() {
   const [view, setView] = useState<AppView>('home');
   const [showAdminDashboard, setShowAdminDashboard] = useState(false);
@@ -94,21 +148,27 @@ export default function App() {
   const adminEmail = 'lio1985lodz@gmail.com';
   const adminProfileId = '00000000-0000-0000-0000-000000000001';
   const isAdminRef = useRef(false);
+  const applyingUrlStateRef = useRef(false);
   const [discoverIndex, setDiscoverIndex] = useState(0);
   const [notification, setNotification] = useState<string | null>(null);
   const [chatOpen, setChatOpen] = useState(false);
   const [searchLookingFor, setSearchLookingFor] = useState<LookingForCategory | undefined>(undefined);
   const [showPremiumView, setShowPremiumView] = useState(false);
   const [showCompletionModal, setShowCompletionModal] = useState(false);
+  const [urlPathname, setUrlPathname] = useState('/');
   const [urlSearch, setUrlSearch] = useState('');
   const hideGuestModalOnAuthViews = view === 'auth' || view === 'register';
 
   // Track browser URL updates (initial load + back/forward).
   useEffect(() => {
-    const syncSearchFromLocation = () => setUrlSearch(window.location.search);
-    syncSearchFromLocation();
-    window.addEventListener('popstate', syncSearchFromLocation);
-    return () => window.removeEventListener('popstate', syncSearchFromLocation);
+    const syncLocation = () => {
+      setUrlPathname(normalizePathname(window.location.pathname));
+      setUrlSearch(window.location.search);
+    };
+
+    syncLocation();
+    window.addEventListener('popstate', syncLocation);
+    return () => window.removeEventListener('popstate', syncLocation);
   }, []);
 
   /* ─── Auth & token state ─── */
@@ -183,105 +243,160 @@ export default function App() {
     }
   }
 
-  // Read URL state (view/profile) and one-time actions (password reset success)
+  // Read URL state (path/query) and one-time actions (password reset success).
   useEffect(() => {
     const searchParams = new URLSearchParams(urlSearch);
-    const viewParam = searchParams.get('view');
-    const profileIdParam = searchParams.get('id');
+    const legacyViewParam = searchParams.get('view');
+    const legacyProfileIdParam = searchParams.get('id');
     const resetParam = searchParams.get('reset');
-    const nextParams = new URLSearchParams(searchParams.toString());
-    let shouldReplaceUrl = false;
+
+    const viewFromPath = getViewFromPathname(urlPathname);
+    const viewFromQuery = legacyViewParam && isRoutableAppView(legacyViewParam)
+      ? legacyViewParam
+      : null;
+    const routeView = viewFromPath || viewFromQuery;
+
+    const profileIdFromPath = extractProfileIdFromPath(urlPathname);
+    const routeProfileId = profileIdFromPath || (routeView === 'profile' ? legacyProfileIdParam : null);
+
+    let canonicalView: AppView = routeView || view;
+    let canonicalProfileId: string | null = routeProfileId;
 
     if (resetParam === 'success') {
       setNotification('Hasło zostało zmienione. Zaloguj się nowym hasłem.');
       window.setTimeout(() => setNotification(null), 3500);
-      nextParams.delete('reset');
-      shouldReplaceUrl = true;
     }
 
-    if (viewParam && isRoutableAppView(viewParam)) {
-      if (viewParam === 'profile') {
-        if (profileIdParam) {
-          const profileFromUrl = profiles.find((profile) => profile.id === profileIdParam);
+    if (routeView) {
+      if (routeView === 'profile') {
+        if (routeProfileId) {
+          const profileFromUrl = profiles.find((profile) => profile.id === routeProfileId);
+
           if (profileFromUrl) {
             if (selectedProfile?.id !== profileFromUrl.id) {
               setSelectedProfile(profileFromUrl);
             }
             if (view !== 'profile') {
+              applyingUrlStateRef.current = true;
               setView('profile');
             }
-          } else if (!loading && view !== 'home') {
-            setView('home');
-            nextParams.set('view', 'home');
-            nextParams.delete('id');
-            shouldReplaceUrl = true;
+          } else if (!loading) {
+            canonicalView = 'home';
+            canonicalProfileId = null;
+            if (view !== 'home') {
+              applyingUrlStateRef.current = true;
+              setView('home');
+            }
           }
-        } else if (view !== 'home') {
-          setView('home');
-          nextParams.set('view', 'home');
-          shouldReplaceUrl = true;
+        } else {
+          canonicalView = 'home';
+          canonicalProfileId = null;
+          if (view !== 'home') {
+            applyingUrlStateRef.current = true;
+            setView('home');
+          }
         }
-      } else if (viewParam === 'messages' && !isLoggedIn) {
+      } else if (routeView === 'messages' && !isLoggedIn) {
+        canonicalView = 'auth';
+        canonicalProfileId = null;
         if (view !== 'auth') {
+          applyingUrlStateRef.current = true;
           setView('auth');
         }
-        nextParams.set('view', 'auth');
-        nextParams.delete('id');
-        shouldReplaceUrl = true;
-      } else if (view !== viewParam) {
-        setView(viewParam);
+      } else if (view !== routeView) {
+        applyingUrlStateRef.current = true;
+        setView(routeView);
       }
     }
 
+    const nextParams = new URLSearchParams(searchParams.toString());
+    nextParams.delete('view');
+    nextParams.delete('id');
+    nextParams.delete('reset');
+
+    const expectedPath = getPathForView(
+      canonicalView,
+      canonicalView === 'profile' ? canonicalProfileId || selectedProfile?.id || null : null,
+    );
+    const nextQuery = nextParams.toString();
+    const nextSearch = nextQuery ? `?${nextQuery}` : '';
+    const currentPath = normalizePathname(window.location.pathname);
+    const currentSearch = window.location.search;
+
+    const hasLegacyRoutingParams = searchParams.has('view') || searchParams.has('id') || searchParams.has('reset');
+    const shouldReplaceUrl = hasLegacyRoutingParams || currentPath !== expectedPath || currentSearch !== nextSearch;
+
     if (shouldReplaceUrl) {
-      const nextQuery = nextParams.toString();
-      const nextSearch = nextQuery ? `?${nextQuery}` : '';
-      const nextUrl = `${window.location.pathname}${nextSearch}`;
-      const currentUrl = `${window.location.pathname}${window.location.search}`;
+      const nextUrl = `${expectedPath}${nextSearch}`;
+      const currentUrl = `${currentPath}${currentSearch}`;
 
       if (nextUrl !== currentUrl) {
         window.history.replaceState(null, '', nextUrl);
       }
 
+      if (expectedPath !== urlPathname) {
+        setUrlPathname(expectedPath);
+      }
       if (nextSearch !== urlSearch) {
         setUrlSearch(nextSearch);
       }
     }
-  }, [isLoggedIn, loading, profiles, selectedProfile?.id, urlSearch, view]);
+  }, [isLoggedIn, loading, profiles, selectedProfile?.id, urlPathname, urlSearch]);
 
-  // Keep URL in sync with current view so tabs/profiles are shareable.
+  // Keep URL in sync with current in-app view so tabs/profiles are shareable.
   useEffect(() => {
+    const viewFromPath = getViewFromPathname(urlPathname);
     const searchParams = new URLSearchParams(urlSearch);
-    const urlView = searchParams.get('view');
+    const viewFromQuery = searchParams.get('view');
 
-    // Let URL-driven state initialize first (e.g. direct link open/back-forward).
-    if (urlView && isRoutableAppView(urlView) && urlView !== view) {
+    // Let URL-driven state initialize first (direct link open / back-forward).
+    if (applyingUrlStateRef.current && viewFromPath && viewFromPath !== view) {
+      return;
+    }
+    if (
+      applyingUrlStateRef.current &&
+      !viewFromPath &&
+      viewFromQuery &&
+      isRoutableAppView(viewFromQuery) &&
+      viewFromQuery !== view
+    ) {
       return;
     }
 
     const nextParams = new URLSearchParams(searchParams.toString());
-    nextParams.set('view', view);
+    nextParams.delete('view');
+    nextParams.delete('id');
     nextParams.delete('reset');
 
-    if (view === 'profile' && selectedProfile?.id) {
-      nextParams.set('id', selectedProfile.id);
-    } else {
-      nextParams.delete('id');
+    if (view === 'profile') {
+      const currentProfileIdFromPath = extractProfileIdFromPath(urlPathname);
+      if (!selectedProfile?.id && currentProfileIdFromPath) {
+        return;
+      }
+      if (!selectedProfile?.id) {
+        return;
+      }
     }
 
+    const expectedPath = getPathForView(view, view === 'profile' ? selectedProfile?.id || null : null);
     const nextQuery = nextParams.toString();
     const nextSearch = nextQuery ? `?${nextQuery}` : '';
-    const nextUrl = `${window.location.pathname}${nextSearch}`;
-    const currentUrl = `${window.location.pathname}${window.location.search}`;
+    const currentPath = normalizePathname(window.location.pathname);
+    const currentSearch = window.location.search;
 
-    if (nextUrl !== currentUrl) {
-      window.history.replaceState(null, '', nextUrl);
+    if (expectedPath !== currentPath || nextSearch !== currentSearch) {
+      window.history.replaceState(null, '', `${expectedPath}${nextSearch}`);
     }
 
+    if (expectedPath !== urlPathname) {
+      setUrlPathname(expectedPath);
+    }
     if (nextSearch !== urlSearch) {
       setUrlSearch(nextSearch);
     }
-  }, [selectedProfile?.id, urlSearch, view]);
+
+    applyingUrlStateRef.current = false;
+  }, [selectedProfile?.id, urlPathname, urlSearch, view]);
 
   // Supabase auth state effect
   useEffect(() => {

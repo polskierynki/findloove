@@ -106,7 +106,7 @@ export default function ResetPasswordPage() {
   }, []);
 
   const redirectToLogin = () => {
-    router.replace('/?view=auth');
+    router.replace('/auth');
   };
 
   const handleSubmit = async (event: React.FormEvent) => {
@@ -139,7 +139,7 @@ export default function ResetPasswordPage() {
     setStatusMessage('Hasło zostało zmienione. Przekierowuję do logowania...');
 
     window.setTimeout(() => {
-      router.replace('/?view=auth&reset=success');
+      router.replace('/auth?reset=success');
     }, 1200);
   };
 
