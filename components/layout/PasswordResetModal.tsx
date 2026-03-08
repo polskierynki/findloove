@@ -46,6 +46,10 @@ export default function PasswordResetModal({
     if (error) {
       onError('Błąd zmiany hasła: ' + error.message);
     } else {
+      // Wyczyść hash z URL
+      if (typeof window !== 'undefined' && window.location.hash) {
+        window.history.replaceState(null, '', window.location.pathname);
+      }
       onSuccess('Hasło zostało pomyślnie zmienione. Możesz się teraz zalogować.');
       onClose();
     }

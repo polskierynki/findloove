@@ -157,6 +157,14 @@ export default function App() {
 
   // Supabase auth state effect
   useEffect(() => {
+    // Check if URL contains password recovery hash
+    if (typeof window !== 'undefined') {
+      const hash = window.location.hash;
+      if (hash && hash.includes('type=recovery')) {
+        setShowPasswordReset(true);
+      }
+    }
+
     // Get initial session
     const getSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -588,7 +596,13 @@ export default function App() {
         {/* Password reset modal */}
         {showPasswordReset && (
           <PasswordResetModal
-            onClose={() => setShowPasswordReset(false)}
+            onClose={() => {
+              // Wyczyść hash z URL
+              if (typeof window !== 'undefined' && window.location.hash) {
+                window.history.replaceState(null, '', window.location.pathname);
+              }
+              setShowPasswordReset(false);
+            }}
             onSuccess={(msg) => {
               notify(msg);
               setShowPasswordReset(false);
