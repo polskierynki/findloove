@@ -180,8 +180,8 @@ export default function MyProfile() {
     }
 
     const added = await addPhotoToProfilePhotos(profile.id, url, photos.length === 0, photos.length);
-    if (!added) {
-      alert('Zdjecie wyslano, ale nie zapisano rekordu w bazie (profile_photos).');
+    if (!added.success) {
+      alert(`Zdjecie wyslano, ale nie zapisano rekordu w bazie (profile_photos).\n\nSzczegoly: ${added.error || 'brak dodatkowych informacji'}`);
       setUploading(false);
       return;
     }
@@ -199,8 +199,8 @@ export default function MyProfile() {
   // Usuń zdjęcie
   const handleRemovePhoto = async (photoId: string) => {
     const removed = await removePhotoFromProfilePhotos(photoId);
-    if (!removed) {
-      alert('Nie udalo sie usunac zdjecia. Sprawdz polityki RLS dla profile_photos.');
+    if (!removed.success) {
+      alert(`Nie udalo sie usunac zdjecia.\n\nSzczegoly: ${removed.error || 'brak dodatkowych informacji'}`);
       return;
     }
     setPhotos(photos.filter((p) => p.id !== photoId));
@@ -209,8 +209,8 @@ export default function MyProfile() {
   // Ustaw zdjęcie główne
   const handleSetMain = async (photoId: string) => {
     const changed = await setMainProfilePhoto(profile.id, photoId);
-    if (!changed) {
-      alert('Nie udalo sie ustawic glownego zdjecia.');
+    if (!changed.success) {
+      alert(`Nie udalo sie ustawic glownego zdjecia.\n\nSzczegoly: ${changed.error || 'brak dodatkowych informacji'}`);
       return;
     }
 

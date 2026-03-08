@@ -1,5 +1,10 @@
 import { supabase } from '@/lib/supabase';
 
+type PhotoMutationResult = {
+  success: boolean;
+  error?: string;
+};
+
 // Upload pojedynczego zdjęcia do Supabase Storage (bucket: profile-photos) i zwróć publiczny URL
 // UWAGA: Plik trafia na Twój serwer Supabase, nie na zewnętrzny hosting!
 export async function uploadProfilePhoto(file: File, userId: string): Promise<string | null> {
@@ -30,7 +35,12 @@ export async function addPhotoToProfile(userId: string, photoUrl: string) {
 }
 
 // Dodaj zdjęcie do profile_photos (pełna galeria)
-export async function addPhotoToProfilePhotos(userId: string, photoUrl: string, isMain = false, sortOrder = 0): Promise<boolean> {
+export async function addPhotoToProfilePhotos(
+  userId: string,
+  photoUrl: string,
+  isMain = false,
+  sortOrder = 0,
+): Promise<PhotoMutationResult> {
   const { error } = await supabase.from('profile_photos').insert({
     profile_id: userId,
     url: photoUrl,
@@ -40,24 +50,30 @@ export async function addPhotoToProfilePhotos(userId: string, photoUrl: string, 
 
   if (error) {
     console.error('Blad zapisu do profile_photos:', error);
-    return false;
+    return {
+      success: false,
+      error: error.message || 'Blad zapisu do profile_photos',
+    };
   }
 
-  return true;
+  return { success: true };
 }
 
 // Usuń zdjęcie z profile_photos
-export async function removePhotoFromProfilePhotos(photoId: string): Promise<boolean> {
+export async function removePhotoFromProfilePhotos(photoId: string): Promise<PhotoMutationResult> {
   const { error } = await supabase.from('profile_photos').delete().eq('id', photoId);
   if (error) {
     console.error('Blad usuwania zdjecia:', error);
-    return false;
+    return {
+      success: false,
+      error: error.message || 'Blad usuwania zdjecia',
+    };
   }
-  return true;
+  return { success: true };
 }
 
 // Ustaw zdjęcie główne
-export async function setMainProfilePhoto(userId: string, photoId: string): Promise<boolean> {
+export async function setMainProfilePhoto(userId: string, photoId: string): Promise<PhotoMutationResult> {
   // Najpierw odznacz wszystkie
   const { error: resetError } = await supabase
     .from('profile_photos')
@@ -66,7 +82,10 @@ export async function setMainProfilePhoto(userId: string, photoId: string): Prom
 
   if (resetError) {
     console.error('Blad resetowania glownego zdjecia:', resetError);
-    return false;
+    return {
+      success: false,
+      error: resetError.message || 'Blad resetowania glownego zdjecia',
+    };
   }
 
   // Potem ustaw wybrane
@@ -77,8 +96,11 @@ export async function setMainProfilePhoto(userId: string, photoId: string): Prom
 
   if (mainError) {
     console.error('Blad ustawiania glownego zdjecia:', mainError);
-    return false;
+    return {
+      success: false,
+      error: mainError.message || 'Blad ustawiania glownego zdjecia',
+    };
   }
 
-  return true;
+  return { success: true };
 }

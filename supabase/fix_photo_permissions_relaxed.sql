@@ -1,7 +1,82 @@
 -- Relax photo permissions for authenticated users
 -- Use this if strict owner-based policies still block uploads/deletes.
+-- Idempotent: safe to run multiple times.
 
 begin;
+
+create extension if not exists pgcrypto;
+
+-- Ensure table shape is compatible with app code
+create table if not exists public.profile_photos (
+  id uuid primary key default gen_random_uuid(),
+  profile_id uuid references public.profiles(id) on delete cascade not null,
+  url text not null,
+  is_main boolean not null default false,
+  sort_order integer not null default 0,
+  created_at timestamptz not null default now()
+);
+
+alter table public.profile_photos add column if not exists id uuid;
+alter table public.profile_photos add column if not exists profile_id uuid;
+alter table public.profile_photos add column if not exists url text;
+alter table public.profile_photos add column if not exists is_main boolean default false;
+alter table public.profile_photos add column if not exists sort_order integer default 0;
+alter table public.profile_photos add column if not exists created_at timestamptz default now();
+
+update public.profile_photos set id = gen_random_uuid() where id is null;
+update public.profile_photos set is_main = false where is_main is null;
+update public.profile_photos set sort_order = 0 where sort_order is null;
+update public.profile_photos set created_at = now() where created_at is null;
+update public.profile_photos
+set url = 'https://ui-avatars.com/api/?name=User&background=e2e8f0&color=475569&size=256'
+where url is null or trim(url) = '';
+
+alter table public.profile_photos alter column id set default gen_random_uuid();
+alter table public.profile_photos alter column profile_id set not null;
+alter table public.profile_photos alter column url set not null;
+alter table public.profile_photos alter column is_main set default false;
+alter table public.profile_photos alter column is_main set not null;
+alter table public.profile_photos alter column sort_order set default 0;
+alter table public.profile_photos alter column sort_order set not null;
+alter table public.profile_photos alter column created_at set default now();
+alter table public.profile_photos alter column created_at set not null;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conrelid = 'public.profile_photos'::regclass
+      and contype = 'p'
+  ) then
+    alter table public.profile_photos add constraint profile_photos_pkey primary key (id);
+  end if;
+end $$;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'profile_photos_profile_id_fkey'
+      and conrelid = 'public.profile_photos'::regclass
+  ) then
+    alter table public.profile_photos
+      add constraint profile_photos_profile_id_fkey
+      foreign key (profile_id) references public.profiles(id) on delete cascade;
+  end if;
+end $$;
+
+create index if not exists profile_photos_profile_sort_idx
+  on public.profile_photos (profile_id, sort_order, created_at desc);
+
+-- Grants for PostgREST roles
+grant usage on schema public to anon, authenticated;
+grant select on public.profile_photos to anon;
+grant select, insert, update, delete on public.profile_photos to authenticated;
+grant usage on schema storage to anon, authenticated;
+grant select on storage.objects to anon;
+grant select, insert, update, delete on storage.objects to authenticated;
 
 -- TABLE: public.profile_photos
 alter table public.profile_photos enable row level security;
@@ -15,6 +90,9 @@ drop policy if exists "Users can manage own photos" on public.profile_photos;
 drop policy if exists "Public insert photos" on public.profile_photos;
 drop policy if exists "Public update photos" on public.profile_photos;
 drop policy if exists "Public delete photos" on public.profile_photos;
+drop policy if exists "Authenticated insert photos" on public.profile_photos;
+drop policy if exists "Authenticated update photos" on public.profile_photos;
+drop policy if exists "Authenticated delete photos" on public.profile_photos;
 
 -- Public can read photos
 create policy "Public read photos"
@@ -63,6 +141,9 @@ drop policy if exists "Profile photos public read" on storage.objects;
 drop policy if exists "Profile photos upload own folder" on storage.objects;
 drop policy if exists "Profile photos update own folder" on storage.objects;
 drop policy if exists "Profile photos delete own folder" on storage.objects;
+drop policy if exists "Profile photos authenticated upload" on storage.objects;
+drop policy if exists "Profile photos authenticated update" on storage.objects;
+drop policy if exists "Profile photos authenticated delete" on storage.objects;
 
 -- Public read, authenticated write/update/delete in profile-photos bucket
 create policy "Profile photos public read"
