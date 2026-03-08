@@ -64,6 +64,7 @@ export default function MyProfile() {
   const [edit, setEdit] = useState(false);
   const [form, setForm] = useState<any>({});
   const [uploading, setUploading] = useState(false);
+  const [photoSaved, setPhotoSaved] = useState(false);
   const [stats, setStats] = useState<any>(null);
 
   // Pobierz dane profilu i zdjęcia po zalogowaniu
@@ -221,6 +222,8 @@ export default function MyProfile() {
     setPhotos(ph || []);
 
     setUploading(false);
+    setPhotoSaved(true);
+    setTimeout(() => setPhotoSaved(false), 3000); // Schowaj komunikat po 3 sekundach
   };
 
   // Usuń zdjęcie
@@ -633,6 +636,12 @@ export default function MyProfile() {
               <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-600">Galeria</h3>
               <span className="text-xs font-medium text-slate-500">{photos.length}/6</span>
             </div>
+
+            {photoSaved && (
+              <div className="mb-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700">
+                ✓ Zdjęcie zapisane
+              </div>
+            )}
 
             {photos.length === 0 && (
               <div className="mb-3 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-800">
