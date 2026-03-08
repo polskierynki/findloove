@@ -55,8 +55,42 @@ export default function MyProfile() {
       if (!user) return;
       const { data: prof, error } = await supabase.from('profiles').select('*').eq('id', user.id).single();
       console.log('PROFILE DEBUG:', { prof, error, user });
-      setProfile(prof);
-      setForm(prof);
+      
+      // Jeśli profil nie istnieje, utwórz pusty
+      if (!prof && error?.code === 'PGRST116') {
+        const newProfile = {
+          id: user.id,
+          email: user.email || '',
+          name: '',
+          age: 18,
+          city: '',
+          bio: '',
+          interests: [],
+          status: '',
+          image_url: '',
+          is_verified: false,
+          occupation: '',
+          zodiac: '',
+          smoking: '',
+          children: '',
+          gender: '',
+          seeking_gender: '',
+          seeking_age_min: 18,
+          seeking_age_max: 82,
+        };
+        await supabase.from('profiles').insert(newProfile);
+        setProfile(newProfile);
+        setForm(newProfile);
+        setEdit(true); // Włącz tryb edycji dla nowego profilu
+      } else {
+        setProfile(prof);
+        setForm(prof || {});
+        
+        // Automatycznie włącz tryb edycji jeśli profil jest pusty/niepełny
+        const isIncomplete = !prof?.name || !prof?.age || !prof?.city || !prof?.bio;
+        setEdit(isIncomplete);
+      }
+      
       const { data: ph } = await supabase.from('profile_photos').select('*').eq('profile_id', user.id).order('sort_order');
       setPhotos(ph || []);
       // Pobierz statystyki aktywności
@@ -123,6 +157,15 @@ export default function MyProfile() {
   return (
     <div className="max-w-xl mx-auto p-6">
       <h2 className="text-2xl font-bold mb-4">Mój profil</h2>
+      
+      {!profile?.name && !edit && (
+        <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl">
+          <p className="text-sm text-amber-800">
+            Twój profil jest niekompletny. Uzupełnij swoje dane, aby inni mogli Cię poznać!
+          </p>
+        </div>
+      )}
+      
       <div className="mb-4 flex items-center gap-2">
         {profile?.is_verified ? (
           <span className="inline-flex items-center px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-semibold">Profil zweryfikowany ✓</span>
@@ -165,23 +208,62 @@ export default function MyProfile() {
           </div>
         </div>
       )}
-      <div className="mb-6 flex gap-4 flex-wrap">
-        {photos.map(photo => (
-          <div key={photo.id} className="relative group">
-            <img src={photo.url} alt="Profil" className={`w-28 h-28 object-cover rounded-xl border-2 ${photo.is_main ? 'border-rose-500' : 'border-slate-200'}`} />
-            <button onClick={() => handleRemovePhoto(photo.id)} className="absolute top-1 right-1 bg-white/80 rounded-full p-1 text-xs">✕</button>
-            {!photo.is_main && (
-              <button onClick={() => handleSetMain(photo.id)} className="absolute bottom-1 left-1 bg-white/80 rounded-full px-2 py-0.5 text-xs text-rose-600">Ustaw główne</button>
-            )}
+      
+      {/* Sekcja zdjęć */}
+      <div className="mb-6">
+        <h3 className="text-sm font-semibold mb-3 text-slate-700">Galeria zdjęć</h3>
+        {photos.length === 0 && (
+          <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-xl">
+            <p className="text-xs text-blue-800">
+              📸 Dodaj swoje zdjęcia, aby zwiększyć swoje szanse na poznanie kogoś wyjątkowego!
+            </p>
           </div>
-        ))}
-        <label className="w-28 h-28 flex items-center justify-center border-2 border-dashed rounded-xl cursor-pointer text-slate-400 hover:border-rose-400">
-          <input type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} disabled={uploading} />
-          {uploading ? 'Wysyłanie...' : '+'}
-        </label>
+        )}
+        <div className="flex gap-4 flex-wrap">
+          {photos.map(photo => (
+            <div key={photo.id} className="relative group">
+              <img src={photo.url} alt="Profil" className={`w-28 h-28 object-cover rounded-xl border-2 ${photo.is_main ? 'border-rose-500' : 'border-slate-200'}`} />
+              <button onClick={() => handleRemovePhoto(photo.id)} className="absolute top-1 right-1 bg-white/80 rounded-full p-1 text-xs">✕</button>
+              {!photo.is_main && (
+                <button onClick={() => handleSetMain(photo.id)} className="absolute bottom-1 left-1 bg-white/80 rounded-full px-2 py-0.5 text-xs text-rose-600">Ustaw główne</button>
+              )}
+            </div>
+          ))}
+          <label className="w-28 h-28 flex items-center justify-center border-2 border-dashed rounded-xl cursor-pointer text-slate-400 hover:border-rose-400">
+            <input type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} disabled={uploading} />
+            {uploading ? 'Wysyłanie...' : '+'}
+          </label>
+        </div>
       </div>
       {edit ? (
         <div className="space-y-3">
+          {/* Imię */}
+          <div>
+            <label className="block text-sm font-semibold mb-1">Imię</label>
+            <input 
+              name="name" 
+              value={form.name || ''} 
+              onChange={handleChange} 
+              className="w-full border rounded px-3 py-2" 
+              placeholder="Twoje imię" 
+              required
+            />
+          </div>
+          {/* Wiek */}
+          <div>
+            <label className="block text-sm font-semibold mb-1">Wiek</label>
+            <input 
+              name="age" 
+              value={form.age || ''} 
+              onChange={handleChange} 
+              className="w-full border rounded px-3 py-2" 
+              placeholder="Wiek" 
+              type="number" 
+              min="18" 
+              max="120" 
+              required
+            />
+          </div>
           {/* Płeć */}
           <div>
             <label className="block text-sm font-semibold mb-1">Płeć</label>
@@ -199,10 +281,9 @@ export default function MyProfile() {
               <option value="M">Mężczyzny</option>
             </select>
           </div>
-          {/* Wiek */}
-          <input name="age" value={form.age || ''} onChange={handleChange} className="w-full border rounded px-3 py-2" placeholder="Wiek" type="number" min="8" max="120" />
           {/* Miasto z podpowiedziami */}
           <div>
+            <label className="block text-sm font-semibold mb-1">Miasto</label>
             <input name="city" value={form.city || ''} onChange={handleChange} className="w-full border rounded px-3 py-2" placeholder="Miasto" list="cities" />
             <datalist id="cities">
               {POLISH_CITIES.map(city => <option key={city} value={city} />)}
@@ -217,7 +298,10 @@ export default function MyProfile() {
             </select>
           </div>
           {/* O sobie */}
-          <textarea name="bio" value={form.bio || ''} onChange={handleChange} className="w-full border rounded px-3 py-2" placeholder="O sobie" />
+          <div>
+            <label className="block text-sm font-semibold mb-1">O sobie</label>
+            <textarea name="bio" value={form.bio || ''} onChange={handleChange} className="w-full border rounded px-3 py-2" placeholder="Opowiedz coś o sobie..." rows={4} />
+          </div>
           {/* Zawód */}
           <div>
             <label className="block text-sm font-semibold mb-1">Zawód</label>
@@ -277,20 +361,28 @@ export default function MyProfile() {
               ))}
             </div>
           </div>
-          <button onClick={handleSave} className="bg-rose-500 text-white px-4 py-2 rounded">Zapisz</button>
-          <button onClick={() => setEdit(false)} className="ml-2 text-slate-500">Anuluj</button>
+          <div className="flex gap-2 pt-4">
+            <button onClick={handleSave} className="flex-1 bg-rose-500 text-white px-4 py-2 rounded hover:bg-rose-600 font-semibold" disabled={loading}>
+              {loading ? 'Zapisywanie...' : 'Zapisz zmiany'}
+            </button>
+            <button onClick={() => { setEdit(false); setForm(profile); }} className="px-4 py-2 border border-slate-300 rounded text-slate-700 hover:bg-slate-50">
+              Anuluj
+            </button>
+          </div>
         </div>
       ) : (
         <div className="space-y-2">
-          <div><b>Imię:</b> {profile.name}</div>
-          <div><b>Wiek:</b> {profile.age}</div>
-          <div><b>Miasto:</b> {profile.city}</div>
-          <div><b>O sobie:</b> {profile.bio}</div>
-          <div><b>Zawód:</b> {profile.occupation}</div>
-          <div><b>Znak zodiaku:</b> {profile.zodiac}</div>
-          <div><b>Palenie:</b> {profile.smoking}</div>
-          <div><b>Dzieci:</b> {profile.children}</div>
-          <button onClick={() => setEdit(true)} className="bg-slate-200 px-4 py-2 rounded mt-2">Edytuj dane</button>
+          <div><b>Imię:</b> {profile?.name || <span className="text-slate-400 italic">Nie podano</span>}</div>
+          <div><b>Wiek:</b> {profile?.age || <span className="text-slate-400 italic">Nie podano</span>}</div>
+          <div><b>Płeć:</b> {profile?.gender ? GENDERS.find(g => g.id === profile.gender)?.label : <span className="text-slate-400 italic">Nie podano</span>}</div>
+          <div><b>Miasto:</b> {profile?.city || <span className="text-slate-400 italic">Nie podano</span>}</div>
+          <div><b>O sobie:</b> {profile?.bio || <span className="text-slate-400 italic">Nie podano</span>}</div>
+          <div><b>Zawód:</b> {profile?.occupation || <span className="text-slate-400 italic">Nie podano</span>}</div>
+          <div><b>Znak zodiaku:</b> {profile?.zodiac || <span className="text-slate-400 italic">Nie podano</span>}</div>
+          <div><b>Palenie:</b> {profile?.smoking || <span className="text-slate-400 italic">Nie podano</span>}</div>
+          <div><b>Dzieci:</b> {profile?.children || <span className="text-slate-400 italic">Nie podano</span>}</div>
+          <div><b>Zainteresowania:</b> {profile?.interests?.length > 0 ? profile.interests.join(', ') : <span className="text-slate-400 italic">Nie podano</span>}</div>
+          <button onClick={() => setEdit(true)} className="bg-rose-500 text-white px-4 py-2 rounded mt-4 hover:bg-rose-600">Edytuj dane</button>
         </div>
       )}
     </div>
