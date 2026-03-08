@@ -133,7 +133,7 @@ export default function App() {
         if (data) {
           const adminProfile = mapSupabaseProfile(data as SupabaseProfile);
           setSelectedProfile(adminProfile);
-          setView('profile');
+          setView('admin');
         }
       } else {
         isAdminRef.current = false;

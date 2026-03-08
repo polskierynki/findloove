@@ -125,8 +125,8 @@ export default function AuthView({ onBack, onNotify, onRegister }: AuthViewProps
         // Sprawdź czy to Super Admin
         if (profileData && profileData.id === '00000000-0000-0000-0000-000000000001') {
           onNotify('Zalogowano jako Super Admin!');
-          // Przekierowanie do panelu admina
-          window.location.href = '/admin';
+          // handleSession automatycznie przekieruje do panelu admina
+          onBack();
           return;
         }
       }
