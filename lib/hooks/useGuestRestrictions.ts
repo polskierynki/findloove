@@ -81,9 +81,19 @@ export function useGuestRestrictions(isLoggedIn: boolean) {
 
   const closeModal = () => {
     setShowModal(false);
-    setShowTimeoutModal(false);
     setShowFeatureModal(false);
     setFeatureName('Ta funkcja');
+  };
+
+  const closeTimeoutModal = () => {
+    setShowTimeoutModal(false);
+    // Reset timer - start counting 40 seconds from now
+    const newStartTime = Date.now();
+    setState(prev => ({
+      ...prev,
+      startTime: newStartTime
+    }));
+    setElapsedMs(0);
   };
 
   const resetState = () => {
@@ -144,6 +154,7 @@ export function useGuestRestrictions(isLoggedIn: boolean) {
     showModal,
     closeModal,
     showTimeoutModal,
+    closeTimeoutModal,
     showFeatureModal,
     triggerFeatureModal,
     

@@ -563,13 +563,27 @@ export default function App() {
           {!hideGuestModalOnAuthViews && (
             <GuestModal
               isOpen={guestRestrictions.showModal || guestRestrictions.showTimeoutModal || guestRestrictions.showFeatureModal}
-              onClose={guestRestrictions.closeModal}
+              onClose={() => {
+                if (guestRestrictions.showTimeoutModal) {
+                  guestRestrictions.closeTimeoutModal();
+                } else {
+                  guestRestrictions.closeModal();
+                }
+              }}
               onRegister={() => {
-                guestRestrictions.closeModal();
+                if (guestRestrictions.showTimeoutModal) {
+                  guestRestrictions.closeTimeoutModal();
+                } else {
+                  guestRestrictions.closeModal();
+                }
                 setView('register');
               }}
               onLogin={() => {
-                guestRestrictions.closeModal();
+                if (guestRestrictions.showTimeoutModal) {
+                  guestRestrictions.closeTimeoutModal();
+                } else {
+                  guestRestrictions.closeModal();
+                }
                 setView('auth');
               }}
               variant={
@@ -578,6 +592,7 @@ export default function App() {
                 'clicks'
               }
               featureName={guestRestrictions.featureName}
+              remainingTime={guestRestrictions.remainingTime}
             />
           )}
           {!hideGuestModalOnAuthViews && (

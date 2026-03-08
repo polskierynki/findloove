@@ -1,6 +1,6 @@
 'use client';
 
-import { Search, MessageCircle, Star, ShieldCheck, Bolt, User } from 'lucide-react';
+import { Heart, MessageCircle, Star, ShieldCheck, HeartHandshake, User } from 'lucide-react';
 import { AppView, ViewType } from '@/lib/types';
 
 interface BottomNavProps {
@@ -10,8 +10,8 @@ interface BottomNavProps {
 }
 
 const NAV_ITEMS: { id: ViewType | 'myprofile'; icon: React.ReactNode; label: string }[] = [
-  { id: 'home', icon: <Search size={22} />, label: 'Start' },
-  { id: 'discover', icon: <Bolt size={22} />, label: 'Randki' },
+  { id: 'home', icon: <Heart size={22} />, label: 'Start' },
+  { id: 'discover', icon: <HeartHandshake size={22} />, label: 'Randki' },
   { id: 'messages', icon: <MessageCircle size={22} />, label: 'Poczta' },
   { id: 'likes', icon: <Star size={22} />, label: 'Lubię' },
   { id: 'safety', icon: <ShieldCheck size={22} />, label: 'Tarcza' },

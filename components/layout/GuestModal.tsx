@@ -1,6 +1,6 @@
 'use client';
 
-import { X, Heart, Users, Sparkles, Lock } from 'lucide-react';
+import { X, Heart, Users, Sparkles, Lock, Clock } from 'lucide-react';
 
 interface GuestModalProps {
   isOpen: boolean;
@@ -9,6 +9,7 @@ interface GuestModalProps {
   onLogin: () => void;
   variant?: 'clicks' | 'timeout' | 'feature';
   featureName?: string;
+  remainingTime?: number; // seconds
 }
 
 export default function GuestModal({ 
@@ -17,7 +18,8 @@ export default function GuestModal({
   onRegister, 
   onLogin,
   variant = 'clicks',
-  featureName 
+  featureName,
+  remainingTime = 0
 }: GuestModalProps) {
   if (!isOpen) return null;
 
@@ -34,9 +36,11 @@ export default function GuestModal({
       ],
     },
     timeout: {
-      icon: <Lock size={48} className="text-amber-500" />,
+      icon: <Clock size={48} className="text-amber-500" />,
       title: 'Czas się skończył',
-      description: 'Wykorzystałeś dostępny czas przeglądania. Utwórz konto aby kontynuować bez ograniczeń.',
+      description: remainingTime > 0 
+        ? `Możesz kontynuować za ${remainingTime}s lub załóż konto aby przeglądać bez ograniczeń.`
+        : 'Wykorzystałeś dostępny czas przeglądania. Utwórz konto aby kontynuować bez ograniczeń.',
       benefits: [
         'Nieograniczony dostęp 24/7',
         'Pełna kontrola nad profilem',
@@ -76,6 +80,22 @@ export default function GuestModal({
               {icon}
             </div>
             <h2 className="text-2xl font-bold text-slate-800 mb-2">{title}</h2>
+            
+            {/* Countdown timer for timeout variant */}
+            {variant === 'timeout' && remainingTime > 0 && (
+              <div className="my-4 flex items-center justify-center gap-3">
+                <div className="bg-gradient-to-br from-amber-500 to-orange-500 text-white rounded-2xl px-6 py-3 shadow-lg">
+                  <div className="flex items-center gap-2">
+                    <Clock size={24} />
+                    <div className="text-left">
+                      <div className="text-xs font-semibold opacity-90">Następna sesja za:</div>
+                      <div className="text-3xl font-bold tabular-nums">{remainingTime}s</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+            
             <p className="text-slate-500 text-sm leading-relaxed">{description}</p>
           </div>
         </div>
