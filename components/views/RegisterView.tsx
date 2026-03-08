@@ -272,6 +272,9 @@ export default function RegisterView({ onBack, onComplete }: RegisterViewProps) 
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          emailRedirectTo: typeof window !== 'undefined' ? window.location.origin : undefined,
+        },
       });
 
       if (authError) throw authError;
