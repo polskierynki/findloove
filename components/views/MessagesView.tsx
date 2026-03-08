@@ -1,10 +1,9 @@
 'use client';
 
-import { useState, useRef, useEffect, useMemo } from 'react';
-import { ChevronLeft, Send, Search, ShieldCheck, Flag, Ban, Trash2, LogIn, Mail, Heart, FileText } from 'lucide-react';
-import { Profile, filterNonAdminProfiles, SupabaseMessage } from '@/lib/types';
+import { useState, useEffect, useMemo } from 'react';
+import { ChevronLeft, Search, ShieldCheck, Flag, Ban, Trash2, LogIn, Heart, FileText } from 'lucide-react';
+import { Profile, filterNonAdminProfiles } from '@/lib/types';
 import { useProfiles } from '@/lib/hooks/useProfiles';
-import { useMessages } from '@/lib/hooks/useMessages';
 import TalkJSChat from '@/components/layout/TalkJSChat';
 
 const MY_PROFILE_ID = '00000000-0000-0000-0000-000000000001';
@@ -63,92 +62,18 @@ function ConversationListItem({
   );
 }
 
-function MessageBubble({ msg, isMine, activeProfile }: { msg: SupabaseMessage; isMine: boolean; activeProfile: Profile }) {
-  return (
-    <div className={`flex items-end gap-2 ${isMine ? 'flex-row-reverse' : ''}`}>
-      {!isMine && (
-        <img
-          src={activeProfile.image}
-          alt={activeProfile.name}
-          className="w-7 h-7 rounded-full object-cover shrink-0 mb-0.5"
-        />
-      )}
-      <div
-        className={`px-4 py-2.5 rounded-2xl max-w-[72%] shadow-sm ${
-          isMine
-            ? 'bg-rose-500 text-white rounded-br-sm'
-            : 'bg-white border border-slate-100 text-slate-800 rounded-bl-sm'
-        }`}
-      >
-        <p className="text-sm leading-relaxed">{msg.content}</p>
-        <span className={`text-[10px] mt-0.5 block ${isMine ? 'text-rose-200 text-right' : 'text-slate-400'}`}>
-          {getTime(msg.created_at)}
-        </span>
-      </div>
-    </div>
-  );
-}
-
-function EmptyChatPlaceholder({
-  activeProfile,
-  onQuickStart,
-}: {
-  activeProfile: Profile;
-  onQuickStart: (text: string) => void;
-}) {
-  return (
-    <div className="flex flex-col items-center justify-center h-full text-center gap-3 pb-8">
-      <Mail size={48} className="text-rose-400" />
-      <p className="text-slate-500 text-sm font-medium">Zacznij rozmowę z {activeProfile.name}!</p>
-      <div className="flex flex-wrap gap-2 justify-center mt-1">
-        {QUICK_STARTERS.map((q) => (
-          <button
-            key={q}
-            onClick={() => onQuickStart(q)}
-            className="bg-white border border-rose-200 text-rose-600 text-xs px-3 py-1.5 rounded-full hover:bg-rose-50 transition-colors shadow-sm"
-          >
-            {q}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 export default function MessagesView({ selectedProfile, onBack, onNotify, isLoggedIn = false, isPremium = false, tokens = 0, onSpendToken, onLoginRequest }: MessagesViewProps) {
   const { profiles: allProfiles, loading: profilesLoading } = useProfiles();
   const visibleProfiles = useMemo(() => filterNonAdminProfiles(allProfiles), [allProfiles]);
   
   const [activeProfile, setActiveProfile] = useState<Profile | null>(selectedProfile);
   const [showChat, setShowChat] = useState(!!selectedProfile);
-  const [messageText, setMessageText] = useState('');
-  const bottomRef = useRef<HTMLDivElement>(null);
 
   /* ─── daily message limit ─── */
   const FREE_DAILY_LIMIT = 2;
   const DAILY_LIMIT = isPremium ? Number.POSITIVE_INFINITY : FREE_DAILY_LIMIT;
-  const [messagedToday, setMessagedToday] = useState<string[]>([]); // profile IDs we sent to today
+  const [messagedToday, setMessagedToday] = useState<string[]>([]);
   const [showLimitModal, setShowLimitModal] = useState(false);
-  const skipInitialAutoScrollRef = useRef(true);
-
-  const { messages, loading: messagesLoading, sendMessage, refreshMessages } = useMessages(activeProfile?.id || null);
-
-  // Auto-refresh messages every 5 seconds
-  useEffect(() => {
-    if (!activeProfile) return;
-    const interval = setInterval(() => {
-      refreshMessages();
-    }, 5000);
-    return () => clearInterval(interval);
-  }, [activeProfile, refreshMessages]);
-
-  useEffect(() => {
-    if (skipInitialAutoScrollRef.current) {
-      skipInitialAutoScrollRef.current = false;
-      return;
-    }
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
 
   useEffect(() => {
     if (!activeProfile && visibleProfiles.length > 0) {
@@ -162,37 +87,7 @@ export default function MessagesView({ selectedProfile, onBack, onNotify, isLogg
 
   const selectConversation = (profile: Profile) => {
     setActiveProfile(profile);
-    setMessageText('');
     setShowChat(true);
-    skipInitialAutoScrollRef.current = true;
-  };
-
-  const handleSend = async () => {
-    const text = messageText.trim();
-    if (!text || !activeProfile) return;
-
-    /* ——— daily limit check ——— */
-    const alreadyMessaged = messagedToday.includes(activeProfile.id);
-    if (!isPremium && !alreadyMessaged && messagedToday.length >= DAILY_LIMIT) {
-      setShowLimitModal(true);
-      return;
-    }
-
-    const ok = await sendMessage(text);
-    if (ok) {
-      onNotify('Wiadomość wysłana!');
-      setMessageText('');
-      if (!alreadyMessaged) setMessagedToday(prev => [...prev, activeProfile.id]);
-    } else {
-      onNotify('Nie udało się wysłać wiadomości');
-    }
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
   };
 
   if (profilesLoading) {
