@@ -19,6 +19,7 @@ import AIAssistant from '@/components/layout/AIAssistant';
 import GuestModal from '@/components/layout/GuestModal';
 import GuestBanner from '@/components/layout/GuestBanner';
 import ProfileCompletionModal from '@/components/layout/ProfileCompletionModal';
+import PasswordResetModal from '@/components/layout/PasswordResetModal';
 
 import HomeView from '@/components/views/HomeView';
 import AdminDashboard from '@/components/views/AdminDashboard';
@@ -79,6 +80,7 @@ export default function App() {
   const [searchLookingFor, setSearchLookingFor] = useState<LookingForCategory | undefined>(undefined);
   const [showPremiumView, setShowPremiumView] = useState(false);
   const [showCompletionModal, setShowCompletionModal] = useState(false);
+  const [showPasswordReset, setShowPasswordReset] = useState(false);
   const hideGuestModalOnAuthViews = view === 'auth' || view === 'register';
 
   /* ─── Auth & token state ─── */
@@ -163,7 +165,11 @@ export default function App() {
     getSession();
 
     // Listen for auth state changes
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
+      // Obsługa resetowania hasła
+      if (event === 'PASSWORD_RECOVERY') {
+        setShowPasswordReset(true);
+      }
       handleSession(session);
     });
     return () => {
@@ -575,6 +581,20 @@ export default function App() {
             onGoToProfile={() => {
               setShowCompletionModal(false);
               setView('myprofile');
+            }}
+          />
+        )}
+
+        {/* Password reset modal */}
+        {showPasswordReset && (
+          <PasswordResetModal
+            onClose={() => setShowPasswordReset(false)}
+            onSuccess={(msg) => {
+              notify(msg);
+              setShowPasswordReset(false);
+            }}
+            onError={(msg) => {
+              notify(msg);
             }}
           />
         )}
