@@ -1,4 +1,4 @@
- 'use client';
+'use client';
 
 import { useEffect, useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
@@ -217,125 +217,149 @@ export default function AdminDashboard() {
 
   async function fetchDashboardData() {
     setNotification(null);
+    try {
+      const dayAgoIso = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const monthAgoTs = Date.now() - 30 * 24 * 60 * 60 * 1000;
 
-    const dayAgoIso = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-    const monthAgoTs = Date.now() - 30 * 24 * 60 * 60 * 1000;
+      const [
+        profilesResponse,
+        reportsResponse,
+        messages24hResponse,
+        likes24hResponse,
+        subscriptionsResponse,
+      ] = await Promise.all([
+        supabase.from('profiles').select('*').order('created_at', { ascending: false }),
+        supabase.from('admin_reports').select('*').order('created_at', { ascending: false }),
+        supabase
+          .from('messages')
+          .select('*', { count: 'exact', head: true })
+          .gte('created_at', dayAgoIso),
+        supabase.from('likes').select('*', { count: 'exact', head: true }).gte('created_at', dayAgoIso),
+        supabase
+          .from('subscriptions')
+          .select(
+            'id, profile_id, provider, plan_code, status, amount_gross, currency, current_period_start, current_period_end, updated_at',
+          )
+          .order('created_at', { ascending: false }),
+      ]);
 
-    const [
-      profilesResponse,
-      reportsResponse,
-      messages24hResponse,
-      likes24hResponse,
-      subscriptionsResponse,
-    ] = await Promise.all([
-      supabase.from('profiles').select('*').order('created_at', { ascending: false }),
-      supabase.from('admin_reports').select('*').order('created_at', { ascending: false }),
-      supabase
-        .from('messages')
-        .select('*', { count: 'exact', head: true })
-        .gte('created_at', dayAgoIso),
-      supabase.from('likes').select('*', { count: 'exact', head: true }).gte('created_at', dayAgoIso),
-      supabase
-        .from('subscriptions')
-        .select(
-          'id, profile_id, provider, plan_code, status, amount_gross, currency, current_period_start, current_period_end, updated_at',
-        )
-        .order('created_at', { ascending: false }),
-    ]);
+      const fallbackProfiles = filterNonAdminProfiles(MOCK_PROFILES);
+      const mappedProfiles = profilesResponse.error || !profilesResponse.data
+        ? fallbackProfiles
+        : (profilesResponse.data as SupabaseProfile[]).map(mapSupabaseProfile);
 
-    const fallbackProfiles = filterNonAdminProfiles(MOCK_PROFILES);
-    const mappedProfiles = profilesResponse.error || !profilesResponse.data
-      ? fallbackProfiles
-      : (profilesResponse.data as SupabaseProfile[]).map(mapSupabaseProfile);
+      if (profilesResponse.error || !profilesResponse.data) {
+        setNotification('Nie udało się pobrać profili z bazy. Wyświetlam profile demo.');
+      }
 
-    if (profilesResponse.error || !profilesResponse.data) {
-      setNotification('Nie udało się pobrać profili z bazy. Wyświetlam profile demo.');
-    }
+      if (reportsResponse.error) {
+        setReportsEnabled(false);
+        setReports([]);
+      } else {
+        setReportsEnabled(true);
+        setReports((reportsResponse.data || []) as AdminReport[]);
+      }
 
-    if (reportsResponse.error) {
-      setReportsEnabled(false);
+      if (subscriptionsResponse.error) {
+        setBillingEnabled(false);
+        setSubscriptions([]);
+      } else {
+        setBillingEnabled(true);
+        setSubscriptions((subscriptionsResponse.data || []) as SubscriptionRow[]);
+      }
+
+      const userProfiles = mappedProfiles.filter(
+        (profile) => profile.role !== 'super_admin' && profile.role !== 'admin',
+      );
+
+      const useDemoProfiles = userProfiles.length === 0;
+      const visibleProfiles = useDemoProfiles
+        ? [
+            ...mappedProfiles.filter((profile) => profile.role === 'super_admin' || profile.role === 'admin'),
+            ...fallbackProfiles,
+          ]
+        : mappedProfiles;
+
+      if (useDemoProfiles && !(profilesResponse.error || !profilesResponse.data)) {
+        setNotification('Brak zwykłych kont w bazie. Wyświetlam profile demo.');
+      }
+
+      setProfiles(visibleProfiles);
+
+      const usersForStats = useDemoProfiles ? fallbackProfiles : userProfiles;
+
+      const openReportsCount = reportsResponse.error
+        ? 0
+        : ((reportsResponse.data || []) as AdminReport[]).filter(
+            (report) => !['resolved', 'rejected'].includes(report.status),
+          ).length;
+
+      const subsList = subscriptionsResponse.error
+        ? []
+        : ((subscriptionsResponse.data || []) as SubscriptionRow[]);
+
+      const premiumActiveCount = usersForStats.filter((profile) => isProfilePremium(profile)).length;
+
+      const revenue30dGross = subsList
+        .filter((subscription) => {
+          const startTs = new Date(subscription.current_period_start).getTime();
+          return ACTIVE_SUBSCRIPTION_STATUSES.has(subscription.status) && startTs >= monthAgoTs;
+        })
+        .reduce((sum, subscription) => sum + (subscription.amount_gross || 0), 0);
+
+      setStats({
+        totalUsers: usersForStats.length,
+        active24h: usersForStats.filter((profile) => isWithinHours(profile.lastActive || profile.createdAt, 24))
+          .length,
+        newUsers7d: usersForStats.filter((profile) => isWithinDays(profile.createdAt, 7)).length,
+        blockedUsers: usersForStats.filter((profile) => profile.isBlocked).length,
+        verifiedUsers: usersForStats.filter((profile) => profile.isVerified).length,
+        pendingSelfie: usersForStats.filter((profile) => profile.verificationPending).length,
+        openReports: openReportsCount,
+        messages24h: messages24hResponse.count || 0,
+        likes24h: likes24hResponse.count || 0,
+        premiumActive: premiumActiveCount,
+        revenue30dGross,
+      });
+    } catch (error) {
+      console.error('Błąd ładowania panelu admina:', error);
+      const fallbackProfiles = filterNonAdminProfiles(MOCK_PROFILES);
+
+      setProfiles(fallbackProfiles);
       setReports([]);
-    } else {
-      setReportsEnabled(true);
-      setReports((reportsResponse.data || []) as AdminReport[]);
-    }
-
-    if (subscriptionsResponse.error) {
-      setBillingEnabled(false);
       setSubscriptions([]);
-    } else {
-      setBillingEnabled(true);
-      setSubscriptions((subscriptionsResponse.data || []) as SubscriptionRow[]);
+      setReportsEnabled(false);
+      setBillingEnabled(false);
+      setStats({
+        ...EMPTY_STATS,
+        totalUsers: fallbackProfiles.length,
+        verifiedUsers: fallbackProfiles.filter((profile) => profile.isVerified).length,
+        pendingSelfie: fallbackProfiles.filter((profile) => profile.verificationPending).length,
+        premiumActive: fallbackProfiles.filter((profile) => isProfilePremium(profile)).length,
+      });
+      setNotification('Panel admina miał problem z pobraniem danych. Pokazuję dane demo.');
     }
-
-    const userProfiles = mappedProfiles.filter(
-      (profile) => profile.role !== 'super_admin' && profile.role !== 'admin',
-    );
-
-    const useDemoProfiles = userProfiles.length === 0;
-    const visibleProfiles = useDemoProfiles
-      ? [
-          ...mappedProfiles.filter((profile) => profile.role === 'super_admin' || profile.role === 'admin'),
-          ...fallbackProfiles,
-        ]
-      : mappedProfiles;
-
-    if (useDemoProfiles && !(profilesResponse.error || !profilesResponse.data)) {
-      setNotification('Brak zwykłych kont w bazie. Wyświetlam profile demo.');
-    }
-
-    setProfiles(visibleProfiles);
-
-    const usersForStats = useDemoProfiles ? fallbackProfiles : userProfiles;
-
-    const openReportsCount = reportsResponse.error
-      ? 0
-      : ((reportsResponse.data || []) as AdminReport[]).filter(
-          (report) => !['resolved', 'rejected'].includes(report.status),
-        ).length;
-
-    const subsList = subscriptionsResponse.error
-      ? []
-      : ((subscriptionsResponse.data || []) as SubscriptionRow[]);
-
-    const premiumActiveCount = usersForStats.filter((profile) => isProfilePremium(profile)).length;
-
-    const revenue30dGross = subsList
-      .filter((subscription) => {
-        const startTs = new Date(subscription.current_period_start).getTime();
-        return ACTIVE_SUBSCRIPTION_STATUSES.has(subscription.status) && startTs >= monthAgoTs;
-      })
-      .reduce((sum, subscription) => sum + (subscription.amount_gross || 0), 0);
-
-    setStats({
-      totalUsers: usersForStats.length,
-      active24h: usersForStats.filter((profile) => isWithinHours(profile.lastActive || profile.createdAt, 24))
-        .length,
-      newUsers7d: usersForStats.filter((profile) => isWithinDays(profile.createdAt, 7)).length,
-      blockedUsers: usersForStats.filter((profile) => profile.isBlocked).length,
-      verifiedUsers: usersForStats.filter((profile) => profile.isVerified).length,
-      pendingSelfie: usersForStats.filter((profile) => profile.verificationPending).length,
-      openReports: openReportsCount,
-      messages24h: messages24hResponse.count || 0,
-      likes24h: likes24hResponse.count || 0,
-      premiumActive: premiumActiveCount,
-      revenue30dGross,
-    });
   }
 
   useEffect(() => {
     async function load() {
       setLoading(true);
-      await fetchDashboardData();
-      setLoading(false);
+      try {
+        await fetchDashboardData();
+      } finally {
+        setLoading(false);
+      }
     }
     load();
   }, []);
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await fetchDashboardData();
-    setRefreshing(false);
+    try {
+      await fetchDashboardData();
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   const handleOpenMessage = (profile: Profile) => {

@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, processLock } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey =
@@ -15,15 +15,8 @@ if (!supabaseKey) {
 	);
 }
 
-// Avoid browser lock contention warnings in React Strict Mode and rapid re-renders.
-const relaxedAuthLock = async <R>(
-	_lockName: string,
-	_acquireTimeout: number,
-	fn: () => Promise<R>,
-): Promise<R> => await fn();
-
 export const supabase = createClient(supabaseUrl, supabaseKey, {
 	auth: {
-		lock: relaxedAuthLock,
+		lock: processLock,
 	},
 });
