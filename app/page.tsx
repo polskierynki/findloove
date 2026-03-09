@@ -261,7 +261,8 @@ export default function App() {
       isAdminRef.current = hasAdminAccess;
       setIsAdmin(hasAdminAccess);
 
-      // Dla głównego konta admina zachowujemy automatyczne wejście do panelu
+      // Dla głównego konta admina przygotowujemy profil, ale nie przekierowujemy automatycznie
+      // Admin może wejść do panelu przez nawigację
       if (session.user.email === adminEmail) {
         const { data } = await supabase
           .from('profiles')
@@ -272,7 +273,7 @@ export default function App() {
         if (data) {
           const adminProfile = mapSupabaseProfile(data as SupabaseProfile);
           setSelectedProfile(adminProfile);
-          setView('admin');
+          // Usunięto automatyczne setView('admin') - admin może teraz swobodnie nawigować
         }
       }
     } else {
@@ -704,9 +705,15 @@ export default function App() {
             )}
             {view === 'auth' && (
               <AuthView
-                onBack={() => setView('home')}
+                onBack={() => {
+                  setView('home');
+                  router.push('/');
+                }}
                 onNotify={notify}
-                onRegister={() => setView('register')}
+                onRegister={() => {
+                  setView('register');
+                  router.push('/register');
+                }}
               />
             )}
             {!loading && view === 'discover' && (
@@ -773,7 +780,10 @@ export default function App() {
             {view === 'safety' && <SafetyView onBack={() => setView('home')} />}
             {view === 'register' && (
               <RegisterView
-                onBack={() => setView('auth')}
+                onBack={() => {
+                  setView('auth');
+                  router.push('/auth');
+                }}
                 onComplete={(registeredName, isAuthenticated) => {
                   setUserName(registeredName);
 
@@ -782,11 +792,13 @@ export default function App() {
                     setTokens(3);
                     notify(`Witaj, ${registeredName}! 🎉 Otrzymujesz 3 Serduszka na start!`);
                     setView('home');
+                    router.push('/');
                     return;
                   }
 
                   notify('Konto utworzone. Potwierdz e-mail i zaloguj sie.');
                   setView('auth');
+                  router.push('/auth');
                 }}
               />
             )}

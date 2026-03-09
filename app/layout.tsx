@@ -47,6 +47,14 @@ export default function RootLayout({
         {/* Animowane tło z "bombelkami" */}
         <FloatingParticles />
         
+        {/* Background Neon Orbs - widoczne na wszystkich stronach */}
+        <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
+          <div className="absolute top-20 left-10 w-96 h-96 bg-cyan-500/20 rounded-full blur-[120px] animate-pulse"></div>
+          <div className="absolute top-60 right-20 w-80 h-80 bg-fuchsia-500/20 rounded-full blur-[100px] animate-pulse" style={{ animationDelay: '1s' }}></div>
+          <div className="absolute bottom-40 left-1/3 w-72 h-72 bg-blue-500/15 rounded-full blur-[90px]"></div>
+          <div className="absolute top-1/2 right-1/4 w-64 h-64 bg-purple-500/15 rounded-full blur-[100px] animate-pulse" style={{ animationDelay: '2s' }}></div>
+        </div>
+        
         <NewHeader />
         <main className="relative z-10">
           {children}

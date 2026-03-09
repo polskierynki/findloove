@@ -2,13 +2,24 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Heart, MessageCircle, Sparkles, MapPin, Sliders } from 'lucide-react';
+import { Heart, MessageCircle, Sparkles } from 'lucide-react';
+import { MapPin, Sliders } from '@phosphor-icons/react';
+import { 
+  LOOKING_FOR_OPTIONS, 
+  SEXUAL_ORIENTATION_OPTIONS, 
+  PETS_OPTIONS, 
+  DRINKING_OPTIONS 
+} from './constants/profileFormOptions';
 
 export default function NewSearchView() {
   const router = useRouter();
   const [ageRange, setAgeRange] = useState(45);
   const [distance, setDistance] = useState(50);
   const [selectedInterests, setSelectedInterests] = useState(new Set(['Podróże']));
+  const [selectedLookingFor, setSelectedLookingFor] = useState<Set<string>>(new Set());
+  const [selectedOrientation, setSelectedOrientation] = useState<Set<string>>(new Set());
+  const [selectedPets, setSelectedPets] = useState<Set<string>>(new Set());
+  const [selectedDrinking, setSelectedDrinking] = useState<Set<string>>(new Set());
 
   const profiles = [
     {
@@ -19,6 +30,7 @@ export default function NewSearchView() {
       distance: 12,
       image_url: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=400&q=80',
       matchScore: 91,
+      looking_for: 'miłość',
     },
     {
       id: '2',
@@ -28,6 +40,7 @@ export default function NewSearchView() {
       distance: 4,
       image_url: 'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=400&q=80',
       matchScore: 88,
+      looking_for: 'przygoda',
     },
   ];
 
@@ -37,7 +50,7 @@ export default function NewSearchView() {
         {/* Filters Panel */}
         <aside className="lg:col-span-1 glass rounded-3xl p-6 h-fit sticky top-28">
           <h2 className="text-2xl font-light text-white mb-6 flex items-center gap-2">
-            <Sliders size={20} className="text-cyan-400" /> Filtry
+            <Sliders size={20} weight="duotone" className="text-cyan-400" /> Filtry
           </h2>
 
           <div className="space-y-6">
@@ -98,6 +111,106 @@ export default function NewSearchView() {
               </div>
             </div>
 
+            {/* Looking For */}
+            <div>
+              <label className="text-sm text-cyan-400 mb-3 block">Czego szukają</label>
+              <div className="flex flex-wrap gap-2">
+                {LOOKING_FOR_OPTIONS.map((option) => (
+                  <button
+                    key={option.value}
+                    onClick={() => {
+                      const newSet = new Set(selectedLookingFor);
+                      if (newSet.has(option.value)) newSet.delete(option.value);
+                      else newSet.add(option.value);
+                      setSelectedLookingFor(newSet);
+                    }}
+                    className={`px-3 py-1.5 rounded-lg text-xs transition-all ${
+                      selectedLookingFor.has(option.value)
+                        ? 'bg-fuchsia-500/20 border border-fuchsia-500/50 text-white shadow-[0_0_10px_rgba(255,0,255,0.2)]'
+                        : 'bg-white/10 border border-fuchsia-500/20 text-fuchsia-300 hover:border-fuchsia-500/30'
+                    }`}
+                  >
+                    {option.emoji} {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Sexual Orientation */}
+            <div>
+              <label className="text-sm text-cyan-400 mb-3 block">Orientacja</label>
+              <div className="flex flex-wrap gap-2">
+                {SEXUAL_ORIENTATION_OPTIONS.map((option) => (
+                  <button
+                    key={option.value}
+                    onClick={() => {
+                      const newSet = new Set(selectedOrientation);
+                      if (newSet.has(option.value)) newSet.delete(option.value);
+                      else newSet.add(option.value);
+                      setSelectedOrientation(newSet);
+                    }}
+                    className={`px-3 py-1.5 rounded-lg text-xs transition-all ${
+                      selectedOrientation.has(option.value)
+                        ? 'bg-purple-500/20 border border-purple-500/50 text-white shadow-[0_0_10px_rgba(168,85,247,0.2)]'
+                        : 'bg-white/10 border border-purple-500/20 text-purple-300 hover:border-purple-500/30'
+                    }`}
+                  >
+                    {option.emoji} {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Pets */}
+            <div>
+              <label className="text-sm text-cyan-400 mb-3 block">Zwierzęta</label>
+              <div className="flex flex-wrap gap-2">
+                {PETS_OPTIONS.map((pet) => (
+                  <button
+                    key={pet}
+                    onClick={() => {
+                      const newSet = new Set(selectedPets);
+                      if (newSet.has(pet)) newSet.delete(pet);
+                      else newSet.add(pet);
+                      setSelectedPets(newSet);
+                    }}
+                    className={`px-3 py-1.5 rounded-lg text-xs transition-all ${
+                      selectedPets.has(pet)
+                        ? 'bg-green-500/20 border border-green-500/50 text-white shadow-[0_0_10px_rgba(34,197,94,0.2)]'
+                        : 'bg-white/10 border border-green-500/20 text-green-300 hover:border-green-500/30'
+                    }`}
+                  >
+                    {pet}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Drinking */}
+            <div>
+              <label className="text-sm text-cyan-400 mb-3 block">Stosunek do alkoholu</label>
+              <div className="flex flex-wrap gap-2">
+                {DRINKING_OPTIONS.map((drink) => (
+                  <button
+                    key={drink}
+                    onClick={() => {
+                      const newSet = new Set(selectedDrinking);
+                      if (newSet.has(drink)) newSet.delete(drink);
+                      else newSet.add(drink);
+                      setSelectedDrinking(newSet);
+                    }}
+                    className={`px-3 py-1.5 rounded-lg text-xs transition-all ${
+                      selectedDrinking.has(drink)
+                        ? 'bg-amber-500/20 border border-amber-500/50 text-white shadow-[0_0_10px_rgba(245,158,11,0.2)]'
+                        : 'bg-white/10 border border-amber-500/20 text-amber-300 hover:border-amber-500/30'
+                    }`}
+                  >
+                    {drink}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <button className="w-full mt-4 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 py-3 rounded-xl font-medium transition-all shadow-[0_0_15px_rgba(0,255,255,0.2)]">
               Zastosuj filtry
             </button>
@@ -135,6 +248,19 @@ export default function NewSearchView() {
                       <Sparkles className="text-fuchsia-400" size={14} />
                       <span className="text-xs font-semibold text-white">{profile.matchScore}% Match</span>
                     </div>
+                    {profile.looking_for && (
+                      <div className={`bg-black/40 backdrop-blur-md px-3 py-1 rounded-full border flex items-center gap-1.5 ${
+                        profile.looking_for === 'miłość' 
+                          ? 'border-pink-500/30 shadow-[0_0_10px_rgba(236,72,153,0.2)]'
+                          : profile.looking_for === 'przygoda'
+                          ? 'border-cyan-500/30 shadow-[0_0_10px_rgba(0,255,255,0.2)]'
+                          : 'border-cyan-500/30 shadow-[0_0_10px_rgba(0,255,255,0.2)]'
+                      }`}>
+                        <span className="text-xs font-semibold text-white">
+                          {LOOKING_FOR_OPTIONS.find(opt => opt.value === profile.looking_for)?.emoji} {LOOKING_FOR_OPTIONS.find(opt => opt.value === profile.looking_for)?.label}
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   {/* Profile Info */}
@@ -144,7 +270,7 @@ export default function NewSearchView() {
                         {profile.name}, {profile.age} lat
                       </h2>
                       <p className="text-sm text-cyan-400 flex items-center gap-1">
-                        <MapPin size={14} /> {profile.city} • {profile.distance} km stąd
+                        <MapPin size={14} weight="fill" /> {profile.city} • {profile.distance} km stąd
                       </p>
 
                       {/* Actions */}

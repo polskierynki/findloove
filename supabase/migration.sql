@@ -5,6 +5,24 @@ create unique index if not exists profiles_email_unique on public.profiles (emai
 -- Galeria zdjęć: photos[] w profiles (proste rozwiązanie)
 alter table public.profiles add column if not exists photos text[];
 
+-- ═══════════════════════════════════════════════════════════════
+-- AKTUALIZACJA: Dodanie nowych kolumn do istniejącej tabeli
+-- ═══════════════════════════════════════════════════════════════
+
+-- Stosunek do alkoholu
+alter table public.profiles add column if not exists drinking text;
+
+-- Zwierzęta domowe
+alter table public.profiles add column if not exists pets text;
+
+-- Orientacja seksualna
+alter table public.profiles add column if not exists sexual_orientation text;
+
+-- Czego szuka użytkownik (przyjaźń/miłość/przygoda)
+alter table public.profiles add column if not exists looking_for text;
+
+-- ═══════════════════════════════════════════════════════════════
+
 -- Alternatywnie: osobna tabela profile_photos (bardziej elastyczne)
 create table if not exists public.profile_photos (
   profile_id uuid references public.profiles(id) on delete cascade,

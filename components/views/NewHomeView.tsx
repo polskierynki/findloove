@@ -2,9 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Heart, MessageCircle, Sparkles, MapPin } from 'lucide-react';
+import { Heart, MessageCircle, Sparkles } from 'lucide-react';
+import { MapPin } from '@phosphor-icons/react';
 import { supabase } from '@/lib/supabase';
 import { Profile } from '@/lib/types';
+import { LOOKING_FOR_OPTIONS } from './constants/profileFormOptions';
 
 export default function NewHomeView() {
   const router = useRouter();
@@ -102,9 +104,24 @@ export default function NewHomeView() {
                       <Sparkles className="text-fuchsia-400" size={14} />
                       <span className="text-xs font-semibold text-white">{matchScore}% Match</span>
                     </div>
-                    {idx === 0 && (
-                      <div className="w-3 h-3 bg-green-400 rounded-full shadow-[0_0_10px_rgba(74,222,128,0.8)] border-2 border-black"></div>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {profile.details?.looking_for && (
+                        <div className={`bg-black/40 backdrop-blur-md px-3 py-1 rounded-full border flex items-center gap-1.5 ${
+                          profile.details.looking_for === 'miłość' 
+                            ? 'border-pink-500/30 shadow-[0_0_10px_rgba(236,72,153,0.2)]'
+                            : profile.details.looking_for === 'przygoda'
+                            ? 'border-cyan-500/30 shadow-[0_0_10px_rgba(0,255,255,0.2)]'
+                            : 'border-cyan-500/30 shadow-[0_0_10px_rgba(0,255,255,0.2)]'
+                        }`}>
+                          <span className="text-xs font-semibold text-white">
+                            {LOOKING_FOR_OPTIONS.find(opt => opt.value === profile.details.looking_for)?.emoji} {LOOKING_FOR_OPTIONS.find(opt => opt.value === profile.details.looking_for)?.label}
+                          </span>
+                        </div>
+                      )}
+                      {idx === 0 && (
+                        <div className="w-3 h-3 bg-green-400 rounded-full shadow-[0_0_10px_rgba(74,222,128,0.8)] border-2 border-black"></div>
+                      )}
+                    </div>
                   </div>
 
                   {/* Profile Info */}
@@ -117,7 +134,7 @@ export default function NewHomeView() {
                         </h2>
                       </div>
                       <div className="flex items-center gap-1.5 text-cyan-300/70 text-sm font-light">
-                        <MapPin size={14} className="text-cyan-400" />
+                        <MapPin size={14} weight="fill" className="text-cyan-400" />
                         <span>{profile.city || 'Bliżej nieokreślone'}</span>
                       </div>
 

@@ -1,12 +1,12 @@
 'use client';
 
-import Image from 'next/image';
 import { Mail } from 'lucide-react';
 import { ViewType } from '@/lib/types';
 import { useLegal } from '@/lib/context/LegalContext';
 import LegalModal from '@/components/layout/LegalModal';
 import { TERMS_OF_SERVICE } from '@/lib/legal/termsOfService';
 import { PRIVACY_POLICY } from '@/lib/legal/privacyPolicy';
+import BrandWordmark from './BrandWordmark';
 
 interface FooterProps {
   onNavigate?: (view: ViewType | 'myprofile') => void;
@@ -21,8 +21,11 @@ export default function Footer({ onNavigate }: FooterProps) {
       <div className="max-w-[2200px] mx-auto px-6 lg:px-12 py-10">
         <div className="grid md:grid-cols-3 gap-8 mb-8">
           <div>
-            <div className="inline-block bg-gradient-to-r from-cyan-500 to-fuchsia-500 rounded-lg p-2 mb-3 shadow-[0_0_15px_rgba(0,255,255,0.3)]">
-              <Image src="/logo/logo.jpg" alt="findloove.pl" width={132} height={34} className="h-8 w-auto object-contain" />
+            <div className="mb-4 text-white">
+              <BrandWordmark 
+                className="text-2xl md:text-3xl font-semibold tracking-wide" 
+                accentClassName="text-cyan-400"
+              />
             </div>
             <p className="text-sm text-white/70 font-light leading-relaxed">Społeczność findloove.pl łączy ludzi szukających realnych relacji.</p>
           </div>

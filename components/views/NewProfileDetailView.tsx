@@ -9,7 +9,16 @@ import {
   ChatCircle,
   Sparkle,
   Images,
-  ChatText
+  ChatText,
+  MapPin,
+  SealCheck,
+  Briefcase,
+  Star,
+  Cigarette,
+  Wine,
+  PawPrint,
+  GenderIntersex,
+  HeartStraight
 } from '@phosphor-icons/react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
@@ -144,7 +153,7 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
           {/* Gallery */}
           <div className="glass rounded-[2rem] p-6">
             <h3 className="text-base font-medium text-cyan-300/70 tracking-wider uppercase flex items-center gap-2 mb-5">
-              🖼️ Galeria
+              <Images size={20} weight="duotone" className="text-cyan-400" /> Galeria
             </h3>
             <div className="grid grid-cols-3 gap-3">
               {profile.photos?.slice(0, 6).map((photo, i) => (
@@ -165,7 +174,7 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
           <div className="glass rounded-[2rem] p-6 lg:p-8 flex flex-col relative overflow-hidden bg-[#0a0710]/80 max-h-[500px]">
             <div className="flex items-center justify-between mb-6 pb-5 border-b border-cyan-500/20 shrink-0">
               <h3 className="text-base font-medium text-cyan-300/70 tracking-wider uppercase flex items-center gap-2">
-                💬 Tablica <span className="bg-white/10 text-sm px-3 py-1 rounded-full ml-1 text-white">{comments.length}</span>
+                <ChatCircle size={20} weight="duotone" className="text-cyan-400" /> Tablica <span className="bg-white/10 text-sm px-3 py-1 rounded-full ml-1 text-white">{comments.length}</span>
               </h3>
             </div>
 
@@ -227,27 +236,72 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
                 <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
                 <span className="text-xs font-medium text-white tracking-wide">Aktywna teraz</span>
               </div>
+              {profile.isVerified && (
+                <div className="bg-black/40 backdrop-blur-md px-4 py-1.5 rounded-full border border-cyan-500/30 flex items-center gap-2 shadow-[0_0_15px_rgba(0,255,255,0.2)]">
+                  <SealCheck size={16} weight="fill" className="text-cyan-400" />
+                  <span className="text-xs font-medium text-white tracking-wide">Tożsamość zweryfikowana</span>
+                </div>
+              )}
             </div>
 
             {/* Profile Info at Bottom */}
             <div className="absolute bottom-0 left-0 w-full p-8 md:p-12 z-30">
               <h1 className="text-5xl md:text-7xl font-light tracking-tight text-white flex items-baseline gap-4 mb-2 drop-shadow-2xl">
-                {profile.name} <span className="text-3xl md:text-5xl text-white font-extralight opacity-80">• {profile.age}</span>
+                {profile.name} 
+                {profile.isVerified && (
+                  <SealCheck size={40} weight="fill" className="text-cyan-400 drop-shadow-[0_0_10px_rgba(0,255,255,0.8)]" />
+                )}
+                <span className="text-3xl md:text-5xl text-white font-extralight opacity-80">• {profile.age}</span>
               </h1>
               <p className="text-xl text-cyan-300 font-light mb-6 drop-shadow-lg flex items-center gap-2">
-                💼 {profile.details?.occupation || 'Brak informacji'}, {profile.city}
+                <Briefcase size={20} weight="duotone" className="text-cyan-400" /> {profile.details?.occupation || 'Brak informacji'} <MapPin size={18} weight="duotone" className="text-fuchsia-400" /> {profile.city}
               </p>
 
               {/* Info Pills */}
               <div className="flex flex-wrap gap-3">
                 {profile.details?.zodiac && (
                   <span className="glass px-4 py-2 rounded-xl text-sm font-medium text-white flex items-center gap-2 border-white/20 backdrop-blur-lg">
-                    ⭐ {profile.details.zodiac}
+                    <Star size={16} weight="fill" className="text-yellow-400" /> {profile.details.zodiac}
                   </span>
                 )}
                 {profile.details?.smoking && (
                   <span className="glass px-4 py-2 rounded-xl text-sm font-medium text-white flex items-center gap-2 border-white/20 backdrop-blur-lg">
-                    🚬 {profile.details.smoking === 'nie' ? 'Nie pali' : 'Pali'}
+                    <Cigarette size={16} weight="duotone" className="text-gray-400" /> {profile.details.smoking === 'nie' ? 'Nie pali' : 'Pali'}
+                  </span>
+                )}
+                {profile.details?.drinking && (
+                  <span className="glass px-4 py-2 rounded-xl text-sm font-medium text-white flex items-center gap-2 border-white/20 backdrop-blur-lg">
+                    <Wine size={16} weight="duotone" className="text-purple-400" /> {profile.details.drinking}
+                  </span>
+                )}
+                {profile.details?.pets && (
+                  <span className="glass px-4 py-2 rounded-xl text-sm font-medium text-white flex items-center gap-2 border-white/20 backdrop-blur-lg">
+                    <PawPrint size={16} weight="fill" className="text-amber-400" /> {profile.details.pets}
+                  </span>
+                )}
+                {profile.details?.sexual_orientation && (
+                  <span className="glass px-4 py-2 rounded-xl text-sm font-medium text-white flex items-center gap-2 border-white/20 backdrop-blur-lg">
+                    <GenderIntersex size={16} weight="duotone" className="text-purple-400" /> {profile.details.sexual_orientation}
+                  </span>
+                )}
+                {profile.details?.looking_for && (
+                  <span className={`glass px-4 py-2 rounded-xl text-sm font-medium text-white flex items-center gap-2 backdrop-blur-lg ${
+                    profile.details.looking_for === 'miłość'
+                      ? 'border-pink-500/50 bg-pink-500/10'
+                      : profile.details.looking_for === 'przygoda'
+                      ? 'border-cyan-500/50 bg-cyan-500/10'
+                      : profile.details.looking_for === 'przyjaźń'
+                      ? 'border-blue-500/50 bg-blue-500/10'
+                      : 'border-white/20'
+                  }`}>
+                    <HeartStraight size={16} weight="fill" className={`${
+                      profile.details.looking_for === 'miłość' ? 'text-pink-400' :
+                      profile.details.looking_for === 'przygoda' ? 'text-cyan-400' :
+                      profile.details.looking_for === 'przyjaźń' ? 'text-blue-400' : 'text-gray-400'
+                    }`} />
+                    {profile.details.looking_for === 'miłość' ? 'Szukam miłości' : 
+                           profile.details.looking_for === 'przygoda' ? 'Szukam przygody' :
+                           profile.details.looking_for === 'przyjaźń' ? 'Szukam przyjaźni' : 'Jeszcze nie wiem'}
                   </span>
                 )}
               </div>

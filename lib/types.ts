@@ -38,6 +38,9 @@ export interface ProfileDetails {
   children: string;
   education?: string;
   drinking?: string;
+  pets?: string;
+  sexual_orientation?: string;
+  looking_for?: string;
   relationship_goal?: string;
   wants_children?: string;
 }
@@ -84,6 +87,10 @@ export interface SupabaseProfile {
   zodiac: string;
   smoking: string;
   children: string;
+  drinking?: string;
+  pets?: string;
+  sexual_orientation?: string;
+  looking_for?: string;
   created_at: string;
   gender?: string;
   seeking_gender?: string;

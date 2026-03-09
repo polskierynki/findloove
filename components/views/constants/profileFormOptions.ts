@@ -132,6 +132,29 @@ export const EDUCATION_OPTIONS = [
 
 export const DRINKING_OPTIONS = ['Nie piję', 'Towarzysko', 'Regularnie'];
 
+export const PETS_OPTIONS = [
+  'Nie mam zwierząt',
+  'Mam kota/koty',
+  'Mam psa/psy',
+  'Mam inne zwierzęta',
+  'Lubię zwierzęta, ale nie mam',
+];
+
+export const SEXUAL_ORIENTATION_OPTIONS = [
+  { value: 'hetero', label: 'Heteroseksualna/y', emoji: '♀♂' },
+  { value: 'homo', label: 'Homoseksualna/y', emoji: '🏳️‍🌈' },
+  { value: 'bi', label: 'Biseksualna/y', emoji: '💜' },
+  { value: 'pan', label: 'Panseksualna/y', emoji: '💗' },
+  { value: 'other', label: 'Inna', emoji: '✨' },
+];
+
+export const LOOKING_FOR_OPTIONS = [
+  { value: 'przyjaźń', label: 'Szukam przyjaźni', emoji: '🤝', color: 'text-cyan-400' },
+  { value: 'miłość', label: 'Szukam miłości', emoji: '❤️', color: 'text-pink-400' },
+  { value: 'przygoda', label: 'Szukam przygody', emoji: '⚡', color: 'text-fuchsia-400' },
+  { value: 'nie wiem', label: 'Jeszcze nie wiem', emoji: '🤔', color: 'text-gray-400' },
+];
+
 export const RELATIONSHIP_GOAL_OPTIONS = [
   'Poważny związek', 'Coś na luzie', 'Przyjaźń', 'Jeszcze nie wiem',
 ];
