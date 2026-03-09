@@ -17,7 +17,7 @@ export default function NewSearchView() {
       age: 25,
       city: 'Warszawa',
       distance: 12,
-      image: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=400&q=80',
+      image_url: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=400&q=80',
       matchScore: 91,
     },
     {
@@ -26,7 +26,7 @@ export default function NewSearchView() {
       age: 30,
       city: 'Kraków',
       distance: 4,
-      image: 'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=400&q=80',
+      image_url: 'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=400&q=80',
       matchScore: 88,
     },
   ];
@@ -126,7 +126,7 @@ export default function NewSearchView() {
                 className="profile-card glass rounded-[2rem] overflow-hidden relative group cursor-pointer"
               >
                 <div className="aspect-[3/4] w-full relative">
-                  <img src={profile.image} alt={profile.name} className="w-full h-full object-cover" />
+                  <img src={profile.image_url} alt={profile.name} className="w-full h-full object-cover" />
                   <div className="absolute inset-0 bg-gradient-to-t from-[#07050f] via-[#07050f]/40 to-transparent"></div>
 
                   {/* Match Badge */}

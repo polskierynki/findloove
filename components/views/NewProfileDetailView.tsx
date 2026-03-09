@@ -196,7 +196,7 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
           {/* Main Photo */}
           <div className="relative w-full aspect-[3/4] md:aspect-[4/5] rounded-[3rem] p-1 bg-gradient-to-br from-cyan-500/40 via-white/5 to-fuchsia-500/40 double-glow z-10 group overflow-hidden">
             <img
-              src={profile.image || 'https://images.unsplash.com/photo-1515372039744-b8f02a3ae446?w=1400&q=80'}
+              src={profile.image_url || 'https://images.unsplash.com/photo-1515372039744-b8f02a3ae446?w=1400&q=80'}
               alt={profile.name}
               className="w-full h-full object-cover rounded-[2.8rem] shadow-inner relative z-10 transform transition-transform duration-1000 group-hover:scale-105"
             />

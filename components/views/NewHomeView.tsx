@@ -88,7 +88,7 @@ export default function NewHomeView() {
                 <div className="aspect-[3/4] w-full relative">
                   <img
                     src={
-                      profile.image ||
+                      profile.image_url ||
                       `https://images.unsplash.com/photo-${1515372039744 + idx}?ixlib=rb-4.0.3&w=800&q=80`
                     }
                     alt={profile.name}

@@ -26,10 +26,10 @@ export function getProfileCompletionLevel(profile: Profile | null): ProfileCompl
     };
   }
 
-  const hasPhoto = !!(profile.image && 
-    profile.image !== '' && 
-    !profile.image.includes('ui-avatars.com') &&
-    !profile.image.includes('photo-1530268729831')); // nie placeholder
+  const hasPhoto = !!(profile.image_url && 
+    profile.image_url !== '' && 
+    !profile.image_url.includes('ui-avatars.com') &&
+    !profile.image_url.includes('photo-1530268729831')); // nie placeholder
 
   const hasBio = !!(profile.bio && profile.bio.trim().length >= 20);
 

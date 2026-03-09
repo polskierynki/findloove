@@ -9,7 +9,7 @@ interface Conversation {
   name: string;
   lastMessage: string;
   timestamp: string;
-  image: string;
+  image_url: string;
   isActive: boolean;
 }
 
@@ -27,7 +27,7 @@ export default function NewMessagesView() {
         name: 'Kasia',
         lastMessage: 'Zdecydowanie wino i kino! 🍷',
         timestamp: 'Teraz',
-        image: 'https://images.unsplash.com/photo-1515372039744-b8f02a3ae446?w=150&q=80',
+        image_url: 'https://images.unsplash.com/photo-1515372039744-b8f02a3ae446?w=150&q=80',
         isActive: true,
       },
       {
@@ -35,7 +35,7 @@ export default function NewMessagesView() {
         name: 'Agnieszka',
         lastMessage: 'Dzięki za serduszko! Skąd jesteś?',
         timestamp: 'Wczoraj',
-        image: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&q=80',
+        image_url: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&q=80',
         isActive: false,
       },
     ]);
@@ -99,7 +99,7 @@ export default function NewMessagesView() {
                 }`}
               >
                 <div className={`relative w-12 h-12 rounded-full p-[2px] ${selectedConversation?.id === conv.id ? 'bg-gradient-to-tr from-cyan-400 to-fuchsia-500' : 'bg-white/20'}`}>
-                  <img src={conv.image} className="w-full h-full rounded-full object-cover border border-black" alt={conv.name} />
+                  <img src={conv.image_url} className="w-full h-full rounded-full object-cover border border-black" alt={conv.name} />
                   {conv.isActive && <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-[#110a22] rounded-full"></span>}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -122,7 +122,7 @@ export default function NewMessagesView() {
               <div className="h-20 border-b border-white/5 flex items-center justify-between px-8 bg-black/20 backdrop-blur-sm z-10">
                 <div className="flex items-center gap-4">
                   <div className="w-10 h-10 rounded-full overflow-hidden border border-cyan-500/20">
-                    <img src={selectedConversation.image} alt={selectedConversation.name} className="w-full h-full object-cover" />
+                    <img src={selectedConversation.image_url} alt={selectedConversation.name} className="w-full h-full object-cover" />
                   </div>
                   <div>
                     <h3 className="text-lg font-medium text-white">{selectedConversation.name}</h3>

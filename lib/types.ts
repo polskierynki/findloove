@@ -50,9 +50,9 @@ export interface Profile {
   bio: string;
   interests: string[];
   status: string;
-  image: string;
+  image_url: string;
   email?: string;
-  photos?: string[];         // gallery photos (index 0 = main = same as image)
+  photos?: string[];         // gallery photos (index 0 = main = same as image_url)
   details: ProfileDetails;
   isVerified: boolean;
   verificationPending?: boolean;
@@ -156,7 +156,7 @@ export function mapSupabaseProfile(p: SupabaseProfile): Profile {
     bio: p.bio,
     interests: p.interests ?? [],
     status: p.status,
-    image: safeImageUrl,
+    image_url: safeImageUrl,
     isVerified: p.is_verified,
     verificationPending: p.verification_pending,
     gender: p.gender,

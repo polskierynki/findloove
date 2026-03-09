@@ -74,7 +74,7 @@ export function useProfileCompletion(isLoggedIn: boolean, isAdmin = false) {
           bio: profileData.bio,
           interests: profileData.interests || [],
           status: profileData.status,
-          image: imageUrl,
+          image_url: imageUrl,
           details: {
             occupation: profileData.occupation,
             zodiac: profileData.zodiac,

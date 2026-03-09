@@ -259,8 +259,8 @@ export default function NewHeader() {
               onClick={() => router.push('/profile')}
               className="w-10 h-10 rounded-full overflow-hidden border border-cyan-500/30 hover:border-cyan-400 transition-all hover:shadow-[0_0_15px_rgba(0,255,255,0.4)]"
             >
-              {profile?.image ? (
-                <img src={profile.image} alt="Avatar" className="w-full h-full object-cover" />
+              {profile?.image_url ? (
+                <img src={profile.image_url} alt="Avatar" className="w-full h-full object-cover" />
               ) : (
                 <div className="w-full h-full bg-gradient-to-tr from-fuchsia-500 to-cyan-500 flex items-center justify-center text-white font-bold">
                   {profile?.name?.charAt(0)}

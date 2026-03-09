@@ -47,7 +47,7 @@ export default function DiscoverView({
         <div className="grid md:grid-cols-2">
           <div className="relative min-h-[420px]">
             <img
-              src={profile.image || 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=900&q=80'}
+              src={profile.image_url || 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=900&q=80'}
               alt={profile.name}
               className="w-full h-full object-cover"
             />

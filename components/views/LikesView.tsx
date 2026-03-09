@@ -68,7 +68,7 @@ export default function LikesView({
             <article key={profile.id} className="glass rounded-2xl overflow-hidden border border-white/10 relative">
               <div className="relative aspect-[3/4]">
                 <img
-                  src={profile.image || 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=900&q=80'}
+                  src={profile.image_url || 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=900&q=80'}
                   alt={profile.name}
                   className={`w-full h-full object-cover ${hidden ? 'blur-md scale-105' : ''}`}
                 />

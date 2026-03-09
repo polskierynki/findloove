@@ -9,7 +9,7 @@ export const MOCK_PROFILES: Profile[] = [
     bio: "Nauczycielka biologii z wieloletnim doświadczeniem. Kocham spacery po ogrodzie botanicznym i dobrą herbatę przy książce. Szukam kogoś do wspólnych wyjść do teatru i rozmów o życiu.",
     interests: ["Ogrodnictwo", "Teatr", "Literatura", "Podróże"],
     status: "Szuka przyjaźni",
-    image: "https://images.unsplash.com/photo-1566616213894-2d4e1baee5d8?auto=format&fit=crop&q=80&w=600",
+    image_url: "https://images.unsplash.com/photo-1566616213894-2d4e1baee5d8?auto=format&fit=crop&q=80&w=600",
     details: {
       occupation: "Nauczycielka biologii",
       zodiac: "Panna",
@@ -35,7 +35,7 @@ export const MOCK_PROFILES: Profile[] = [
     bio: "Pasjonat żeglarstwa i majsterkowania. Mimo wieku wciąż aktywny fizycznie. Chciałbym poznać panią, która doceni domowe ciasto i wspólny spacer nad morzem.",
     interests: ["Majsterkowanie", "Morze", "Gotowanie", "Krzyżówki"],
     status: "Szuka miłości",
-    image: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=600",
+    image_url: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=600",
     details: {
       occupation: "Inżynier",
       zodiac: "Byk",
@@ -61,7 +61,7 @@ export const MOCK_PROFILES: Profile[] = [
     bio: "Energiczna optymistka. Uwielbiam taniec towarzyski i nordic walking. Szukam osoby, z którą mogłabym dzielić pasję do aktywnego spędzania czasu.",
     interests: ["Taniec", "Sport", "Kino", "Koty"],
     status: "Szuka przygody",
-    image: "https://images.unsplash.com/photo-1544168190-79c17527004f?auto=format&fit=crop&q=80&w=600",
+    image_url: "https://images.unsplash.com/photo-1544168190-79c17527004f?auto=format&fit=crop&q=80&w=600",
     details: {
       occupation: "Księgowa",
       zodiac: "Waga",
@@ -87,7 +87,7 @@ export const MOCK_PROFILES: Profile[] = [
     bio: "Dawniej muzyk filharmonii, dziś pasjonat gry w szachy i historii II Wojny Światowej. Szukam spokojnej osoby na wspólne wieczory.",
     interests: ["Muzyka", "Szachy", "Historia", "Las"],
     status: "Szuka miłości",
-    image: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=600",
+    image_url: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=600",
     details: {
       occupation: "Muzyk",
       zodiac: "Koziorożec",
@@ -114,7 +114,7 @@ export const MOCK_PROFILES: Profile[] = [
     bio: 'Ciepła i rodzinna kobieta z pasją do gotowania i ogrodnictwa. Wychowałam troje dzieci, teraz cenię bliskość rodziny i wolny czas. Szukam spokojnego, dobrego mężczyzny do wspólnych wieczorów przy herbacie i długich spacerów.',
     interests: ['Gotowanie', 'Ogrodnictwo', 'Rodzina', 'Spacery', 'Kościół'],
     status: 'Szuka miłości',
-    image: 'https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?auto=format&fit=crop&q=80&w=600',
+    image_url: 'https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?auto=format&fit=crop&q=80&w=600',
     details: { occupation: 'Pielęgniarka', zodiac: 'Byk', smoking: 'Niepaląca', children: 'Mam dorosłe dzieci' },
     isVerified: true, gender: 'K', seeking_gender: 'M', seeking_age_min: 58, seeking_age_max: 75,
     photos: [
@@ -130,7 +130,7 @@ export const MOCK_PROFILES: Profile[] = [
     bio: 'Przez 40 lat leczyłam ludzi — teraz czas na siebie. Kocham literaturę, muzykę klasyczną i teatr. Mam poczucie humoru i wciąż jestem ciekawa świata. Chciałabym poznać kogoś kulturalnego do rozmów i wspólnych wyjść.',
     interests: ['Literatura', 'Muzyka', 'Teatr', 'Kino', 'Fotografia'],
     status: 'Szuka przyjaźni',
-    image: 'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?auto=format&fit=crop&q=80&w=600',
+    image_url: 'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?auto=format&fit=crop&q=80&w=600',
     details: { occupation: 'Lekarz', zodiac: 'Panna', smoking: 'Niepaląca', children: 'Mam dorosłe dzieci' },
     isVerified: true, gender: 'K', seeking_gender: 'M', seeking_age_min: 63, seeking_age_max: 80,
     photos: [
@@ -146,7 +146,7 @@ export const MOCK_PROFILES: Profile[] = [
     bio: 'Aktywna, niezależna i pełna energii! Taniec towarzyski to moja wielka pasja — chodzę na zajęcia dwa razy w tygodniu. Lubię też nordic walking nad morzem i jogę. Szukam kobiety do wspólnych aktywności i szczerych rozmów.',
     interests: ['Taniec', 'Nordic Walking', 'Joga', 'Rowerowanie', 'Koty'],
     status: 'Szuka przygody',
-    image: 'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?auto=format&fit=crop&q=80&w=600',
+    image_url: 'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?auto=format&fit=crop&q=80&w=600',
     details: { occupation: 'Nauczycielka', zodiac: 'Waga', smoking: 'Okazyjnie', children: 'Bezdzietna' },
     isVerified: false, gender: 'K', seeking_gender: 'K', seeking_age_min: 55, seeking_age_max: 73,
     photos: [
@@ -162,7 +162,7 @@ export const MOCK_PROFILES: Profile[] = [
     bio: 'Prowadziłam własną firmę przez 20 lat — teraz zwalniam tempo i odkrywam świat. Podróże to mój żywioł, byłam już w 30 krajach. Szukam mężczyzny z pasją, który nie boi się nowych przygód i ma apetyt na życie.',
     interests: ['Podróże', 'Fotografia', 'Kino', 'Sport', 'Muzyka'],
     status: 'Szuka miłości',
-    image: 'https://images.unsplash.com/photo-1502823403499-6ccfcf4fb453?auto=format&fit=crop&q=80&w=600',
+    image_url: 'https://images.unsplash.com/photo-1502823403499-6ccfcf4fb453?auto=format&fit=crop&q=80&w=600',
     details: { occupation: 'Przedsiębiorczyni', zodiac: 'Lew', smoking: 'Niepaląca', children: 'Bezdzietna' },
     isVerified: true, gender: 'K', seeking_gender: 'M', seeking_age_min: 55, seeking_age_max: 72,
     photos: [
@@ -179,7 +179,7 @@ export const MOCK_PROFILES: Profile[] = [
     bio: 'Całe życie budowałem mosty — teraz buduję relacje. Spokojny, solidny i z dużym poczuciem humoru. Lubię majsterkować w garażu, grać w szachy i wyjeżdżać na weekend nad jezioro z wędką. Czekam na kogoś wyjątkowego.',
     interests: ['Majsterkowanie', 'Szachy', 'Wędkarstwo', 'Historia', 'Las'],
     status: 'Szuka miłości',
-    image: 'https://images.unsplash.com/photo-1463453091185-61582044d556?auto=format&fit=crop&q=80&w=600',
+    image_url: 'https://images.unsplash.com/photo-1463453091185-61582044d556?auto=format&fit=crop&q=80&w=600',
     details: { occupation: 'Inżynier', zodiac: 'Koziorożec', smoking: 'Niepalący', children: 'Mam dorosłe dzieci' },
     isVerified: true, gender: 'M', seeking_gender: 'K', seeking_age_min: 58, seeking_age_max: 72,
     photos: [
@@ -195,7 +195,7 @@ export const MOCK_PROFILES: Profile[] = [
     bio: 'Przez całe życie otaczała mnie muzyka — grałem na skrzypcach w orkiestrze przez 35 lat. Teraz słucham, czytam i chodzę na długie spacery. Szukam spokojnej, ciepłej kobiety do rozmów o życiu i wspólnego spędzania czasu.',
     interests: ['Muzyka', 'Literatura', 'Spacery', 'Kościół', 'Szachy'],
     status: 'Szuka przyjaźni',
-    image: 'https://images.unsplash.com/photo-1504257432389-52343af06ae3?auto=format&fit=crop&q=80&w=600',
+    image_url: 'https://images.unsplash.com/photo-1504257432389-52343af06ae3?auto=format&fit=crop&q=80&w=600',
     details: { occupation: 'Muzyk', zodiac: 'Skorpion', smoking: 'Niepalący', children: 'Mam dorosłe dzieci' },
     isVerified: true, gender: 'M', seeking_gender: 'K', seeking_age_min: 60, seeking_age_max: 78,
     photos: [
@@ -211,7 +211,7 @@ export const MOCK_PROFILES: Profile[] = [
     bio: 'Wciąż aktywny zawodowo i sportowo. Trzy razy w tygodniu pływam, latem wyjeżdżam na rower. Jestem otwarty, bezpośredni i nie lubię nudy. Szukam mężczyzny o podobnym stylu życia — aktywnego, ciekawego świata.',
     interests: ['Sport', 'Rowerowanie', 'Basen', 'Podróże', 'Fotografia'],
     status: 'Szuka przygody',
-    image: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&q=80&w=600',
+    image_url: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&q=80&w=600',
     details: { occupation: 'Przedsiębiorca', zodiac: 'Baran', smoking: 'Okazyjnie', children: 'Bezdzietny' },
     isVerified: false, gender: 'M', seeking_gender: 'M', seeking_age_min: 52, seeking_age_max: 68,
     photos: [
@@ -227,7 +227,7 @@ export const MOCK_PROFILES: Profile[] = [
     bio: 'Kardiolog z miłością do historii i ogrodnictwa. Mój ogród to moje sanktuarium. Jestem człowiekiem spokojnym, uważnym i czułym. Szukam kobiety, która doceni ciszę, dobrą książkę i wspólne gotowanie.',
     interests: ['Historia', 'Literatura', 'Ogrodnictwo', 'Gotowanie', 'Muzyka'],
     status: 'Szuka miłości',
-    image: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=600',
+    image_url: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=600',
     details: { occupation: 'Lekarz', zodiac: 'Ryby', smoking: 'Niepalący', children: 'Mam dorosłe dzieci' },
     isVerified: true, gender: 'M', seeking_gender: 'K', seeking_age_min: 57, seeking_age_max: 72,
     photos: [
