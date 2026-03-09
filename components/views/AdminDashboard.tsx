@@ -26,8 +26,9 @@ import {
 import ConfirmModal from '../layout/ConfirmModal';
 
 const MessageModal = dynamic(() => import('../layout/MessageModal'), { ssr: false });
+const AdminCommentsView = dynamic(() => import('./AdminCommentsView'), { ssr: false });
 
-type AdminTab = 'overview' | 'users' | 'moderation' | 'monetization';
+type AdminTab = 'overview' | 'users' | 'moderation' | 'comments' | 'monetization';
 type UserFilter = 'all' | 'blocked' | 'active' | 'unverified' | 'pending' | 'premium';
 type UserSort = 'newest' | 'oldest' | 'az' | 'za';
 type DashboardDataSource = 'live' | 'demo' | 'error';
@@ -539,6 +540,7 @@ export default function AdminDashboard() {
             { id: 'overview' as const, label: 'Przegląd', icon: BarChart3 },
             { id: 'users' as const, label: 'Użytkownicy', icon: Users },
             { id: 'moderation' as const, label: 'Moderacja', icon: Flag },
+            { id: 'comments' as const, label: 'Komentarze', icon: MessageCircle },
             { id: 'monetization' as const, label: 'Monetyzacja', icon: Wallet },
           ].map((tab) => {
             const Icon = tab.icon;
@@ -991,6 +993,10 @@ export default function AdminDashboard() {
                   )}
                 </div>
               </div>
+            )}
+
+            {activeTab === 'comments' && (
+              <AdminCommentsView />
             )}
 
             {activeTab === 'monetization' && (

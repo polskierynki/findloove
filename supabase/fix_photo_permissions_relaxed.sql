@@ -481,4 +481,140 @@ from public.avatars a
 where a.profile_id = p.id
   and p.image_url is distinct from a.url;
 
+-- Trigger: automatycznie tworzy profil gdy użytkownik się rejestruje
+-- Fix ForeignKey error: profile_comments_author_profile_id_fkey
+create or replace function public.handle_new_user()
+returns trigger as $$
+begin
+  insert into public.profiles (
+    id,
+    name,
+    age,
+    city,
+    bio,
+    email,
+    is_banned
+  ) values (
+    new.id,
+    coalesce(new.raw_user_meta_data->>'name', new.email),
+    coalesce((new.raw_user_meta_data->>'age')::integer, 30),
+    coalesce(new.raw_user_meta_data->>'city', ''),
+    coalesce(new.raw_user_meta_data->>'bio', ''),
+    new.email,
+    false
+  );
+  return new;
+exception when others then
+  -- Jeśli profil już istnieje, nie przerywaj rejestracji
+  return new;
+end;
+$$ language plpgsql security definer;
+
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row
+  execute function public.handle_new_user();
+
+-- SYSTEM MODERACJI: Kolumna is_banned w profiles
+alter table public.profiles add column if not exists is_banned boolean default false;
+
+-- TABLE: user_strikes (ostrzeżenia dla użytkowników)
+-- Po 3 strikach użytkownik jest automatycznie banowany
+create table if not exists public.user_strikes (
+  id uuid primary key default gen_random_uuid(),
+  user_profile_id uuid references public.profiles(id) on delete cascade not null,
+  reason text not null,
+  comment_id uuid references public.profile_comments(id) on delete set null,
+  admin_profile_id uuid references public.profiles(id) on delete set null,
+  created_at timestamptz not null default now()
+);
+
+alter table public.user_strikes add column if not exists id uuid;
+alter table public.user_strikes add column if not exists user_profile_id uuid;
+alter table public.user_strikes add column if not exists reason text;
+alter table public.user_strikes add column if not exists comment_id uuid;
+alter table public.user_strikes add column if not exists admin_profile_id uuid;
+alter table public.user_strikes add column if not exists created_at timestamptz default now();
+
+update public.user_strikes set id = gen_random_uuid() where id is null;
+update public.user_strikes set created_at = now() where created_at is null;
+
+alter table public.user_strikes alter column id set default gen_random_uuid();
+alter table public.user_strikes alter column user_profile_id set not null;
+alter table public.user_strikes alter column reason set not null;
+alter table public.user_strikes alter column created_at set default now();
+alter table public.user_strikes alter column created_at set not null;
+
+create index if not exists user_strikes_user_created_idx
+  on public.user_strikes (user_profile_id, created_at desc);
+
+grant select on public.user_strikes to anon;
+grant select, insert on public.user_strikes to authenticated;
+
+alter table public.user_strikes enable row level security;
+
+drop policy if exists "Public read strikes" on public.user_strikes;
+drop policy if exists "Admin insert strikes" on public.user_strikes;
+
+create policy "Public read strikes"
+  on public.user_strikes
+  for select
+  using (true);
+
+create policy "Admin insert strikes"
+  on public.user_strikes
+  for insert
+  to authenticated
+  with check (true);
+
+-- FUNCTION: Automatycznie banuje użytkownika po 3 strikach
+create or replace function public.check_and_ban_user()
+returns trigger as $$
+declare
+  strike_count integer;
+begin
+  select count(*) into strike_count
+  from public.user_strikes
+  where user_profile_id = new.user_profile_id;
+
+  if strike_count >= 3 then
+    update public.profiles
+    set is_banned = true
+    where id = new.user_profile_id;
+  end if;
+
+  return new;
+end;
+$$ language plpgsql;
+
+drop trigger if exists ban_user_on_third_strike on public.user_strikes;
+
+create trigger ban_user_on_third_strike
+  after insert on public.user_strikes
+  for each row
+  execute function public.check_and_ban_user();
+
+-- RLS: Blokuj operacje dla zbanowanych użytkowników
+-- Update policy dla profile_comments: zablokowuje dodawanie komentarzy dla zbanowanych
+create or replace policy "Block banned users from commenting"
+  on public.profile_comments
+  for insert
+  to authenticated
+  with check (
+    author_profile_id = auth.uid()
+    and length(trim(content)) between 2 and 400
+    and not exists (
+      select 1 from public.profiles
+      where id = auth.uid() and is_banned = true
+    )
+  );
+
+-- Admin może usuwać komentarze
+create policy "Admin delete any comments"
+  on public.profile_comments
+  for delete
+  to authenticated
+  using (true);
+
 commit;
