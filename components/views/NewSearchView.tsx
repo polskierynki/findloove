@@ -1,9 +1,11 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Heart, MessageCircle, Sparkles, MapPin, Sliders } from 'lucide-react';
 
 export default function NewSearchView() {
+  const router = useRouter();
   const [ageRange, setAgeRange] = useState(45);
   const [distance, setDistance] = useState(50);
   const [selectedInterests, setSelectedInterests] = useState(new Set(['Podróże']));
@@ -118,7 +120,11 @@ export default function NewSearchView() {
           {/* Profile Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
             {profiles.map((profile) => (
-              <div key={profile.id} className="profile-card glass rounded-[2rem] overflow-hidden relative group">
+              <div
+                key={profile.id}
+                onClick={() => router.push(`/profile/${profile.id}`)}
+                className="profile-card glass rounded-[2rem] overflow-hidden relative group cursor-pointer"
+              >
                 <div className="aspect-[3/4] w-full relative">
                   <img src={profile.image} alt={profile.name} className="w-full h-full object-cover" />
                   <div className="absolute inset-0 bg-gradient-to-t from-[#07050f] via-[#07050f]/40 to-transparent"></div>
@@ -142,10 +148,19 @@ export default function NewSearchView() {
 
                     {/* Actions */}
                     <div className="card-actions flex gap-3 mt-3 relative z-30">
-                      <button className="pointer-events-auto flex-1 bg-white/10 hover:bg-white/20 backdrop-blur-md border border-cyan-500/20 py-2.5 rounded-xl flex items-center justify-center gap-2 text-white transition-all hover:border-red-400/50 hover:text-red-400">
+                      <button
+                        onClick={(e) => e.stopPropagation()}
+                        className="pointer-events-auto flex-1 bg-white/10 hover:bg-white/20 backdrop-blur-md border border-cyan-500/20 py-2.5 rounded-xl flex items-center justify-center gap-2 text-white transition-all hover:border-red-400/50 hover:text-red-400"
+                      >
                         <Heart size={20} />
                       </button>
-                      <button className="pointer-events-auto flex-1 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 shadow-[0_0_15px_rgba(0,255,255,0.3)] py-2.5 rounded-xl flex items-center justify-center gap-2 text-white">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          router.push('/messages');
+                        }}
+                        className="pointer-events-auto flex-1 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 shadow-[0_0_15px_rgba(0,255,255,0.3)] py-2.5 rounded-xl flex items-center justify-center gap-2 text-white"
+                      >
                         <MessageCircle size={20} />
                       </button>
                     </div>

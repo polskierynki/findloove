@@ -1,11 +1,13 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Heart, MessageCircle, Sparkles, MapPin } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { Profile } from '@/lib/types';
 
 export default function NewHomeView() {
+  const router = useRouter();
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [likedProfiles, setLikedProfiles] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
@@ -80,7 +82,8 @@ export default function NewHomeView() {
             return (
               <div
                 key={profile.id}
-                className="profile-card glass rounded-[2rem] overflow-hidden relative group"
+                onClick={() => router.push(`/profile/${profile.id}`)}
+                className="profile-card glass rounded-[2rem] overflow-hidden relative group cursor-pointer"
               >
                 <div className="aspect-[3/4] w-full relative">
                   <img
@@ -119,7 +122,10 @@ export default function NewHomeView() {
                     {/* Action Buttons */}
                     <div className="card-actions flex gap-3 mt-3 relative z-30">
                       <button
-                        onClick={() => toggleLike(profile.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleLike(profile.id);
+                        }}
                         className="pointer-events-auto flex-1 bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 py-2.5 rounded-xl flex items-center justify-center gap-2 text-white transition-all hover:border-red-400/50 hover:text-red-400 group/btn"
                       >
                         <Heart
@@ -129,7 +135,13 @@ export default function NewHomeView() {
                           } group-hover/btn:scale-110 transition-transform`}
                         />
                       </button>
-                      <button className="pointer-events-auto flex-1 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 shadow-[0_0_15px_rgba(0,255,255,0.3)] py-2.5 rounded-xl flex items-center justify-center gap-2 text-white transition-all">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          router.push('/messages');
+                        }}
+                        className="pointer-events-auto flex-1 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 shadow-[0_0_15px_rgba(0,255,255,0.3)] py-2.5 rounded-xl flex items-center justify-center gap-2 text-white transition-all"
+                      >
                         <MessageCircle size={20} />
                       </button>
                     </div>
