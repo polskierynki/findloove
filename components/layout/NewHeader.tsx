@@ -3,7 +3,7 @@
 import { useContext, useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { Bell, MessageCircle, Shield, Menu, X } from 'lucide-react';
+import { Bell, MessageCircle, Shield, Menu, X, Gift, Heart, BadgeCheck, MessageSquareText, User } from 'lucide-react';
 
 export default function NewHeader() {
   const router = useRouter();
@@ -112,34 +112,103 @@ export default function NewHeader() {
               <span className="absolute top-2 right-1.5 w-2.5 h-2.5 bg-fuchsia-500 rounded-full shadow-[0_0_8px_rgba(255,0,255,0.8)] border-2 border-[#110a22]"></span>
             </button>
 
-            {/* Notification Dropdown */}
+            {/* Notification Dropdown - Enhanced with 4 notification types */}
             {notificationsOpen && (
-              <div className="absolute top-full right-0 mt-4 w-80 sm:w-96 glass-modal rounded-[2rem] border border-cyan-500/20 shadow-[0_20px_50px_rgba(0,255,255,0.2)] flex flex-col overflow-hidden z-[100]">
-                <div className="p-5 border-b border-cyan-500/10 bg-black/20 flex justify-between items-center">
+              <div className="absolute top-full right-0 mt-4 w-80 sm:w-96 glass-modal rounded-[2rem] border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.8)] flex flex-col overflow-hidden z-[100] transform opacity-100 scale-100 transition-all duration-300 origin-top-right">
+                {/* Header */}
+                <div className="p-5 border-b border-white/10 bg-black/20 flex justify-between items-center">
                   <h3 className="text-white font-medium flex items-center gap-2 text-lg">
-                    <Bell size={20} className="text-cyan-400" /> Powiadomienia
+                    <Bell size={20} className="text-fuchsia-400" /> Powiadomienia
                   </h3>
                   <button className="text-xs text-cyan-400 hover:text-cyan-300 transition-colors bg-cyan-500/10 px-3 py-1.5 rounded-full border border-cyan-500/30">
                     Oznacz przeczytane
                   </button>
                 </div>
 
+                {/* Notifications List */}
                 <div className="max-h-[400px] overflow-y-auto custom-scrollbar">
-                  <div className="p-4 border-b border-cyan-500/5 hover:bg-cyan-500/5 transition-colors cursor-pointer flex gap-4">
-                    <div className="w-10 h-10 rounded-full bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center shrink-0 shadow-[0_0_10px_rgba(0,255,255,0.2)]">
-                      🎁
+                  {/* Item 1: Gift */}
+                  <div
+                    className="p-4 border-b border-white/5 hover:bg-white/5 transition-colors cursor-pointer flex gap-4"
+                    onClick={() => {
+                      router.push('/profile');
+                      setNotificationsOpen(false);
+                    }}
+                  >
+                    <div className="w-10 h-10 rounded-full bg-amber-500/20 border border-amber-500/30 flex items-center justify-center shrink-0 shadow-[0_0_10px_rgba(245,158,11,0.2)]">
+                      <Gift size={20} className="text-amber-400" />
                     </div>
                     <div>
-                      <p className="text-sm text-cyan-100">
+                      <p className="text-sm text-gray-200">
                         <span className="font-medium text-white">Marek_88</span> wysłał Ci prezent (Róża)! 🌹
                       </p>
-                      <p className="text-xs text-cyan-500/50 mt-1">5 min temu</p>
+                      <p className="text-xs text-gray-500 mt-1">5 min temu</p>
+                    </div>
+                  </div>
+
+                  {/* Item 2: Like */}
+                  <div
+                    className="p-4 border-b border-white/5 hover:bg-white/5 transition-colors cursor-pointer flex gap-4 bg-white/[0.02]"
+                    onClick={() => {
+                      router.push('/profile');
+                      setNotificationsOpen(false);
+                    }}
+                  >
+                    <div className="w-10 h-10 rounded-full bg-red-500/20 border border-red-500/30 flex items-center justify-center shrink-0 shadow-[0_0_10px_rgba(239,68,68,0.2)]">
+                      <Heart size={20} className="text-red-500 fill-red-500" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-200">
+                        <span className="font-medium text-white">Kamil</span> polubił Twój profil. Sprawdź, czy to match!
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">1 godz. temu</p>
+                    </div>
+                  </div>
+
+                  {/* Item 3: Verification */}
+                  <div
+                    className="p-4 border-b border-white/5 hover:bg-white/5 transition-colors cursor-pointer flex gap-4"
+                    onClick={() => {
+                      router.push('/profile');
+                      setNotificationsOpen(false);
+                    }}
+                  >
+                    <div className="w-10 h-10 rounded-full bg-blue-500/20 border border-blue-500/30 flex items-center justify-center shrink-0 shadow-[0_0_10px_rgba(59,130,246,0.2)]">
+                      <BadgeCheck size={20} className="text-blue-400" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-200">
+                        Twój profil został pomyślnie <span className="text-blue-400 font-medium">zweryfikowany</span>.
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">Wczoraj, 14:30</p>
+                    </div>
+                  </div>
+
+                  {/* Item 4: Comment */}
+                  <div
+                    className="p-4 hover:bg-white/5 transition-colors cursor-pointer flex gap-4"
+                    onClick={() => {
+                      router.push('/profile');
+                      setNotificationsOpen(false);
+                    }}
+                  >
+                    <img
+                      src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?ixlib=rb-4.0.3&w=100&q=80"
+                      className="w-10 h-10 rounded-full object-cover border border-white/10 shrink-0"
+                      alt="Ania_x"
+                    />
+                    <div>
+                      <p className="text-sm text-gray-200">
+                        <span className="font-medium text-white">Ania_x</span> skomentowała Twoje zdjęcie w galerii.
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">2 dni temu</p>
                     </div>
                   </div>
                 </div>
 
-                <div className="p-3 border-t border-cyan-500/10 bg-black/40 text-center">
-                  <button className="text-sm text-cyan-400 hover:text-cyan-300 transition-colors py-1 px-4 rounded-full hover:bg-cyan-500/10">
+                {/* Footer */}
+                <div className="p-3 border-t border-white/10 bg-black/40 text-center">
+                  <button className="text-sm text-gray-400 hover:text-white transition-colors py-1 px-4 rounded-full hover:bg-white/5">
                     Zobacz wszystkie
                   </button>
                 </div>

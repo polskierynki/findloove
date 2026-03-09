@@ -12,7 +12,7 @@ import { useGuestRestrictions } from '@/lib/hooks/useGuestRestrictions';
 import { useProfileCompletion } from '@/lib/hooks/useProfileCompletion';
 import { LegalProvider } from '@/lib/context/LegalContext';
 
-import Header from '@/components/layout/Header';
+// import Header from '@/components/layout/Header'; // REMOVED - using NewHeader from layout.tsx
 import BottomNav from '@/components/layout/BottomNav';
 import Footer from '@/components/layout/Footer';
 import Notification from '@/components/layout/Notification';
@@ -630,23 +630,7 @@ export default function App() {
       <div className="min-h-screen bg-[#FDFCF9] text-slate-900 pb-24 md:pb-10 text-base selection:bg-rose-100">
         {notification && <Notification message={notification} />}
 
-      <Header
-        onAssistantClick={() => setChatOpen((v) => !v)}
-        assistantOpen={chatOpen}
-        currentView={view}
-        onNavigate={(v) => {
-          setShowPremiumView(false);
-          if (v === 'myprofile') {
-            router.push('/myprofile');
-            return;
-          }
-          setView(v);
-        }}
-        isLoggedIn={isLoggedIn}
-        tokens={tokens}
-        userName={userName}
-        isAdmin={isAdmin}
-      />
+      {/* OLD Header removed - using NewHeader from layout.tsx */}
 
       <main className="max-w-6xl mx-auto px-6 pt-12">
         {showPremiumView ? (
