@@ -11,6 +11,7 @@
   "dependencies": {
     "@ai-sdk/anthropic": "^1.2.12",
     "@ai-sdk/groq": "^1.2.9",
+    "@phosphor-icons/react": "^2.1.10",
     "@supabase/supabase-js": "^2.98.0",
     "@talkjs/react-components": "^0.1.4",
     "ai": "^4.3.19",
