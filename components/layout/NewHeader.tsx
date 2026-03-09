@@ -65,40 +65,32 @@ export default function NewHeader() {
         <nav className="hidden lg:flex flex-1 justify-center items-center gap-6 xl:gap-10 z-0">
           <button
             onClick={() => router.push('/')}
-            className={`nav-item relative font-medium transition-colors pb-1 whitespace-nowrap ${
-              activeNav === 'home'
-                ? 'text-cyan-300 shadow-[0_0_10px_rgba(0,255,255,0.4)]'
-                : 'text-cyan-300/60 hover:text-cyan-300'
+            className={`nav-item relative text-gray-300 hover:text-white font-medium transition-colors pb-1 whitespace-nowrap ${
+              activeNav === 'home' ? 'active' : ''
             }`}
           >
             Odkrywaj
           </button>
           <button
             onClick={() => router.push('/search')}
-            className={`nav-item relative font-medium transition-colors pb-1 whitespace-nowrap ${
-              activeNav === 'search'
-                ? 'text-cyan-300 shadow-[0_0_10px_rgba(0,255,255,0.4)]'
-                : 'text-cyan-300/60 hover:text-cyan-300'
+            className={`nav-item relative text-gray-300 hover:text-white font-medium transition-colors pb-1 whitespace-nowrap ${
+              activeNav === 'search' ? 'active' : ''
             }`}
           >
             Szukaj
           </button>
           <button
             onClick={() => router.push('/messages')}
-            className={`nav-item relative font-medium transition-colors pb-1 whitespace-nowrap ${
-              activeNav === 'messages'
-                ? 'text-cyan-300 shadow-[0_0_10px_rgba(0,255,255,0.4)]'
-                : 'text-cyan-300/60 hover:text-cyan-300'
+            className={`nav-item relative text-gray-300 hover:text-white font-medium transition-colors pb-1 whitespace-nowrap ${
+              activeNav === 'messages' ? 'active' : ''
             }`}
           >
             Wiadomości
           </button>
           <button
             onClick={() => router.push('/profile')}
-            className={`nav-item relative font-medium transition-colors pb-1 flex items-center gap-1.5 whitespace-nowrap ${
-              activeNav === 'profile'
-                ? 'text-cyan-300 shadow-[0_0_10px_rgba(0,255,255,0.4)]'
-                : 'text-cyan-300/60 hover:text-cyan-300'
+            className={`nav-item relative text-gray-300 hover:text-white font-medium transition-colors pb-1 flex items-center gap-1.5 whitespace-nowrap ${
+              activeNav === 'profile' ? 'active' : ''
             }`}
           >
             Mój profil

@@ -218,6 +218,11 @@ html, body {
   position: relative;
 }
 
+.nav-item.active {
+  color: var(--cyan);
+  text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+}
+
 .nav-item::after {
   content: '';
   position: absolute;
@@ -229,6 +234,10 @@ html, body {
   background: var(--cyan);
   transition: width 0.3s ease;
   box-shadow: 0 0 8px var(--cyan);
+}
+
+.nav-item:hover::after {
+  width: 50%;
 }
 
 .nav-item.active::after { 
