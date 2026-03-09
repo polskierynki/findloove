@@ -13,107 +13,48 @@ interface FooterProps {
 }
 
 export default function Footer({ onNavigate }: FooterProps) {
-  const {
-    openTerms,
-    openPrivacy,
-    showTerms,
-    showPrivacy,
-    closeTerms,
-    closePrivacy,
-  } = useLegal();
-  const currentYear = new Date().getFullYear();
+  const { openTerms, openPrivacy, showTerms, showPrivacy, closeTerms, closePrivacy } = useLegal();
+  const year = new Date().getFullYear();
 
   return (
-    <footer className="bg-slate-900 text-slate-100 mt-20 pt-16 pb-8">
-      <div className="max-w-6xl mx-auto px-6">
-        
-        {/* ── Górna część: kolumny ── */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-10 mb-12">
-          
-          {/* Logo + opis */}
-          <div className="md:col-span-1">
-            <div className="mb-4 inline-block bg-white p-3 rounded-lg">
-              <Image
-                src="/logo/logo.jpg"
-                alt="findloove.pl"
-                width={140}
-                height={36}
-                className="h-9 w-auto object-contain"
-              />
+    <footer className="mt-20 border-t border-white/10 bg-black/30 backdrop-blur-sm">
+      <div className="max-w-[2200px] mx-auto px-6 lg:px-12 py-10">
+        <div className="grid md:grid-cols-3 gap-8 mb-8">
+          <div>
+            <div className="inline-block bg-white/90 rounded-lg p-2 mb-3">
+              <Image src="/logo/logo.jpg" alt="findloove.pl" width={132} height={34} className="h-8 w-auto object-contain" />
             </div>
-            <p className="text-sm text-slate-400 leading-relaxed">
-              Portal społeczny do poznawania nowych ludzi. Zawiąż prawdziwe przyjaźnie i odkrywaj świat razem.
-            </p>
+            <p className="text-sm text-white/60 leading-relaxed">Społeczność findloove.pl łączy ludzi szukających realnych relacji.</p>
           </div>
 
-          {/* Linki szybkie */}
           <div>
-            <h4 className="font-bold text-white mb-4 text-sm uppercase tracking-wide">Szybkie linki</h4>
-            <ul className="space-y-2 text-sm">
-              <li><button onClick={() => onNavigate?.('home')} className="text-slate-400 hover:text-rose-400 transition-colors cursor-pointer">Strona główna</button></li>
-              <li><button onClick={() => onNavigate?.('discover')} className="text-slate-400 hover:text-rose-400 transition-colors cursor-pointer">Odkrywaj profile</button></li>
-              <li><button onClick={() => onNavigate?.('safety')} className="text-slate-400 hover:text-rose-400 transition-colors cursor-pointer">O aplikacji</button></li>
-              <li><a href="#" className="text-slate-400 hover:text-rose-400 transition-colors">Blog</a></li>
-            </ul>
+            <h4 className="text-sm uppercase tracking-wider text-cyan-300 mb-3">Nawigacja</h4>
+            <div className="space-y-2 text-sm">
+              <button onClick={() => onNavigate?.('home')} className="block text-white/70 hover:text-white">Strona główna</button>
+              <button onClick={() => onNavigate?.('search')} className="block text-white/70 hover:text-white">Szukaj</button>
+              <button onClick={() => onNavigate?.('messages')} className="block text-white/70 hover:text-white">Wiadomości</button>
+              <button onClick={() => onNavigate?.('safety')} className="block text-white/70 hover:text-white">Bezpieczeństwo</button>
+            </div>
           </div>
 
-          {/* Bezpieczeństwo */}
           <div>
-            <h4 className="font-bold text-white mb-4 text-sm uppercase tracking-wide">Bezpieczeństwo</h4>
-            <ul className="space-y-2 text-sm">
-              <li><button onClick={() => onNavigate?.('safety')} className="text-slate-400 hover:text-rose-400 transition-colors cursor-pointer">Weryfikacja profilu</button></li>
-              <li><button onClick={() => onNavigate?.('safety')} className="text-slate-400 hover:text-rose-400 transition-colors cursor-pointer">Poradnik bezpieczeństwa</button></li>
-              <li><a href="mailto:bezpieczenstwo@findloove.pl" className="text-slate-400 hover:text-rose-400 transition-colors">Zgłoś problem</a></li>
-              <li><button onClick={openPrivacy} className="text-slate-400 hover:text-rose-400 transition-colors cursor-pointer">Polityka RODO</button></li>
-            </ul>
-          </div>
-
-          {/* Kontakt */}
-          <div>
-            <h4 className="font-bold text-white mb-4 text-sm uppercase tracking-wide">Kontakt</h4>
-            <ul className="space-y-3 text-sm">
-              <li className="flex items-start gap-2">
-                <Mail size={16} className="text-rose-400 mt-0.5 shrink-0" />
-                <a href="mailto:pomoc@findloove.pl" className="text-slate-400 hover:text-rose-400 transition-colors">pomoc@findloove.pl</a>
-              </li>
-            </ul>
+            <h4 className="text-sm uppercase tracking-wider text-cyan-300 mb-3">Kontakt</h4>
+            <a href="mailto:pomoc@findloove.pl" className="inline-flex items-center gap-2 text-white/70 hover:text-white text-sm">
+              <Mail size={16} className="text-cyan-300" /> pomoc@findloove.pl
+            </a>
+            <div className="mt-4 flex flex-wrap gap-4 text-xs text-white/60">
+              <button onClick={openTerms} className="hover:text-cyan-300">Regulamin</button>
+              <button onClick={openPrivacy} className="hover:text-cyan-300">Prywatność</button>
+              <button onClick={() => onNavigate?.('cookies')} className="hover:text-cyan-300">Cookies</button>
+            </div>
           </div>
         </div>
 
-        {/* ── Separacja ── */}
-        <div className="border-t border-slate-700 py-8"></div>
-
-        {/* ── Dolna część: legal + copyright ── */}
-        <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-          {/* Legal links */}
-          <div className="flex flex-wrap justify-center gap-6 text-xs text-slate-400">
-            <button onClick={openTerms} className="hover:text-rose-400 transition-colors cursor-pointer">Regulamin</button>
-            <button onClick={openPrivacy} className="hover:text-rose-400 transition-colors cursor-pointer">Polityka prywatności</button>
-            <button onClick={() => onNavigate?.('cookies')} className="hover:text-rose-400 transition-colors cursor-pointer">Polityka cookies</button>
-            <a href="#" className="hover:text-rose-400 transition-colors">Preferencje RODO</a>
-          </div>
-
-          {/* Copyright */}
-          <div className="text-xs text-slate-500 text-center md:text-right">
-            <p>© {currentYear} findloove.pl. Wszelkie prawa zastrzeżone.</p>
-            <p className="mt-1">Zrobione z ❤️ dla osób szukających relacji</p>
-          </div>
-        </div>
-
+        <div className="text-xs text-white/45">© {year} findloove.pl. Wszelkie prawa zastrzeżone.</div>
       </div>
 
-      <LegalModal
-        isOpen={showTerms}
-        onClose={closeTerms}
-        type="terms"
-        content={TERMS_OF_SERVICE}
-      />
-      <LegalModal
-        isOpen={showPrivacy}
-        onClose={closePrivacy}
-        type="privacy"
-        content={PRIVACY_POLICY}
-      />
+      <LegalModal isOpen={showTerms} onClose={closeTerms} type="terms" content={TERMS_OF_SERVICE} />
+      <LegalModal isOpen={showPrivacy} onClose={closePrivacy} type="privacy" content={PRIVACY_POLICY} />
     </footer>
   );
 }

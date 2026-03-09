@@ -24,7 +24,7 @@ export default function BottomNav({ currentView, onNavigate, isLoggedIn = false 
     : NAV_ITEMS.filter((item) => item.id !== 'messages');
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 shadow-[0_-4px_16px_rgba(0,0,0,0.08)] z-50 pb-safe md:py-0">
+    <nav className="fixed bottom-0 left-0 right-0 glass border-t border-white/10 shadow-[0_-8px_24px_rgba(0,0,0,0.45)] z-50 pb-safe md:py-0">
       <div className="max-w-2xl mx-auto flex justify-around items-center px-2 py-1 md:py-2 min-h-[56px] md:min-h-0">
         {visibleNavItems.map((item) => (
           (() => {
@@ -43,27 +43,27 @@ export default function BottomNav({ currentView, onNavigate, isLoggedIn = false 
             className={`flex flex-col items-center gap-0.5 cursor-pointer transition-all px-1.5 py-1 rounded-xl active:scale-95 min-w-[44px] md:min-w-[52px] touch-manipulation ${
               isSpeedDating
                 ? active
-                  ? 'text-amber-600'
-                  : 'text-amber-500 hover:bg-amber-50'
+                  ? 'text-amber-400 shadow-[0_0_10px_rgba(245,158,11,0.35)]'
+                  : 'text-white/60 hover:text-amber-300 hover:bg-amber-500/10'
                 : active
-                ? 'text-rose-500'
-                : 'text-slate-400 hover:bg-slate-50'
+                ? 'text-cyan-400 shadow-[0_0_10px_rgba(0,255,255,0.3)]'
+                : 'text-white/60 hover:text-white hover:bg-white/5'
             }`}
           >
             <div
               className={`relative transition-all ${
                 isSpeedDating
                   ? active
-                    ? 'bg-amber-100 p-1.5 md:p-2 rounded-xl scale-105'
+                    ? 'bg-amber-500/20 p-1.5 md:p-2 rounded-xl scale-105 border border-amber-400/40'
                     : 'p-1.5 md:p-1.5'
                   : active
-                  ? 'bg-rose-50 p-1.5 md:p-2 rounded-xl scale-105'
+                  ? 'bg-cyan-500/20 p-1.5 md:p-2 rounded-xl scale-105 border border-cyan-400/40'
                   : 'p-1.5 md:p-1.5'
               }`}
             >
               {item.icon}
               {isProfileTab && isLoggedIn && (
-                <span className="absolute -top-1.5 -right-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white shadow-sm">
+                <span className="absolute -top-1.5 -right-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-fuchsia-500 px-1 text-[10px] font-bold text-white shadow-[0_0_10px_rgba(255,0,255,0.5)]">
                   i
                 </span>
               )}

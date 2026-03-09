@@ -8,11 +8,11 @@ interface NotificationProps {
 
 export default function Notification({ message }: NotificationProps) {
   return (
-    <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[200] bg-slate-800 text-white px-12 py-6 rounded-[2.5rem] shadow-2xl flex items-center gap-5 animate-in fade-in zoom-in duration-300 font-bold border-4 border-slate-700">
-      <div className="bg-emerald-500 p-2 rounded-full">
-        <CheckCircle size={24} />
+    <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[200] glass-modal border border-cyan-500/30 text-white px-8 py-4 rounded-[1.5rem] shadow-[0_0_30px_rgba(0,255,255,0.25)] flex items-center gap-3 animate-in fade-in zoom-in duration-300">
+      <div className="bg-cyan-500/20 p-2 rounded-full border border-cyan-400/40">
+        <CheckCircle size={20} className="text-cyan-300" />
       </div>
-      <span className="text-xl">{message}</span>
+      <span className="text-sm md:text-base">{message}</span>
     </div>
   );
 }

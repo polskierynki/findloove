@@ -1,6 +1,6 @@
 'use client';
 
-import { X, Heart, Users, Sparkles, Lock, Clock } from 'lucide-react';
+import { Lock, Sparkles, X } from 'lucide-react';
 
 interface GuestModalProps {
   isOpen: boolean;
@@ -9,150 +9,62 @@ interface GuestModalProps {
   onLogin: () => void;
   variant?: 'clicks' | 'timeout' | 'feature';
   featureName?: string;
-  remainingTime?: number; // seconds
+  remainingTime?: number;
 }
 
-export default function GuestModal({ 
-  isOpen, 
-  onClose, 
-  onRegister, 
+export default function GuestModal({
+  isOpen,
+  onClose,
+  onRegister,
   onLogin,
   variant = 'clicks',
   featureName,
-  remainingTime = 0
+  remainingTime = 0,
 }: GuestModalProps) {
   if (!isOpen) return null;
 
-  const content = {
-    clicks: {
-      icon: <Sparkles size={48} className="text-rose-500" />,
-      title: 'Poznaj więcej osób!',
-      description: 'Osiągnąłeś limit przeglądania. Załóż darmowe konto aby odkryć wszystkie profile i funkcje portalu.',
-      benefits: [
-        'Przeglądaj nieograniczoną liczbę profili',
-        'Wysyłaj wiadomości do osób które Cię zainteresowały',
-        'Zobacz kto polubił Twój profil',
-        'Otrzymuj powiadomienia o nowych dopasowaniach',
-      ],
-    },
-    timeout: {
-      icon: <Clock size={48} className="text-amber-500" />,
-      title: 'Czas się skończył',
-      description: remainingTime > 0 
-        ? `Możesz kontynuować za ${remainingTime}s lub załóż konto aby przeglądać bez ograniczeń.`
-        : 'Wykorzystałeś dostępny czas przeglądania. Utwórz konto aby kontynuować bez ograniczeń.',
-      benefits: [
-        'Nieograniczony dostęp 24/7',
-        'Pełna kontrola nad profilem',
-        'Zabezpieczone wiadomości',
-        'Darmowa weryfikacja tożsamości',
-      ],
-    },
-    feature: {
-      icon: <Heart size={48} className="text-rose-500" fill="currentColor" />,
-      title: `${featureName || 'Ta funkcja'} wymaga konta`,
-      description: 'Ta funkcja jest dostępna tylko dla zarejestrowanych użytkowników. Dołącz do nas za darmo!',
-      benefits: [
-        'Polub profile które Cię zainteresowały',
-        'Napisz bezpośrednią wiadomość',
-        'Poznaj swoje dopasowania',
-        'Buduj prawdziwe relacje',
-      ],
-    },
-  };
+  const title =
+    variant === 'timeout'
+      ? 'Limit czasu gościa'
+      : variant === 'feature'
+      ? `${featureName || 'Ta funkcja'} wymaga konta`
+      : 'Limit przeglądania osiągnięty';
 
-  const { icon, title, description, benefits } = content[variant];
+  const desc =
+    variant === 'timeout'
+      ? remainingTime > 0
+        ? `Kolejna sesja za ${remainingTime}s lub odblokuj pełny dostęp po rejestracji.`
+        : 'Czas gościa się skończył. Załóż konto, aby kontynuować bez limitów.'
+      : 'Dołącz za darmo, aby odblokować wiadomości, polubienia i pełny podgląd profili.';
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-0 md:p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white h-full md:h-auto w-full md:max-w-md md:rounded-3xl shadow-2xl animate-in zoom-in-95 duration-300 overflow-y-auto">
-        {/* Header */}
-        <div className="relative p-8 pb-6">
-          <button
-            onClick={onClose}
-            className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 transition-colors"
-          >
-            <X size={24} />
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+      <div className="glass-modal w-full max-w-md rounded-[2rem] p-7 border border-cyan-500/30">
+        <div className="flex items-start justify-between gap-4 mb-4">
+          <div className="w-12 h-12 rounded-xl bg-cyan-500/20 border border-cyan-400/40 flex items-center justify-center">
+            <Lock size={24} className="text-cyan-300" />
+          </div>
+          <button onClick={onClose} className="text-white/70 hover:text-white">
+            <X size={22} />
           </button>
-          
-          <div className="flex flex-col items-center text-center">
-            <div className="w-20 h-20 bg-gradient-to-br from-rose-100 to-pink-100 rounded-2xl flex items-center justify-center mb-4">
-              {icon}
-            </div>
-            <h2 className="text-2xl font-bold text-slate-800 mb-2">{title}</h2>
-            
-            {/* Countdown timer for timeout variant */}
-            {variant === 'timeout' && remainingTime > 0 && (
-              <div className="my-4 flex items-center justify-center gap-3">
-                <div className="bg-gradient-to-br from-amber-500 to-orange-500 text-white rounded-2xl px-6 py-3 shadow-lg">
-                  <div className="flex items-center gap-2">
-                    <Clock size={24} />
-                    <div className="text-left">
-                      <div className="text-xs font-semibold opacity-90">Następna sesja za:</div>
-                      <div className="text-3xl font-bold tabular-nums">{remainingTime}s</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-            
-            <p className="text-slate-500 text-sm leading-relaxed">{description}</p>
-          </div>
         </div>
 
-        {/* Benefits */}
-        <div className="px-8 pb-6">
-          <div className="bg-gradient-to-br from-rose-50 to-amber-50 rounded-2xl p-5 border border-rose-100">
-            <p className="text-xs font-bold text-slate-600 uppercase tracking-wide mb-3">Co zyskujesz?</p>
-            <ul className="space-y-2.5">
-              {benefits.map((benefit, i) => (
-                <li key={i} className="flex items-start gap-2.5 text-sm text-slate-700">
-                  <div className="w-5 h-5 rounded-full bg-gradient-to-br from-rose-500 to-pink-500 flex items-center justify-center shrink-0 mt-0.5">
-                    <span className="text-white text-xs font-bold">✓</span>
-                  </div>
-                  <span className="leading-snug">{benefit}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
+        <h2 className="text-2xl text-white font-light mb-2">{title}</h2>
+        <p className="text-white/70 text-sm leading-relaxed mb-6">{desc}</p>
 
-        {/* Social proof */}
-        <div className="px-8 pb-6">
-          <div className="flex items-center justify-center gap-6 text-center">
-            <div>
-              <div className="text-2xl font-bold text-rose-600">1 524</div>
-              <div className="text-xs text-slate-400">Członków</div>
-            </div>
-            <div className="w-px h-10 bg-slate-200" />
-            <div>
-              <div className="text-2xl font-bold text-rose-600">87</div>
-              <div className="text-xs text-slate-400">Par w tym miesiącu</div>
-            </div>
-          </div>
-        </div>
-
-        {/* Actions */}
-        <div className="px-8 pb-8 space-y-3">
+        <div className="space-y-3">
           <button
             onClick={onRegister}
-            className="w-full py-4 bg-gradient-to-r from-rose-500 to-pink-500 text-white font-bold rounded-xl hover:from-rose-600 hover:to-pink-600 transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2 group"
+            className="w-full py-3 rounded-xl bg-gradient-to-r from-fuchsia-600 to-cyan-600 text-white font-medium inline-flex items-center justify-center gap-2"
           >
-            <Users size={20} />
-            Załóż darmowe konto
-            <Sparkles size={16} className="group-hover:rotate-12 transition-transform" />
+            <Sparkles size={16} /> Załóż darmowe konto
           </button>
-          
           <button
             onClick={onLogin}
-            className="w-full py-3 bg-slate-100 text-slate-700 font-semibold rounded-xl hover:bg-slate-200 transition-all"
+            className="w-full py-2.5 rounded-xl border border-white/20 text-white/90 hover:bg-white/5"
           >
-            Mam już konto - Zaloguj się
+            Mam już konto - zaloguj
           </button>
-
-          <p className="text-center text-xs text-slate-400 leading-relaxed pt-2">
-            Rejestracja jest w 100% darmowa i zajmuje mniej niż 2 minuty
-          </p>
         </div>
       </div>
     </div>

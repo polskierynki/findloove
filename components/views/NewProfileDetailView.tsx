@@ -306,6 +306,32 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
               ))}
             </div>
           </div>
+
+          {/* Received Gifts Widget */}
+          <div className="glass rounded-[2rem] p-6 relative overflow-hidden">
+            <h3 className="text-base font-medium text-cyan-300/70 tracking-wider uppercase flex items-center gap-2 mb-5">
+              🎁 Otrzymane prezenty
+            </h3>
+            <div className="grid grid-cols-4 gap-4">
+              {[
+                { emoji: '🌹', from: 'Michał', value: 50 },
+                { emoji: '💍', from: 'Tomasz', value: 1000 },
+                { emoji: '🧸', from: 'Kasia', value: 300 },
+                { emoji: '💎', from: 'Anna', value: 5000 },
+              ].map((gift, i) => (
+                <div
+                  key={i}
+                  className="relative group glass rounded-2xl aspect-square flex items-center justify-center text-4xl cursor-pointer hover:scale-105 transition-transform border border-white/5 hover:border-amber-500/30"
+                >
+                  <span>{gift.emoji}</span>
+                  <div className="absolute -top-12 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 bg-black/90 backdrop-blur-md px-3 py-2 rounded-lg text-xs text-white whitespace-nowrap border border-amber-500/20">
+                    <div className="font-medium">{gift.from}</div>
+                    <div className="text-amber-400 text-[10px]">{gift.value} monet</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </section>
       </div>
     </div>
