@@ -25,7 +25,7 @@ export default function CookiesView({ onBack }: CookiesViewProps) {
       {/* ── Content ── */}
       <div className="prose prose-slate max-w-none bg-white p-8 rounded-lg shadow-sm">
         
-        <h2 className="text-2xl font-bold text-slate-900 mt-8 mb-4">1. Czym są cookies?</h2>
+        <h2 className="text-2xl font-bold text-cyan-300 mt-8 mb-4">1. Czym są cookies?</h2>
         <p>
           Cookies (pliki ciasteczka) to małe pliki tekstowe zapisywane na Twoim urządzeniu przez przeglądarkę. 
           Używane są do zapamiętywania informacji o Tobie i Twojej aktywności na stronie.

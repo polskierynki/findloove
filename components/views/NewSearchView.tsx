@@ -41,7 +41,7 @@ export default function NewSearchView() {
           <div className="space-y-6">
             {/* Age */}
             <div>
-              <div className="flex justify-between text-sm text-gray-400 mb-2">
+              <div className="flex justify-between text-sm text-cyan-400 mb-2">
                 <label>Wiek</label>
                 <span>18 - {ageRange} lat</span>
               </div>
@@ -57,7 +57,7 @@ export default function NewSearchView() {
 
             {/* Distance */}
             <div>
-              <div className="flex justify-between text-sm text-gray-400 mb-2">
+              <div className="flex justify-between text-sm text-cyan-400 mb-2">
                 <label>Odległość</label>
                 <span>do {distance} km</span>
               </div>
@@ -73,7 +73,7 @@ export default function NewSearchView() {
 
             {/* Interests */}
             <div>
-              <label className="text-sm text-gray-400 mb-3 block">Zainteresowania</label>
+              <label className="text-sm text-cyan-400 mb-3 block">Zainteresowania</label>
               <div className="flex flex-wrap gap-2">
                 {['Podróże', 'Kino', 'Sport', 'Muzyka', 'Książki'].map((interest) => (
                   <button
@@ -87,7 +87,7 @@ export default function NewSearchView() {
                     className={`px-3 py-1.5 rounded-lg text-xs transition-all ${
                       selectedInterests.has(interest)
                         ? 'bg-cyan-500/20 border border-cyan-500/50 text-white shadow-[0_0_10px_rgba(0,255,255,0.2)]'
-                        : 'bg-white/5 border border-white/10 text-gray-300 hover:border-white/30'
+                        : 'bg-white/10 border border-cyan-500/20 text-cyan-300 hover:border-cyan-500/30'
                     }`}
                   >
                     {interest}
@@ -105,10 +105,10 @@ export default function NewSearchView() {
         {/* Results */}
         <div className="lg:col-span-3">
           <div className="mb-6 flex justify-between items-center">
-            <p className="text-gray-300 font-light">
+            <p className="text-cyan-300 font-light">
               Znaleziono <span className="text-white font-medium">{profiles.length}</span> profile
             </p>
-            <select className="bg-black/30 border border-white/10 rounded-xl py-2 px-4 text-sm text-white outline-none focus:border-cyan-500 transition-colors">
+            <select className="bg-black/30 border border-cyan-500/20 rounded-xl py-2 px-4 text-sm text-white outline-none focus:border-cyan-500 transition-colors">
               <option>Najlepsze dopasowanie</option>
               <option>Najnowsze</option>
               <option>Najbliżej</option>
@@ -142,7 +142,7 @@ export default function NewSearchView() {
 
                     {/* Actions */}
                     <div className="card-actions flex gap-3 mt-3 relative z-30">
-                      <button className="pointer-events-auto flex-1 bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 py-2.5 rounded-xl flex items-center justify-center gap-2 text-white transition-all hover:border-red-400/50 hover:text-red-400">
+                      <button className="pointer-events-auto flex-1 bg-white/10 hover:bg-white/20 backdrop-blur-md border border-cyan-500/20 py-2.5 rounded-xl flex items-center justify-center gap-2 text-white transition-all hover:border-red-400/50 hover:text-red-400">
                         <Heart size={20} />
                       </button>
                       <button className="pointer-events-auto flex-1 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 shadow-[0_0_15px_rgba(0,255,255,0.3)] py-2.5 rounded-xl flex items-center justify-center gap-2 text-white">

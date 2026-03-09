@@ -67,11 +67,11 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
   }, [profileId]);
 
   if (loading) {
-    return <div className="pt-28 text-center text-gray-400">Ładowanie profilu...</div>;
+    return <div className="pt-28 text-center text-cyan-400">Ładowanie profilu...</div>;
   }
 
   if (!profile) {
-    return <div className="pt-28 text-center text-gray-400">Profil nie znaleziony</div>;
+    return <div className="pt-28 text-center text-cyan-400">Profil nie znaleziony</div>;
   }
 
   return (
@@ -92,7 +92,7 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
             <div className="relative w-16 h-16 shrink-0">
               <svg viewBox="0 0 36 36" className="w-full h-full transform -rotate-90">
                 <path
-                  className="text-gray-700"
+                  className="text-white/80"
                   d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                   fill="none"
                   stroke="currentColor"
@@ -124,7 +124,7 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
 
           {/* Gallery */}
           <div className="glass rounded-[2rem] p-6">
-            <h3 className="text-base font-medium text-gray-300 tracking-wider uppercase flex items-center gap-2 mb-5">
+            <h3 className="text-base font-medium text-cyan-300/70 tracking-wider uppercase flex items-center gap-2 mb-5">
               🖼️ Galeria
             </h3>
             <div className="grid grid-cols-3 gap-3">
@@ -144,8 +144,8 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
 
           {/* Comments/Tablica */}
           <div className="glass rounded-[2rem] p-6 lg:p-8 flex flex-col relative overflow-hidden bg-[#0a0710]/80 max-h-[500px]">
-            <div className="flex items-center justify-between mb-6 pb-5 border-b border-white/10 shrink-0">
-              <h3 className="text-base font-medium text-gray-300 tracking-wider uppercase flex items-center gap-2">
+            <div className="flex items-center justify-between mb-6 pb-5 border-b border-cyan-500/20 shrink-0">
+              <h3 className="text-base font-medium text-cyan-300/70 tracking-wider uppercase flex items-center gap-2">
                 💬 Tablica <span className="bg-white/10 text-sm px-3 py-1 rounded-full ml-1 text-white">{comments.length}</span>
               </h3>
             </div>
@@ -160,11 +160,11 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
                   />
                   <div className="flex-1">
                     <span className="text-sm font-medium text-white mr-2">{comment.author.name}</span>
-                    <span className="text-xs text-gray-500">2 godz. temu</span>
-                    <p className="text-[14px] text-gray-300 mt-1 font-light leading-snug">{comment.content}</p>
+                    <span className="text-xs text-cyan-500/60">2 godz. temu</span>
+                    <p className="text-[14px] text-cyan-300/70 mt-1 font-light leading-snug">{comment.content}</p>
                     <div className="mt-1.5 flex gap-4">
-                      <button className="text-xs text-gray-500 font-medium hover:text-white transition-colors">Odpowiedz</button>
-                      <button className="text-xs text-gray-500 hover:text-red-400 transition-colors flex items-center gap-1">
+                      <button className="text-xs text-cyan-500/60 font-medium hover:text-cyan-300 transition-colors">Odpowiedz</button>
+                      <button className="text-xs text-cyan-500/60 hover:text-red-400 transition-colors flex items-center gap-1">
                         <Heart size={12} /> {comment.like_count}
                       </button>
                     </div>
@@ -174,16 +174,16 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
             </div>
 
             {/* Comment Input */}
-            <div className="pt-5 mt-4 shrink-0 border-t border-white/10">
+            <div className="pt-5 mt-4 shrink-0 border-t border-cyan-500/20">
               <div className="relative group border-glow-cyan rounded-full transition-all">
                 <input
                   type="text"
                   placeholder="Dodaj komentarz..."
                   value={commentText}
                   onChange={(e) => setCommentText(e.target.value)}
-                  className="w-full bg-black/40 border border-cyan-500/20 rounded-full py-3.5 pl-6 pr-14 text-base text-white placeholder-gray-500 outline-none backdrop-blur-md transition-all focus:bg-black/60 focus:border-cyan-500/50 shadow-[inset_0_0_10px_rgba(0,255,255,0.05)]"
+                  className="w-full bg-black/40 border border-cyan-500/20 rounded-full py-3.5 pl-6 pr-14 text-base text-white placeholder-cyan-400/40 outline-none backdrop-blur-md transition-all focus:bg-black/60 focus:border-cyan-500/50 shadow-[inset_0_0_10px_rgba(0,255,255,0.05)]"
                 />
-                <button className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-cyan-500/20 flex items-center justify-center text-cyan-400 hover:bg-cyan-500 hover:text-white transition-all hover:shadow-[0_0_15px_rgba(0,255,255,0.6)]">
+                <button className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-cyan-500/20 flex items-center justify-center text-cyan-400 hover:bg-cyan-500 hover:text-cyan-300 transition-all hover:shadow-[0_0_15px_rgba(0,255,255,0.6)]">
                   <MessageCircle size={18} />
                 </button>
               </div>
@@ -213,7 +213,7 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
             {/* Profile Info at Bottom */}
             <div className="absolute bottom-0 left-0 w-full p-8 md:p-12 z-30">
               <h1 className="text-5xl md:text-7xl font-light tracking-tight text-white flex items-baseline gap-4 mb-2 drop-shadow-2xl">
-                {profile.name} <span className="text-3xl md:text-5xl text-gray-300 font-extralight opacity-80">• {profile.age}</span>
+                {profile.name} <span className="text-3xl md:text-5xl text-white font-extralight opacity-80">• {profile.age}</span>
               </h1>
               <p className="text-xl text-cyan-300 font-light mb-6 drop-shadow-lg flex items-center gap-2">
                 💼 {profile.details?.occupation || 'Brak informacji'}, {profile.city}
@@ -236,27 +236,27 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
           </div>
 
           {/* Interaction Dock */}
-          <div className="glass-panel mx-auto w-full max-w-lg px-6 py-2 rounded-full flex justify-between items-center border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.6),inset_0_0_20px_rgba(255,255,255,0.05)] relative -mt-12 z-40 backdrop-blur-xl">
+          <div className="glass-panel mx-auto w-full max-w-lg px-6 py-2 rounded-full flex justify-between items-center border border-cyan-500/20 shadow-[0_20px_50px_rgba(0,0,0,0.6),inset_0_0_20px_rgba(255,255,255,0.05)] relative -mt-12 z-40 backdrop-blur-xl">
             <button
               onClick={() => setIsLiked(!isLiked)}
               className="cta-dock-btn flex flex-col items-center justify-center gap-1 p-2 group w-16"
             >
-              <div className="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center group-hover:bg-red-500/20 group-hover:border-red-500/50 transition-all shadow-inner">
+              <div className="w-12 h-12 rounded-full bg-white/10 border border-cyan-500/20 flex items-center justify-center group-hover:bg-red-500/20 group-hover:border-red-500/50 transition-all shadow-inner">
                 <Heart
                   size={20}
-                  className={`${isLiked ? 'fill-red-500 text-red-500' : 'text-gray-400'} group-hover:text-red-500 drop-shadow-[0_0_8px_rgba(239,68,68,0)] group-hover:drop-shadow-[0_0_12px_rgba(239,68,68,0.8)] transition-all`}
+                  className={`${isLiked ? 'fill-red-500 text-red-500' : 'text-cyan-400'} group-hover:text-red-500 drop-shadow-[0_0_8px_rgba(239,68,68,0)] group-hover:drop-shadow-[0_0_12px_rgba(239,68,68,0.8)] transition-all`}
                 />
               </div>
-              <span className="text-[10px] font-medium text-gray-400 group-hover:text-white transition-colors uppercase tracking-wider mt-1">
+              <span className="text-[10px] font-medium text-cyan-400 group-hover:text-cyan-300 transition-colors uppercase tracking-wider mt-1">
                 Polub
               </span>
             </button>
 
             <button className="cta-dock-btn flex flex-col items-center justify-center gap-1 p-2 group w-16">
-              <div className="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center group-hover:bg-amber-500/20 group-hover:border-amber-500/50 transition-all shadow-inner">
-                <Gift size={20} className="text-gray-400 group-hover:text-amber-400 drop-shadow-[0_0_8px_rgba(245,158,11,0)] group-hover:drop-shadow-[0_0_12px_rgba(245,158,11,0.8)] transition-all" />
+              <div className="w-12 h-12 rounded-full bg-white/10 border border-cyan-500/20 flex items-center justify-center group-hover:bg-amber-500/20 group-hover:border-amber-500/50 transition-all shadow-inner">
+                <Gift size={20} className="text-cyan-400 group-hover:text-amber-400 drop-shadow-[0_0_8px_rgba(245,158,11,0)] group-hover:drop-shadow-[0_0_12px_rgba(245,158,11,0.8)] transition-all" />
               </div>
-              <span className="text-[10px] font-medium text-gray-400 group-hover:text-white transition-colors uppercase tracking-wider mt-1">
+              <span className="text-[10px] font-medium text-cyan-400 group-hover:text-cyan-300 transition-colors uppercase tracking-wider mt-1">
                 Prezent
               </span>
             </button>
@@ -274,10 +274,10 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
             </button>
 
             <button className="cta-dock-btn flex flex-col items-center justify-center gap-1 p-2 group w-16">
-              <div className="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center group-hover:bg-cyan-500/20 group-hover:border-cyan-500/50 transition-all shadow-inner">
-                <MessageCircle size={20} className="text-gray-400 group-hover:text-cyan-400 drop-shadow-[0_0_8px_rgba(0,255,255,0)] group-hover:drop-shadow-[0_0_12px_rgba(0,255,255,0.8)] transition-all" />
+              <div className="w-12 h-12 rounded-full bg-white/10 border border-cyan-500/20 flex items-center justify-center group-hover:bg-cyan-500/20 group-hover:border-cyan-500/50 transition-all shadow-inner">
+                <MessageCircle size={20} className="text-cyan-400 group-hover:text-cyan-400 drop-shadow-[0_0_8px_rgba(0,255,255,0)] group-hover:drop-shadow-[0_0_12px_rgba(0,255,255,0.8)] transition-all" />
               </div>
-              <span className="text-[10px] font-medium text-gray-400 group-hover:text-white transition-colors uppercase tracking-wider mt-1">
+              <span className="text-[10px] font-medium text-cyan-400 group-hover:text-cyan-300 transition-colors uppercase tracking-wider mt-1">
                 Komentuj
               </span>
             </button>
@@ -290,10 +290,10 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
             </h2>
 
             <div className="border-l-2 border-cyan-400/50 pl-5 mb-8">
-              <p className="text-lg leading-relaxed text-gray-200 font-light drop-shadow-sm">{profile.bio}</p>
+              <p className="text-lg leading-relaxed text-white font-light drop-shadow-sm">{profile.bio}</p>
             </div>
 
-            <h3 className="text-sm font-medium text-gray-400 uppercase tracking-widest mb-4">Moje zajawki</h3>
+            <h3 className="text-sm font-medium text-cyan-400 uppercase tracking-widest mb-4">Moje zajawki</h3>
 
             <div className="flex flex-wrap gap-3">
               {profile.interests?.map((interest) => (

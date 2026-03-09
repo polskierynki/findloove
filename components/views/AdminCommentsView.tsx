@@ -190,7 +190,7 @@ export default function AdminCommentsView() {
   return (
     <div className="max-w-4xl mx-auto p-4">
       {notification && (
-        <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[200] bg-slate-800 text-white px-12 py-6 rounded-[2.5rem] shadow-2xl flex items-center gap-5 animate-in fade-in zoom-in duration-300 font-bold border-4 border-slate-700">
+        <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[200] bg-white/10 text-white px-12 py-6 rounded-[2.5rem] shadow-2xl flex items-center gap-5 animate-in fade-in zoom-in duration-300 font-bold border-4 border-cyan-500/30">
           <span className="text-xl">{notification}</span>
         </div>
       )}
@@ -198,7 +198,7 @@ export default function AdminCommentsView() {
       <h1 className="text-3xl font-bold mb-6">📋 Panel Moderacji Komentarzy</h1>
 
       {comments.length === 0 ? (
-        <div className="text-center py-12 text-gray-500">
+        <div className="text-center py-12 text-cyan-500/60">
           Brak komentarzy do moderacji
         </div>
       ) : (
@@ -210,7 +210,7 @@ export default function AdminCommentsView() {
             return (
               <div
                 key={comment.id}
-                className="border rounded-lg p-4 space-y-3 hover:bg-gray-50"
+                className="border rounded-lg p-4 space-y-3 hover:bg-white/5"
               >
                 {/* Header: Author info + strikes */}
                 <div className="flex items-start justify-between">
@@ -224,10 +224,10 @@ export default function AdminCommentsView() {
                     )}
                     <div>
                       <p className="font-semibold">{comment.author.name}</p>
-                      <p className="text-sm text-gray-600">
+                      <p className="text-sm text-cyan-400">
                         {comment.author.city} • Pod profilem: {comment.profile.name}
                       </p>
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-cyan-500/60">
                         {new Date(comment.created_at).toLocaleString('pl-PL')}
                       </p>
                     </div>
@@ -250,9 +250,9 @@ export default function AdminCommentsView() {
                 </div>
 
                 {/* Comment preview */}
-                <div className="bg-gray-100 p-3 rounded text-sm">
+                <div className="bg-white/10 p-3 rounded text-sm">
                   <p className="line-clamp-2">{comment.content}</p>
-                  <p className="text-xs text-gray-600 mt-1">
+                  <p className="text-xs text-cyan-400 mt-1">
                     {comment.content.length} znaków
                   </p>
                 </div>
@@ -281,7 +281,7 @@ export default function AdminCommentsView() {
                         </button>
                         <button
                           onClick={() => setSelectedComment(null)}
-                          className="px-3 py-1 bg-gray-300 text-gray-800 rounded text-sm hover:bg-gray-400"
+                          className="px-3 py-1 bg-white/10 text-white rounded text-sm hover:bg-cyan-500/10"
                         >
                           Anuluj
                         </button>

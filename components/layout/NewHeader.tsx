@@ -53,25 +53,25 @@ export default function NewHeader() {
         <nav className="hidden lg:flex flex-1 justify-center items-center gap-6 xl:gap-10 z-0">
           <button
             onClick={() => router.push('/')}
-            className="nav-item active relative text-gray-300 hover:text-white font-medium transition-colors pb-1 whitespace-nowrap"
+            className="nav-item active relative text-cyan-300 hover:text-cyan-100 font-medium transition-colors pb-1 whitespace-nowrap shadow-[0_0_10px_rgba(0,255,255,0.4)]"
           >
             Odkrywaj
           </button>
           <button
             onClick={() => router.push('/search')}
-            className="nav-item relative text-gray-300 hover:text-white font-medium transition-colors pb-1 whitespace-nowrap"
+            className="nav-item relative text-cyan-300/60 hover:text-cyan-300 font-medium transition-colors pb-1 whitespace-nowrap"
           >
             Szukaj
           </button>
           <button
             onClick={() => router.push('/messages')}
-            className="nav-item relative text-gray-300 hover:text-white font-medium transition-colors pb-1 whitespace-nowrap"
+            className="nav-item relative text-cyan-300/60 hover:text-cyan-300 font-medium transition-colors pb-1 whitespace-nowrap"
           >
             Wiadomości
           </button>
           <button
             onClick={() => router.push('/profile')}
-            className="nav-item relative text-gray-300 hover:text-white font-medium transition-colors pb-1 flex items-center gap-1.5 whitespace-nowrap"
+            className="nav-item relative text-cyan-300/60 hover:text-cyan-300 font-medium transition-colors pb-1 flex items-center gap-1.5 whitespace-nowrap"
           >
             Mój profil
           </button>
@@ -93,7 +93,7 @@ export default function NewHeader() {
           {/* Messages */}
           <button
             onClick={() => router.push('/messages')}
-            className="relative text-gray-300 hover:text-cyan-400 transition-all hover:scale-110 duration-300 w-10 h-10 flex items-center justify-center rounded-full"
+            className="relative text-cyan-400 hover:text-cyan-300 transition-all hover:scale-110 duration-300 w-10 h-10 flex items-center justify-center rounded-full hover:shadow-[0_0_15px_rgba(0,255,255,0.6)]"
           >
             <MessageCircle size={26} />
             <span className="absolute top-1 right-0 w-[18px] h-[18px] bg-cyan-500 rounded-full text-[10px] font-bold flex items-center justify-center shadow-[0_0_8px_rgba(0,255,255,0.8)] text-black border-2 border-[#110a22]">
@@ -105,7 +105,7 @@ export default function NewHeader() {
           <div className="relative" id="notification-wrapper">
             <button
               onClick={() => setNotificationsOpen(!notificationsOpen)}
-              className="relative text-gray-300 hover:text-cyan-400 transition-all hover:scale-110 duration-300 w-10 h-10 flex items-center justify-center rounded-full"
+              className="relative text-cyan-400 hover:text-cyan-300 transition-all hover:scale-110 duration-300 w-10 h-10 flex items-center justify-center rounded-full hover:shadow-[0_0_15px_rgba(0,255,255,0.6)]"
               id="bell-btn"
             >
               <Bell size={26} />
@@ -114,10 +114,10 @@ export default function NewHeader() {
 
             {/* Notification Dropdown */}
             {notificationsOpen && (
-              <div className="absolute top-full right-0 mt-4 w-80 sm:w-96 glass-modal rounded-[2rem] border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.8)] flex flex-col overflow-hidden z-[100] transform opacity-100 scale-100 transition-all duration-300 origin-top-right">
-                <div className="p-5 border-b border-white/10 bg-black/20 flex justify-between items-center">
+              <div className="absolute top-full right-0 mt-4 w-80 sm:w-96 glass-modal rounded-[2rem] border border-cyan-500/20 shadow-[0_20px_50px_rgba(0,255,255,0.2)] flex flex-col overflow-hidden z-[100]">
+                <div className="p-5 border-b border-cyan-500/10 bg-black/20 flex justify-between items-center">
                   <h3 className="text-white font-medium flex items-center gap-2 text-lg">
-                    <Bell size={20} className="text-fuchsia-400" /> Powiadomienia
+                    <Bell size={20} className="text-cyan-400" /> Powiadomienia
                   </h3>
                   <button className="text-xs text-cyan-400 hover:text-cyan-300 transition-colors bg-cyan-500/10 px-3 py-1.5 rounded-full border border-cyan-500/30">
                     Oznacz przeczytane
@@ -125,21 +125,21 @@ export default function NewHeader() {
                 </div>
 
                 <div className="max-h-[400px] overflow-y-auto custom-scrollbar">
-                  <div className="p-4 border-b border-white/5 hover:bg-white/5 transition-colors cursor-pointer flex gap-4">
-                    <div className="w-10 h-10 rounded-full bg-amber-500/20 border border-amber-500/30 flex items-center justify-center shrink-0 shadow-[0_0_10px_rgba(245,158,11,0.2)]">
+                  <div className="p-4 border-b border-cyan-500/5 hover:bg-cyan-500/5 transition-colors cursor-pointer flex gap-4">
+                    <div className="w-10 h-10 rounded-full bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center shrink-0 shadow-[0_0_10px_rgba(0,255,255,0.2)]">
                       🎁
                     </div>
                     <div>
-                      <p className="text-sm text-gray-200">
+                      <p className="text-sm text-cyan-100">
                         <span className="font-medium text-white">Marek_88</span> wysłał Ci prezent (Róża)! 🌹
                       </p>
-                      <p className="text-xs text-gray-500 mt-1">5 min temu</p>
+                      <p className="text-xs text-cyan-500/50 mt-1">5 min temu</p>
                     </div>
                   </div>
                 </div>
 
-                <div className="p-3 border-t border-white/10 bg-black/40 text-center">
-                  <button className="text-sm text-gray-400 hover:text-white transition-colors py-1 px-4 rounded-full hover:bg-white/5">
+                <div className="p-3 border-t border-cyan-500/10 bg-black/40 text-center">
+                  <button className="text-sm text-cyan-400 hover:text-cyan-300 transition-colors py-1 px-4 rounded-full hover:bg-cyan-500/10">
                     Zobacz wszystkie
                   </button>
                 </div>
@@ -160,7 +160,7 @@ export default function NewHeader() {
           ) : (
             <button
               onClick={() => router.push('/profile')}
-              className="w-10 h-10 rounded-full overflow-hidden border border-white/10 hover:border-cyan-400 transition-all"
+              className="w-10 h-10 rounded-full overflow-hidden border border-cyan-500/30 hover:border-cyan-400 transition-all hover:shadow-[0_0_15px_rgba(0,255,255,0.4)]"
             >
               {profile?.image ? (
                 <img src={profile.image} alt="Avatar" className="w-full h-full object-cover" />
@@ -176,7 +176,7 @@ export default function NewHeader() {
         {/* Mobile Menu Button */}
         <button
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="lg:hidden text-gray-300 hover:text-white"
+          className="lg:hidden text-cyan-400 hover:text-cyan-300"
         >
           {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
         </button>
@@ -184,14 +184,14 @@ export default function NewHeader() {
 
       {/* Mobile Navigation */}
       {mobileMenuOpen && (
-        <div className="fixed top-20 left-0 right-0 bg-black/90 backdrop-blur-lg border-b border-white/10 z-40 lg:hidden">
+        <div className="fixed top-20 left-0 right-0 bg-black/90 backdrop-blur-lg border-b border-cyan-500/10 z-40 lg:hidden">
           <nav className="flex flex-col p-6 gap-4">
             <button
               onClick={() => {
                 router.push('/');
                 setMobileMenuOpen(false);
               }}
-              className="text-left px-4 py-2 text-gray-300 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+              className="text-left px-4 py-2 text-cyan-300/60 hover:text-cyan-300 hover:bg-cyan-500/10 rounded-lg transition-colors"
             >
               Odkrywaj
             </button>
@@ -200,7 +200,7 @@ export default function NewHeader() {
                 router.push('/search');
                 setMobileMenuOpen(false);
               }}
-              className="text-left px-4 py-2 text-gray-300 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+              className="text-left px-4 py-2 text-cyan-300/60 hover:text-cyan-300 hover:bg-cyan-500/10 rounded-lg transition-colors"
             >
               Szukaj
             </button>
@@ -209,7 +209,7 @@ export default function NewHeader() {
                 router.push('/messages');
                 setMobileMenuOpen(false);
               }}
-              className="text-left px-4 py-2 text-gray-300 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+              className="text-left px-4 py-2 text-cyan-300/60 hover:text-cyan-300 hover:bg-cyan-500/10 rounded-lg transition-colors"
             >
               Wiadomości
             </button>
@@ -218,7 +218,7 @@ export default function NewHeader() {
                 router.push('/profile');
                 setMobileMenuOpen(false);
               }}
-              className="text-left px-4 py-2 text-gray-300 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+              className="text-left px-4 py-2 text-cyan-300/60 hover:text-cyan-300 hover:bg-cyan-500/10 rounded-lg transition-colors"
             >
               Mój profil
             </button>
@@ -228,7 +228,7 @@ export default function NewHeader() {
                   router.push('/admin');
                   setMobileMenuOpen(false);
                 }}
-                className="text-left px-4 py-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors"
+                className="text-left px-4 py-2 text-fuchsia-400 hover:text-fuchsia-300 hover:bg-fuchsia-500/10 rounded-lg transition-colors"
               >
                 Panel Admina
               </button>

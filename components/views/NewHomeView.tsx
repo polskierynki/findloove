@@ -49,20 +49,20 @@ export default function NewHomeView() {
       <section className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
           <h1 className="text-4xl md:text-5xl font-light mb-2">
-            Odkrywaj <span className="text-gradient font-medium">nowe znajomości</span>
+            Odkrywaj <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 to-fuchsia-400 font-medium">nowe znajomości</span>
           </h1>
-          <p className="text-gray-400 font-light text-lg">
+          <p className="text-cyan-400/70 font-light text-lg">
             Znaleźliśmy {profiles.length} osób w Twojej okolicy, które pasują do Twoich preferencji.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <button className="px-5 py-2.5 rounded-full glass border-cyan-500/30 bg-white/10 text-sm font-medium transition-all shadow-[inset_0_0_15px_rgba(0,255,255,0.1)]">
+          <button className="px-5 py-2.5 rounded-full glass border-cyan-500/30 bg-cyan-500/10 text-sm font-medium transition-all shadow-[inset_0_0_15px_rgba(0,255,255,0.1)] text-cyan-300 hover:bg-cyan-500/20">
             <Sparkles className="inline-block mr-1.5 text-cyan-400" size={16} /> Rekomendowani
           </button>
-          <button className="px-5 py-2.5 rounded-full glass border-white/10 text-sm font-light text-gray-300 transition-all hover:bg-white/10 hover:border-white/30">
+          <button className="px-5 py-2.5 rounded-full glass border-cyan-500/30 text-sm font-light text-cyan-300/70 transition-all hover:bg-cyan-500/10 hover:border-cyan-500/50">
             W pobliżu
           </button>
-          <button className="px-5 py-2.5 rounded-full glass border-white/10 text-sm font-light text-gray-300 transition-all hover:bg-white/10 hover:border-white/30">
+          <button className="px-5 py-2.5 rounded-full glass border-cyan-500/30 text-sm font-light text-cyan-300/70 transition-all hover:bg-cyan-500/10 hover:border-cyan-500/50">
             Aktywni
           </button>
         </div>
@@ -71,7 +71,7 @@ export default function NewHomeView() {
       {/* Profile Cards Grid */}
       <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6 lg:gap-8 mt-8">
         {loading ? (
-          <div className="col-span-full text-center text-gray-400">Ładowanie profili...</div>
+          <div className="col-span-full text-center text-cyan-400">Ładowanie profili...</div>
         ) : (
           profiles.slice(0, 12).map((profile, idx) => {
             const isLiked = likedProfiles.has(profile.id);
@@ -111,7 +111,7 @@ export default function NewHomeView() {
                         {profile.name || 'User'}, {profile.age || '?'}
                       </h2>
                     </div>
-                    <div className="flex items-center gap-1.5 text-gray-300 text-sm font-light">
+                    <div className="flex items-center gap-1.5 text-cyan-300/70 text-sm font-light">
                       <MapPin size={14} className="text-cyan-400" />
                       <span>{profile.city || 'Bliżej nieokreślone'}</span>
                     </div>

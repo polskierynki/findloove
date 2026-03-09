@@ -78,11 +78,11 @@ export default function NewMessagesView() {
           <div className="p-6 border-b border-white/5">
             <h2 className="text-2xl font-light mb-4">Wiadomości</h2>
             <div className="relative group">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-cyan-400" size={16} />
               <input
                 type="text"
                 placeholder="Szukaj pary..."
-                className="w-full bg-white/5 border border-white/10 rounded-full py-2.5 pl-11 pr-4 text-sm text-white outline-none border-glow-cyan transition-all"
+                className="w-full bg-white/10 border border-cyan-500/20 rounded-full py-2.5 pl-11 pr-4 text-sm text-white outline-none border-glow-cyan transition-all"
               />
             </div>
           </div>
@@ -95,7 +95,7 @@ export default function NewMessagesView() {
                 className={`flex items-center gap-4 p-3 rounded-2xl cursor-pointer transition-all ${
                   selectedConversation?.id === conv.id
                     ? 'bg-white/10 border border-cyan-500/30 shadow-[inset_0_0_15px_rgba(0,255,255,0.05)]'
-                    : 'hover:bg-white/5'
+                    : 'hover:bg-cyan-500/10'
                 }`}
               >
                 <div className={`relative w-12 h-12 rounded-full p-[2px] ${selectedConversation?.id === conv.id ? 'bg-gradient-to-tr from-cyan-400 to-fuchsia-500' : 'bg-white/20'}`}>
@@ -105,9 +105,9 @@ export default function NewMessagesView() {
                 <div className="flex-1 min-w-0">
                   <div className="flex justify-between items-baseline">
                     <h4 className="text-white font-medium truncate">{conv.name}</h4>
-                    <span className={`text-xs ${selectedConversation?.id === conv.id ? 'text-cyan-400' : 'text-gray-500'}`}>{conv.timestamp}</span>
+                    <span className={`text-xs ${selectedConversation?.id === conv.id ? 'text-cyan-400' : 'text-cyan-500/60'}`}>{conv.timestamp}</span>
                   </div>
-                  <p className={`text-sm truncate ${selectedConversation?.id === conv.id ? 'text-gray-200' : 'text-gray-400'}`}>{conv.lastMessage}</p>
+                  <p className={`text-sm truncate ${selectedConversation?.id === conv.id ? 'text-white' : 'text-cyan-400'}`}>{conv.lastMessage}</p>
                 </div>
               </div>
             ))}
@@ -121,12 +121,12 @@ export default function NewMessagesView() {
               {/* Chat Header */}
               <div className="h-20 border-b border-white/5 flex items-center justify-between px-8 bg-black/20 backdrop-blur-sm z-10">
                 <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-full overflow-hidden border border-white/10">
+                  <div className="w-10 h-10 rounded-full overflow-hidden border border-cyan-500/20">
                     <img src={selectedConversation.image} alt={selectedConversation.name} className="w-full h-full object-cover" />
                   </div>
                   <div>
                     <h3 className="text-lg font-medium text-white">{selectedConversation.name}</h3>
-                    <p className={`text-xs ${selectedConversation.isActive ? 'text-green-400 font-light' : 'text-gray-500'}`}>
+                    <p className={`text-xs ${selectedConversation.isActive ? 'text-green-400 font-light' : 'text-cyan-500/60'}`}>
                       {selectedConversation.isActive ? 'Dostępna' : 'Offline'}
                     </p>
                   </div>
@@ -138,7 +138,7 @@ export default function NewMessagesView() {
                 {messages.map((msg) => (
                   <div key={msg.id} className={`flex ${msg.isFromMe ? 'justify-end' : 'justify-start'}`}>
                     <div className={`max-w-[70%] p-4 rounded-3xl text-sm ${msg.isFromMe ? 'chat-bubble-me' : 'chat-bubble-them'} shadow-lg`}>
-                      <p className={msg.isFromMe ? 'text-white' : 'text-gray-200'}>{msg.text}</p>
+                      <p className={msg.isFromMe ? 'text-white' : 'text-white'}>{msg.text}</p>
                     </div>
                   </div>
                 ))}
@@ -146,8 +146,8 @@ export default function NewMessagesView() {
 
               {/* Chat Input */}
               <div className="p-6 border-t border-white/5 bg-black/20 backdrop-blur-sm">
-                <div className="relative flex items-center bg-black/40 border border-white/10 rounded-full px-2 py-2 border-glow-magenta transition-all focus-within:bg-black/60">
-                  <button className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-fuchsia-400 transition-colors rounded-full">
+                <div className="relative flex items-center bg-black/40 border border-cyan-500/20 rounded-full px-2 py-2 border-glow-magenta transition-all focus-within:bg-black/60">
+                  <button className="w-10 h-10 flex items-center justify-center text-cyan-400 hover:text-fuchsia-400 transition-colors rounded-full">
                     😊
                   </button>
                   <input
@@ -164,7 +164,7 @@ export default function NewMessagesView() {
               </div>
             </>
           ) : (
-            <div className="flex-1 flex items-center justify-center flex-col gap-4 text-gray-400">
+            <div className="flex-1 flex items-center justify-center flex-col gap-4 text-cyan-400">
               <MessageCircle size={64} className="opacity-30" />
               <p className="text-xl font-light">Wybierz rozmowę, aby начать</p>
             </div>
