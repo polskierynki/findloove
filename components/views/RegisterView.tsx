@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabase';
 
 interface RegisterViewProps {
   onBack: () => void;
-  onComplete: (name: string) => void;
+  onComplete: (name: string, isLoggedIn: boolean) => void;
 }
 
 export default function RegisterView({ onBack, onComplete }: RegisterViewProps) {
@@ -23,6 +23,10 @@ export default function RegisterView({ onBack, onComplete }: RegisterViewProps) 
     e.preventDefault();
     setError('');
 
+    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedName = name.trim();
+    const normalizedCity = city.trim();
+
     if (!acceptedTerms) {
       setError('Zaakceptuj regulamin, aby kontynuować.');
       return;
@@ -31,13 +35,13 @@ export default function RegisterView({ onBack, onComplete }: RegisterViewProps) 
     setLoading(true);
 
     const signUp = await supabase.auth.signUp({
-      email,
+      email: normalizedEmail,
       password,
       options: {
         data: {
-          name,
+          name: normalizedName,
           age: Number(age),
-          city,
+          city: normalizedCity,
         },
       },
     });
@@ -49,21 +53,27 @@ export default function RegisterView({ onBack, onComplete }: RegisterViewProps) 
     }
 
     const uid = signUp.data.user?.id;
+    const hasSession = Boolean(signUp.data.session);
+
     if (uid) {
-      await supabase.from('profiles').upsert({
+      const { error: profileError } = await supabase.from('profiles').upsert({
         id: uid,
-        name,
+        name: normalizedName,
         age: Number(age),
-        city,
-        email,
+        city: normalizedCity,
+        email: normalizedEmail,
         bio: '',
         interests: [],
         image_url: '',
       });
+
+      if (profileError) {
+        console.error('Nie udalo sie zapisac profilu po rejestracji:', profileError.message);
+      }
     }
 
     setLoading(false);
-    onComplete(name || email.split('@')[0] || 'Użytkownik');
+    onComplete(normalizedName || normalizedEmail.split('@')[0] || 'Uzytkownik', hasSession);
   };
 
   return (

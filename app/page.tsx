@@ -206,6 +206,45 @@ export default function App() {
           profileBySession = (profileByEmail as SupabaseProfile) || null;
         }
 
+        // Backward-compatible auth: if profile row is missing, create a minimal one.
+        if (!profileBySession) {
+          const fallbackEmail = session.user.email?.trim().toLowerCase() || null;
+          const metadataName =
+            (typeof session.user.user_metadata?.name === 'string' && session.user.user_metadata.name.trim()) ||
+            (fallbackEmail ? fallbackEmail.split('@')[0] : '') ||
+            'Uzytkownik';
+          const metadataAge = Number(session.user.user_metadata?.age);
+          const fallbackAge = Number.isFinite(metadataAge) && metadataAge >= 18 ? metadataAge : 50;
+          const metadataCity =
+            typeof session.user.user_metadata?.city === 'string'
+              ? session.user.user_metadata.city.trim()
+              : '';
+
+          const { data: createdProfile, error: createProfileError } = await supabase
+            .from('profiles')
+            .upsert(
+              {
+                id: session.user.id,
+                email: fallbackEmail,
+                name: metadataName,
+                age: fallbackAge,
+                city: metadataCity,
+                bio: '',
+                interests: [],
+                image_url: '',
+              },
+              { onConflict: 'id' },
+            )
+            .select('*')
+            .maybeSingle();
+
+          if (createProfileError) {
+            console.error('Nie udalo sie utworzyc profilu dla zalogowanego uzytkownika:', createProfileError);
+          } else {
+            profileBySession = (createdProfile as SupabaseProfile) || null;
+          }
+        }
+
         premiumFromProfile = isPremiumActiveFromProfile(profileBySession);
       } catch (premiumError) {
         console.error('Nie udało się pobrać statusu premium:', premiumError);
@@ -735,12 +774,19 @@ export default function App() {
             {view === 'register' && (
               <RegisterView
                 onBack={() => setView('auth')}
-                onComplete={(registeredName) => {
-                  setIsLoggedIn(true);
-                  setTokens(3);
+                onComplete={(registeredName, isAuthenticated) => {
                   setUserName(registeredName);
-                  notify(`Witaj, ${registeredName}! 🎉 Otrzymujesz 3 Serduszka na start!`);
-                  setView('home');
+
+                  if (isAuthenticated) {
+                    setIsLoggedIn(true);
+                    setTokens(3);
+                    notify(`Witaj, ${registeredName}! 🎉 Otrzymujesz 3 Serduszka na start!`);
+                    setView('home');
+                    return;
+                  }
+
+                  notify('Konto utworzone. Potwierdz e-mail i zaloguj sie.');
+                  setView('auth');
                 }}
               />
             )}

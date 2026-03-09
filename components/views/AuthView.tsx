@@ -19,10 +19,24 @@ export default function AuthView({ onBack, onNotify, onRegister }: AuthViewProps
     e.preventDefault();
     setLoading(true);
 
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const normalizedEmail = email.trim().toLowerCase();
+    const { error } = await supabase.auth.signInWithPassword({
+      email: normalizedEmail,
+      password,
+    });
 
     setLoading(false);
     if (error) {
+      if (error.message.toLowerCase().includes('invalid login credentials')) {
+        onNotify('Bledny e-mail lub haslo. Sprawdz dane i sprobuj ponownie.');
+        return;
+      }
+
+      if (error.message.toLowerCase().includes('email not confirmed')) {
+        onNotify('Konto nie jest jeszcze potwierdzone. Sprawdz skrzynke e-mail i kliknij link aktywacyjny.');
+        return;
+      }
+
       onNotify(`Błąd logowania: ${error.message}`);
       return;
     }
@@ -43,12 +57,14 @@ export default function AuthView({ onBack, onNotify, onRegister }: AuthViewProps
   };
 
   const handleReset = async () => {
-    if (!email.trim()) {
+    const normalizedEmail = email.trim().toLowerCase();
+
+    if (!normalizedEmail) {
       onNotify('Podaj email do resetu hasła.');
       return;
     }
 
-    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+    const { error } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
       redirectTo: `${window.location.origin}/reset-password`,
     });
 

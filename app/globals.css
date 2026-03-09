@@ -159,9 +159,18 @@ html, body {
   transition: all 0.4s ease; 
 }
 
+.card-meta {
+  transform: translateY(12px);
+  transition: transform 0.4s ease;
+}
+
 .profile-card:hover .card-actions { 
   opacity: 1; 
   transform: translateY(0); 
+}
+
+.profile-card:hover .card-meta {
+  transform: translateY(-10px);
 }
 
 /* Gallery Hover Effects */

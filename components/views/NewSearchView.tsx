@@ -138,31 +138,33 @@ export default function NewSearchView() {
                   </div>
 
                   {/* Profile Info */}
-                  <div className="absolute bottom-0 left-0 w-full p-6 z-10 flex flex-col gap-2">
-                    <h2 className="text-2xl font-medium text-white">
-                      {profile.name}, {profile.age}
-                    </h2>
-                    <p className="text-sm text-cyan-400 flex items-center gap-1">
-                      <MapPin size={14} /> {profile.distance} km stąd
-                    </p>
+                  <div className="absolute bottom-0 left-0 w-full p-6 z-10">
+                    <div className="card-meta flex flex-col gap-2">
+                      <h2 className="text-2xl font-medium text-white">
+                        {profile.name}, {profile.age} lat
+                      </h2>
+                      <p className="text-sm text-cyan-400 flex items-center gap-1">
+                        <MapPin size={14} /> {profile.city} • {profile.distance} km stąd
+                      </p>
 
-                    {/* Actions */}
-                    <div className="card-actions flex gap-3 mt-3 relative z-30">
-                      <button
-                        onClick={(e) => e.stopPropagation()}
-                        className="pointer-events-auto flex-1 bg-white/10 hover:bg-white/20 backdrop-blur-md border border-cyan-500/20 py-2.5 rounded-xl flex items-center justify-center gap-2 text-white transition-all hover:border-red-400/50 hover:text-red-400"
-                      >
-                        <Heart size={20} />
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          router.push('/messages');
-                        }}
-                        className="pointer-events-auto flex-1 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 shadow-[0_0_15px_rgba(0,255,255,0.3)] py-2.5 rounded-xl flex items-center justify-center gap-2 text-white"
-                      >
-                        <MessageCircle size={20} />
-                      </button>
+                      {/* Actions */}
+                      <div className="card-actions flex gap-3 mt-3 relative z-30">
+                        <button
+                          onClick={(e) => e.stopPropagation()}
+                          className="pointer-events-auto flex-1 bg-white/10 hover:bg-white/20 backdrop-blur-md border border-cyan-500/20 py-2.5 rounded-xl flex items-center justify-center gap-2 text-white transition-all hover:border-red-400/50 hover:text-red-400"
+                        >
+                          <Heart size={20} />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            router.push('/messages');
+                          }}
+                          className="pointer-events-auto flex-1 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 shadow-[0_0_15px_rgba(0,255,255,0.3)] py-2.5 rounded-xl flex items-center justify-center gap-2 text-white"
+                        >
+                          <MessageCircle size={20} />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>

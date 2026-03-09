@@ -29,45 +29,57 @@ export default function CookieBanner() {
   if (!show) return null;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-[100] animate-in slide-in-from-bottom duration-500">
-      <div className="bg-gradient-to-r from-slate-900 to-slate-800 border-t-2 border-amber-400 shadow-2xl">
-        <div className="max-w-6xl mx-auto px-6 py-5">
-          <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
-            {/* Ikona + tekst */}
-            <div className="flex items-start gap-3 flex-1">
-              <div className="shrink-0 w-10 h-10 bg-amber-400 rounded-lg flex items-center justify-center">
-                <Cookie size={20} className="text-slate-900" />
-              </div>
-              <div className="flex-1">
-                <h3 className="text-white font-bold text-sm mb-1">🍪 Używamy plików cookies</h3>
-                <p className="text-slate-300 text-xs leading-relaxed">
-                  Aby zapewnić jak najlepsze wrażenia, używamy technologii takich jak pliki cookie do przechowywania i/lub uzyskiwania dostępu do informacji o urządzeniu. 
-                  Zgoda na te technologie pozwoli nam przetwarzać dane niezbędne do działania serwisu.{' '}
-                  <button 
-                    onClick={() => window.location.href = '#cookies'}
-                    className="text-amber-300 hover:text-amber-200 underline font-semibold"
-                  >
-                    Dowiedz się więcej
-                  </button>
-                </p>
-              </div>
+    <div className="fixed bottom-4 left-1/2 z-[100] w-[calc(100%-1.5rem)] max-w-5xl -translate-x-1/2 animate-in slide-in-from-bottom duration-500">
+      <div className="glass-modal relative overflow-hidden rounded-[1.6rem] border border-cyan-500/25 px-5 py-4 shadow-[0_12px_45px_rgba(0,0,0,0.45),0_0_35px_rgba(0,255,255,0.12)] sm:px-6 sm:py-5">
+        <div className="pointer-events-none absolute -left-8 -top-8 h-24 w-24 rounded-full bg-cyan-500/20 blur-2xl" />
+        <div className="pointer-events-none absolute -bottom-10 -right-6 h-28 w-28 rounded-full bg-fuchsia-500/20 blur-2xl" />
+
+        <button
+          onClick={handleReject}
+          className="absolute right-3 top-3 rounded-full p-1.5 text-gray-400 transition-colors hover:bg-white/10 hover:text-white"
+          aria-label="Zamknij okno cookies"
+        >
+          <X size={16} />
+        </button>
+
+        <div className="relative z-10 flex flex-col gap-4 sm:gap-5">
+          <div className="flex items-start gap-3 sm:gap-4">
+            <div className="mt-0.5 shrink-0 rounded-xl border border-cyan-500/30 bg-cyan-500/15 p-2.5 shadow-[0_0_15px_rgba(0,255,255,0.2)]">
+              <Cookie size={18} className="text-cyan-300" />
             </div>
 
-            {/* Przyciski akcji */}
-            <div className="flex items-center gap-2 shrink-0">
-              <button
-                onClick={handleReject}
-                className="px-4 py-2 rounded-lg border border-slate-600 text-slate-300 text-sm font-semibold hover:bg-slate-700 transition-colors"
-              >
-                Odrzuć
-              </button>
-              <button
-                onClick={handleAccept}
-                className="px-5 py-2 rounded-lg bg-gradient-to-r from-amber-400 to-orange-400 text-slate-900 text-sm font-bold shadow-lg hover:from-amber-500 hover:to-orange-500 transition-all hover:shadow-xl"
-              >
-                Akceptuję
-              </button>
+            <div className="flex-1 pr-8 sm:pr-10">
+              <h3 className="mb-1 text-sm font-semibold tracking-wide text-white sm:text-base">
+                Używamy plików cookies
+              </h3>
+              <p className="text-xs leading-relaxed text-white/70 sm:text-sm">
+                Korzystamy z cookies, aby utrzymać logowanie, bezpieczeństwo i spójne działanie serwisu.
+                Możesz zaakceptować wszystkie lub zostawić tylko niezbędne.
+                {' '}
+                <button
+                  onClick={() => window.location.assign('/cookies')}
+                  className="font-medium text-cyan-300 underline decoration-cyan-400/50 underline-offset-2 transition-colors hover:text-cyan-200"
+                >
+                  Dowiedz się więcej
+                </button>
+              </p>
             </div>
+          </div>
+
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <button
+              onClick={handleReject}
+              className="rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm font-medium text-gray-200 transition-all hover:border-white/25 hover:bg-white/10"
+            >
+              Tylko niezbędne
+            </button>
+
+            <button
+              onClick={handleAccept}
+              className="rounded-xl bg-gradient-to-r from-cyan-600 to-fuchsia-600 px-5 py-2.5 text-sm font-semibold text-white shadow-[0_0_18px_rgba(0,255,255,0.22)] transition-all hover:from-cyan-500 hover:to-fuchsia-500 hover:shadow-[0_0_24px_rgba(217,70,239,0.3)]"
+            >
+              Akceptuję wszystkie
+            </button>
           </div>
         </div>
       </div>

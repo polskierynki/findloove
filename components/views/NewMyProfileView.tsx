@@ -1,43 +1,32 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Camera, X, Save, Trash2, Upload } from 'lucide-react';
+import {
+  UserCircle,
+  Images,
+  IdentificationCard,
+  ListDashes,
+  GameController,
+  Camera,
+  X,
+  Plus,
+  CheckCircle,
+  Ruler,
+  Star,
+  CaretDown,
+  Tag,
+} from '@phosphor-icons/react';
 import { supabase } from '@/lib/supabase';
-import { uploadProfilePhoto, removePhotoFromProfilePhotos } from '@/lib/photoUpload';
-
-const POLISH_CITIES = [
-  'Warszawa', 'Kraków', 'Wrocław', 'Poznań', 'Gdańsk', 'Szczecin', 'Bydgoszcz',
-  'Lublin', 'Białystok', 'Katowice', 'Gdynia', 'Częstochowa', 'Radom', 'Sosnowiec',
-  'Toruń', 'Kielce', 'Rzeszów', 'Gliwice', 'Zabrze', 'Olsztyn',
-];
-
-const ZODIAC_SIGNS = [
-  'Baran', 'Byk', 'Bliźnięta', 'Rak', 'Lew', 'Panna', 
-  'Waga', 'Skorpion', 'Strzelec', 'Koziorożec', 'Wodnik', 'Ryby'
-];
-
-const INTERESTS_OPTIONS = [
-  { emoji: '🎨', name: 'Sztuka' },
-  { emoji: '⚽', name: 'Sport' },
-  { emoji: '🎬', name: 'Kino' },
-  { emoji: '🎵', name: 'Muzyka' },
-  { emoji: '📚', name: 'Książki' },
-  { emoji: '🍕', name: 'Jedzenie' },
-  { emoji: '✈️', name: 'Podróże' },
-  { emoji: '🎮', name: 'Gaming' },
-  { emoji: '🏋️', name: 'Fitness' },
-  { emoji: '🎭', name: 'Teatr' },
-  { emoji: '📷', name: 'Fotografia' },
-  { emoji: '🌿', name: 'Natura' },
-];
+import { uploadProfilePhoto } from '@/lib/photoUpload';
+import { POLISH_CITIES, ZODIAC_SIGNS, ALL_INTERESTS } from './constants/profileFormOptions';
+import type { Profile } from '@/lib/types';
 
 export default function NewMyProfileView() {
-  const [profile, setProfile] = useState<any>(null);
-  const [photos, setPhotos] = useState<any[]>([]);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
-  
+  const [uploading, setUploading] = useState(false);
+
   // Form state
   const [name, setName] = useState('');
   const [age, setAge] = useState(18);
@@ -46,8 +35,6 @@ export default function NewMyProfileView() {
   const [bio, setBio] = useState('');
   const [height, setHeight] = useState(170);
   const [zodiac, setZodiac] = useState('');
-  const [alcohol, setAlcohol] = useState('czasami');
-  const [pets, setPets] = useState('lubię');
   const [interests, setInterests] = useState<string[]>([]);
   const [selectedInterest, setSelectedInterest] = useState('');
 
@@ -58,7 +45,9 @@ export default function NewMyProfileView() {
   const loadProfile = async () => {
     try {
       const { data: { user }, error: userError } = await supabase.auth.getUser();
+      
       if (userError || !user) {
+        console.error('User not authenticated:', userError);
         setLoading(false);
         return;
       }
@@ -69,74 +58,118 @@ export default function NewMyProfileView() {
         .eq('id', user.id)
         .single();
 
-      if (prof) {
-        setProfile(prof);
-        setName(prof.name || '');
-        setAge(prof.age || 18);
-        setOccupation(prof.details?.occupation || '');
-        setCity(prof.city || '');
-        setBio(prof.bio || '');
-        setHeight(prof.details?.height || 170);
-        setZodiac(prof.details?.zodiac || '');
-        setAlcohol(prof.details?.alcohol || 'czasami');
-        setPets(prof.details?.pets || 'lubię');
-        setInterests(prof.interests || []);
+      if (error) {
+        console.error('Error loading profile:', error);
+        setLoading(false);
+        return;
       }
 
-      // Load photos
-      const { data: photosData } = await supabase
-        .from('profile_photos')
-        .select('*')
-        .eq('profile_id', user.id)
-        .order('sort_order');
-
-      setPhotos(photosData || []);
+      if (prof) {
+        setProfile(prof as Profile);
+        setName(prof.name || '');
+        setAge(prof.age || 18);
+        setOccupation(prof.occupation || '');
+        setCity(prof.city || '');
+        setBio(prof.bio || '');
+        setHeight(170); // Default, można dodać do bazy
+        setZodiac(prof.zodiac || '');
+        setInterests(prof.interests || []);
+      }
     } catch (err) {
-      console.error('Error loading profile:', err);
+      console.error('Error in loadProfile:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  const handlePhotoUpload = async (e: any) => {
-    const file = e.target.files[0];
+  const handleMainPhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
     if (!file || !profile) return;
 
     setUploading(true);
-    const { url, error } = await uploadProfilePhoto(file, profile.id);
-    
-    if (url) {
-      const { data: newPhoto } = await supabase
-        .from('profile_photos')
-        .insert({
-          profile_id: profile.id,
-          url,
-          is_main: photos.length === 0,
-          sort_order: photos.length,
-        })
-        .select()
-        .single();
+    try {
+      const { url, error } = await uploadProfilePhoto(file, profile.id);
+      
+      if (url) {
+        // Update main image_url in profile
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({ image_url: url })
+          .eq('id', profile.id);
 
-      if (newPhoto) {
-        setPhotos([...photos, newPhoto]);
+        if (!updateError) {
+          setProfile({ ...profile, image_url: url });
+          alert('✓ Zdjęcie główne zaktualizowane!');
+        } else {
+          alert(`Błąd aktualizacji: ${updateError.message}`);
+        }
+      } else {
+        alert(`Błąd uploadu: ${error}`);
       }
-    } else {
-      alert(`Błąd uploadu: ${error}`);
+    } catch (err) {
+      console.error('Upload error:', err);
+      alert('Błąd uploadu zdjęcia');
+    } finally {
+      setUploading(false);
     }
-    setUploading(false);
   };
 
-  const handleDeletePhoto = async (photoId: string) => {
-    const removed = await removePhotoFromProfilePhotos(photoId);
-    if (removed.success) {
-      setPhotos(photos.filter((p) => p.id !== photoId));
+  const handleGalleryPhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !profile) return;
+
+    setUploading(true);
+    try {
+      const { url, error } = await uploadProfilePhoto(file, profile.id);
+      
+      if (url) {
+        // Add to photos array
+        const currentPhotos = profile.photos || [];
+        const newPhotos = [...currentPhotos, url];
+        
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({ photos: newPhotos })
+          .eq('id', profile.id);
+
+        if (!updateError) {
+          setProfile({ ...profile, photos: newPhotos });
+          alert('✓ Zdjęcie dodane do galerii!');
+        } else {
+          alert(`Błąd aktualizacji: ${updateError.message}`);
+        }
+      } else {
+        alert(`Błąd uploadu: ${error}`);
+      }
+    } catch (err) {
+      console.error('Upload error:', err);
+      alert('Błąd uploadu zdjęcia');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleRemoveGalleryPhoto = async (index: number) => {
+    if (!profile || !profile.photos) return;
+
+    const newPhotos = profile.photos.filter((_, i) => i !== index);
+    
+    const { error } = await supabase
+      .from('profiles')
+      .update({ photos: newPhotos })
+      .eq('id', profile.id);
+
+    if (!error) {
+      setProfile({ ...profile, photos: newPhotos });
     } else {
-      alert(`Błąd usuwania: ${removed.error}`);
+      alert(`Błąd usuwania: ${error.message}`);
     }
   };
 
   const handleAddInterest = () => {
-    if (!selectedInterest || interests.includes(selectedInterest)) return;
+    if (!selectedInterest || interests.includes(selectedInterest)) {
+      return;
+    }
     setInterests([...interests, selectedInterest]);
     setSelectedInterest('');
   };
@@ -158,21 +191,16 @@ export default function NewMyProfileView() {
           city,
           bio,
           interests,
-          details: {
-            occupation,
-            height,
-            zodiac,
-            alcohol,
-            pets,
-          },
+          occupation,
+          zodiac,
         })
         .eq('id', profile.id);
 
       if (error) {
         alert(`Błąd zapisu: ${error.message}`);
       } else {
-        alert('✓ Profil zapisany!');
-        loadProfile();
+        alert('✓ Profil zapisany pomyślnie!');
+        await loadProfile();
       }
     } catch (err) {
       console.error('Error saving:', err);
@@ -187,272 +215,332 @@ export default function NewMyProfileView() {
   };
 
   if (loading) {
-    return <div className="pt-28 text-center text-cyan-400">Ładowanie...</div>;
+    return (
+      <div className="pt-28 pb-16 px-6 text-center">
+        <div className="text-cyan-400 text-lg">Ładowanie profilu...</div>
+      </div>
+    );
   }
 
-  return (
-    <div className="relative z-10 pt-28 pb-16 px-6 lg:px-12 max-w-[1800px] mx-auto">
-      <h1 className="text-4xl font-light text-white mb-8 flex items-center gap-3">
-        Mój Profil <div className="h-px flex-1 bg-gradient-to-r from-white/20 to-transparent"></div>
-      </h1>
+  if (!profile) {
+    return (
+      <div className="pt-28 pb-16 px-6 text-center">
+        <div className="text-red-400 text-lg">Nie znaleziono profilu. Zaloguj się ponownie.</div>
+      </div>
+    );
+  }
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* LEFT: Photos */}
-        <aside className="lg:col-span-5">
+  const galleryPhotos = profile.photos || [];
+  const maxGalleryPhotos = 9;
+
+  return (
+    <main className="relative z-10 pt-28 pb-16 px-6 lg:px-12 max-w-[2200px] mx-auto">
+      <div className="mb-8">
+        <h1 className="text-4xl font-light text-white">
+          Edycja <span className="text-gradient font-medium">Profilu</span>
+        </h1>
+        <p className="text-gray-400 font-light mt-2">
+          Dostosuj to, jak widzą Cię inni użytkownicy.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10">
+        {/* LEFT COLUMN: Photos */}
+        <aside className="lg:col-span-4 flex flex-col gap-6">
           {/* Main Photo */}
-          <div className="glass rounded-[2rem] p-6 mb-6">
-            <h3 className="text-base font-medium text-cyan-300/70 tracking-wider uppercase mb-4">
-              📸 Zdjęcie główne
+          <div className="glass rounded-[2rem] p-6">
+            <h3 className="text-lg font-medium text-white mb-4 flex items-center gap-2">
+              <UserCircle size={24} className="text-cyan-400" weight="fill" /> Zdjęcie główne
             </h3>
-            <div className="relative w-full aspect-[3/4] rounded-2xl bg-gradient-to-br from-cyan-500/10 to-fuchsia-500/10 flex items-center justify-center overflow-hidden border border-white/10">
-              {photos[0]?.url ? (
-                <img src={photos[0].url} alt="Main" className="w-full h-full object-cover" />
-              ) : (
-                <div className="text-center text-cyan-400/50">
-                  <Camera size={48} className="mx-auto mb-2 opacity-30" />
-                  <p className="text-sm">Dodaj zdjęcie główne</p>
+            <label className="relative w-full aspect-[3/4] rounded-2xl overflow-hidden group cursor-pointer border border-white/10 hover:border-cyan-500/50 transition-colors block">
+              <img
+                src={profile.image_url || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800&q=80'}
+                className="w-full h-full object-cover"
+                alt="Główne zdjęcie"
+              />
+              <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-sm">
+                <div className="bg-cyan-500/20 p-4 rounded-full text-cyan-400 shadow-[0_0_15px_rgba(0,255,255,0.4)] mb-2">
+                  <Camera size={32} weight="fill" />
                 </div>
+                <span className="text-white font-medium tracking-wide">
+                  {uploading ? 'Wysyłanie...' : 'Zmień zdjęcie'}
+                </span>
+              </div>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleMainPhotoUpload}
+                className="hidden"
+                disabled={uploading}
+              />
+            </label>
+          </div>
+
+          {/* Gallery */}
+          <div className="glass rounded-[2rem] p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-medium text-white flex items-center gap-2">
+                <Images size={24} className="text-fuchsia-400" weight="fill" /> Galeria
+              </h3>
+              <span className="text-xs text-gray-400">
+                {galleryPhotos.length} / {maxGalleryPhotos} zdjęć
+              </span>
+            </div>
+
+            <div className="grid grid-cols-3 gap-3">
+              {galleryPhotos.slice(0, maxGalleryPhotos).map((photo, i) => (
+                <div
+                  key={i}
+                  className="aspect-square rounded-xl relative group overflow-hidden border border-white/10"
+                >
+                  <img src={photo} className="w-full h-full object-cover" alt={`Galeria ${i + 1}`} />
+                  <button
+                    onClick={() => handleRemoveGalleryPhoto(i)}
+                    className="absolute top-1 right-1 w-6 h-6 bg-red-500/90 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity hover:scale-110 shadow-lg"
+                  >
+                    <X size={12} weight="bold" />
+                  </button>
+                </div>
+              ))}
+
+              {galleryPhotos.length < maxGalleryPhotos && (
+                <label className="aspect-square rounded-xl border-2 border-dashed border-white/20 hover:border-cyan-400 hover:bg-cyan-500/5 flex flex-col items-center justify-center text-white/50 hover:text-cyan-400 transition-all group cursor-pointer">
+                  <Plus size={24} className="group-hover:scale-110 transition-transform" weight="bold" />
+                  <span className="text-[10px] uppercase tracking-wider mt-1">Dodaj</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleGalleryPhotoUpload}
+                    className="hidden"
+                    disabled={uploading}
+                  />
+                </label>
               )}
             </div>
           </div>
-
-          {/* Gallery Grid */}
-          <div className="glass rounded-[2rem] p-6">
-            <h3 className="text-base font-medium text-cyan-300/70 tracking-wider uppercase mb-4">
-              🖼️ Galeria
-            </h3>
-            <div className="grid grid-cols-2 gap-4">
-              {[...Array(4)].map((_, i) => {
-                const photo = photos[i + 1];
-                return (
-                  <div
-                    key={i}
-                    className="relative aspect-square rounded-2xl bg-gradient-to-br from-cyan-500/10 to-fuchsia-500/10 flex items-center justify-center overflow-hidden border border-white/10 group"
-                  >
-                    {photo?.url ? (
-                      <>
-                        <img src={photo.url} alt={`Gallery ${i}`} className="w-full h-full object-cover" />
-                        <button
-                          onClick={() => handleDeletePhoto(photo.id)}
-                          className="absolute top-2 right-2 w-8 h-8 bg-red-500/80 backdrop-blur-sm rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                          <X size={16} />
-                        </button>
-                      </>
-                    ) : (
-                      <Camera size={32} className="text-cyan-400/20" />
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-
-            <label className="mt-4 w-full bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 py-3 rounded-xl font-medium transition-all shadow-[0_0_15px_rgba(0,255,255,0.2)] flex items-center justify-center gap-2 text-white cursor-pointer">
-              <Upload size={20} />
-              {uploading ? 'Wysyłanie...' : 'Dodaj zdjęcie'}
-              <input type="file" accept="image/*" onChange={handlePhotoUpload} className="hidden" disabled={uploading} />
-            </label>
-          </div>
         </aside>
 
-        {/* RIGHT: Form */}
-        <section className="lg:col-span-7 space-y-6">
-          {/* Basic Info */}
-          <div className="glass rounded-[2rem] p-8">
-            <h3 className="text-xl font-medium text-white mb-6">Podstawowe dane</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="text-sm text-cyan-400 mb-2 block">Imię</label>
+        {/* RIGHT COLUMN: Form */}
+        <div className="lg:col-span-8 flex flex-col gap-6">
+          {/* Basic Data */}
+          <div className="glass rounded-[2rem] p-8 relative overflow-hidden">
+            <div className="absolute -right-10 -top-10 w-40 h-40 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+            <h2 className="text-xl font-medium text-white mb-6 border-b border-white/10 pb-4 flex items-center gap-2">
+              <IdentificationCard size={28} className="text-cyan-400" /> Dane podstawowe
+            </h2>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="text-sm text-gray-400 ml-1">Imię</label>
                 <input
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white outline-none focus:border-cyan-500/50 transition-all"
+                  className="w-full bg-black/30 border border-white/10 rounded-xl py-3 px-4 text-white outline-none focus:border-cyan-500/50 focus:bg-black/50 transition-all border-glow-cyan"
                   placeholder="Twoje imię"
                 />
               </div>
-              <div>
-                <label className="text-sm text-cyan-400 mb-2 block">Wiek</label>
+              <div className="space-y-2">
+                <label className="text-sm text-gray-400 ml-1">Wiek</label>
                 <input
                   type="number"
                   value={age}
-                  onChange={(e) => setAge(parseInt(e.target.value))}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white outline-none focus:border-cyan-500/50 transition-all"
+                  onChange={(e) => setAge(parseInt(e.target.value) || 18)}
+                  className="w-full bg-black/30 border border-white/10 rounded-xl py-3 px-4 text-white outline-none focus:border-cyan-500/50 focus:bg-black/50 transition-all border-glow-cyan"
                   min={18}
-                  max={99}
+                  max={120}
                 />
               </div>
-              <div>
-                <label className="text-sm text-cyan-400 mb-2 block">Zawód</label>
+              <div className="space-y-2">
+                <label className="text-sm text-gray-400 ml-1">Zawód / Edukacja</label>
                 <input
                   type="text"
                   value={occupation}
                   onChange={(e) => setOccupation(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white outline-none focus:border-cyan-500/50 transition-all"
-                  placeholder="Twoja profesja"
+                  className="w-full bg-black/30 border border-white/10 rounded-xl py-3 px-4 text-white outline-none focus:border-cyan-500/50 focus:bg-black/50 transition-all border-glow-cyan"
+                  placeholder="Twój zawód"
                 />
               </div>
-              <div>
-                <label className="text-sm text-cyan-400 mb-2 block">Lokalizacja</label>
-                <select
-                  value={city}
-                  onChange={(e) => setCity(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white outline-none focus:border-cyan-500/50 transition-all"
-                >
-                  <option value="">Wybierz miasto</option>
-                  {POLISH_CITIES.map((c) => (
-                    <option key={c} value={c} className="bg-[#110a22]">
-                      {c}
-                    </option>
-                  ))}
-                </select>
+              <div className="space-y-2">
+                <label className="text-sm text-gray-400 ml-1">Lokalizacja</label>
+                <div className="relative">
+                  <select
+                    value={city}
+                    onChange={(e) => setCity(e.target.value)}
+                    className="w-full bg-black/30 border border-white/10 rounded-xl py-3 px-4 text-white outline-none focus:border-cyan-500/50 focus:bg-black/50 transition-all border-glow-cyan appearance-none"
+                  >
+                    <option value="" className="bg-gray-900">Wybierz miasto...</option>
+                    {POLISH_CITIES.map((c) => (
+                      <option key={c} value={c} className="bg-gray-900">
+                        {c}
+                      </option>
+                    ))}
+                  </select>
+                  <CaretDown
+                    size={16}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none"
+                    weight="bold"
+                  />
+                </div>
               </div>
             </div>
 
-            <div className="mt-4">
-              <label className="text-sm text-cyan-400 mb-2 block">O mnie</label>
+            <div className="mt-6 space-y-2">
+              <label className="text-sm text-gray-400 ml-1 flex justify-between">
+                O mnie <span className="text-xs text-gray-600">Max 500 znaków</span>
+              </label>
               <textarea
+                rows={4}
                 value={bio}
-                onChange={(e) => setBio(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white outline-none focus:border-cyan-500/50 transition-all resize-none h-32"
+                onChange={(e) => setBio(e.target.value.slice(0, 500))}
+                className="w-full bg-black/30 border border-white/10 rounded-xl py-3 px-4 text-white outline-none focus:border-cyan-500/50 focus:bg-black/50 transition-all border-glow-cyan resize-none"
                 placeholder="Opowiedz coś o sobie..."
               />
             </div>
           </div>
 
-          {/* Characteristics */}
-          <div className="glass rounded-[2rem] p-8">
-            <h3 className="text-xl font-medium text-white mb-6">Cechy</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="text-sm text-cyan-400 mb-2 block flex items-center gap-2">
-                  📏 Wzrost (cm)
-                </label>
-                <input
-                  type="number"
-                  value={height}
-                  onChange={(e) => setHeight(parseInt(e.target.value))}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white outline-none focus:border-cyan-500/50 transition-all"
-                  min={140}
-                  max={220}
-                />
+          {/* Profile Attributes */}
+          <div className="glass rounded-[2rem] p-8 relative overflow-hidden">
+            <h2 className="text-xl font-medium text-white mb-6 border-b border-white/10 pb-4 flex items-center gap-2">
+              <ListDashes size={28} className="text-fuchsia-400" /> Cechy profilu
+            </h2>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="text-sm text-gray-400 ml-1">Wzrost</label>
+                <div className="relative">
+                  <Ruler
+                    size={20}
+                    className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500"
+                  />
+                  <input
+                    type="number"
+                    value={height}
+                    onChange={(e) => setHeight(parseInt(e.target.value) || 170)}
+                    className="w-full bg-black/30 border border-white/10 rounded-xl py-3 pl-12 pr-4 text-white outline-none focus:border-fuchsia-500/50 focus:bg-black/50 transition-all border-glow-magenta"
+                    min={120}
+                    max={250}
+                  />
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 text-sm">
+                    cm
+                  </span>
+                </div>
               </div>
-              <div>
-                <label className="text-sm text-cyan-400 mb-2 block flex items-center gap-2">
-                  ⭐ Znak zodiaku
-                </label>
-                <select
-                  value={zodiac}
-                  onChange={(e) => setZodiac(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white outline-none focus:border-cyan-500/50 transition-all"
-                >
-                  <option value="">Wybierz znak</option>
-                  {ZODIAC_SIGNS.map((z) => (
-                    <option key={z} value={z} className="bg-[#110a22]">
-                      {z}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="text-sm text-cyan-400 mb-2 block flex items-center gap-2">
-                  🍷 Alkohol
-                </label>
-                <select
-                  value={alcohol}
-                  onChange={(e) => setAlcohol(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white outline-none focus:border-cyan-500/50 transition-all"
-                >
-                  <option value="nie" className="bg-[#110a22]">Nie piję</option>
-                  <option value="czasami" className="bg-[#110a22]">Czasami</option>
-                  <option value="towarzysko" className="bg-[#110a22]">Towarzysko</option>
-                </select>
-              </div>
-              <div>
-                <label className="text-sm text-cyan-400 mb-2 block flex items-center gap-2">
-                  🐕 Zwierzęta
-                </label>
-                <select
-                  value={pets}
-                  onChange={(e) => setPets(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white outline-none focus:border-cyan-500/50 transition-all"
-                >
-                  <option value="lubię" className="bg-[#110a22]">Lubię</option>
-                  <option value="mam" className="bg-[#110a22]">Mam</option>
-                  <option value="nie lubię" className="bg-[#110a22]">Nie lubię</option>
-                </select>
+              <div className="space-y-2">
+                <label className="text-sm text-gray-400 ml-1">Znak zodiaku</label>
+                <div className="relative">
+                  <Star
+                    size={20}
+                    className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500"
+                    weight="fill"
+                  />
+                  <select
+                    value={zodiac}
+                    onChange={(e) => setZodiac(e.target.value)}
+                    className="w-full bg-black/30 border border-white/10 rounded-xl py-3 pl-12 pr-4 text-white outline-none focus:border-fuchsia-500/50 focus:bg-black/50 transition-all border-glow-magenta appearance-none"
+                  >
+                    <option value="" className="bg-gray-900">Wybierz znak...</option>
+                    {ZODIAC_SIGNS.map((z) => (
+                      <option key={z.value} value={z.value} className="bg-gray-900">
+                        {z.label}
+                      </option>
+                    ))}
+                  </select>
+                  <CaretDown
+                    size={16}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none"
+                    weight="bold"
+                  />
+                </div>
               </div>
             </div>
           </div>
 
           {/* Interests */}
-          <div className="glass rounded-[2rem] p-8">
-            <h3 className="text-xl font-medium text-white mb-6">Zainteresowania</h3>
-            
-            <div className="flex gap-2 mb-4">
-              <select
-                value={selectedInterest}
-                onChange={(e) => setSelectedInterest(e.target.value)}
-                className="flex-1 bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white outline-none focus:border-cyan-500/50 transition-all"
-              >
-                <option value="">Wybierz zainteresowanie</option>
-                {INTERESTS_OPTIONS.map((int) => (
-                  <option key={int.name} value={int.name} className="bg-[#110a22]">
-                    {int.emoji} {int.name}
-                  </option>
-                ))}
-              </select>
-              <button
-                onClick={handleAddInterest}
-                disabled={!selectedInterest}
-                className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 disabled:opacity-50 disabled:cursor-not-allowed px-6 py-3 rounded-xl font-medium transition-all text-white"
-              >
-                Dodaj
-              </button>
-            </div>
+          <div className="glass rounded-[2rem] p-8 relative overflow-hidden">
+            <h2 className="text-xl font-medium text-white mb-6 border-b border-white/10 pb-4 flex items-center gap-2">
+              <GameController size={28} className="text-cyan-400" weight="fill" /> Moje zajawki
+            </h2>
 
-            <div className="flex flex-wrap gap-3">
+            {/* Selected Interests */}
+            <div className="flex flex-wrap gap-3 mb-6">
               {interests.map((interest) => {
-                const found = INTERESTS_OPTIONS.find((i) => i.name === interest);
+                const interestData = ALL_INTERESTS.find((i) => i.value === interest);
+                const InterestIcon = interestData?.icon;
+                const color = interestData?.color || 'text-cyan-400';
+
                 return (
                   <span
                     key={interest}
-                    className="px-4 py-2 rounded-full border border-fuchsia-500/30 bg-gradient-to-r from-fuchsia-500/10 to-transparent backdrop-blur-md flex items-center gap-2 text-white"
+                    className="px-4 py-2 rounded-full border border-cyan-500/30 bg-cyan-500/10 text-white flex items-center gap-2 text-sm shadow-[0_0_10px_rgba(0,255,255,0.05)]"
                   >
-                    {found?.emoji} {interest}
+                    {InterestIcon && <InterestIcon size={16} className={color} />}
+                    <span>{interest}</span>
                     <button
                       onClick={() => handleRemoveInterest(interest)}
-                      className="w-5 h-5 rounded-full bg-white/10 hover:bg-red-500/20 flex items-center justify-center transition-colors"
+                      className="hover:text-red-400 ml-1 bg-black/20 rounded-full w-5 h-5 flex items-center justify-center"
                     >
-                      <X size={12} />
+                      <X size={12} weight="bold" />
                     </button>
                   </span>
                 );
               })}
             </div>
+
+            {/* Add Interest */}
+            <div className="flex gap-3">
+              <div className="relative flex-1">
+                <Tag size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" />
+                <select
+                  value={selectedInterest}
+                  onChange={(e) => setSelectedInterest(e.target.value)}
+                  className="w-full bg-black/30 border border-white/10 rounded-xl py-3 pl-11 pr-10 text-white outline-none focus:border-cyan-500/50 appearance-none"
+                >
+                  <option value="" disabled>
+                    Wybierz zainteresowanie...
+                  </option>
+                  {ALL_INTERESTS.map((interest) => (
+                    <option key={interest.value} value={interest.value} className="bg-gray-900">
+                      {interest.label}
+                    </option>
+                  ))}
+                </select>
+                <CaretDown
+                  size={16}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none"
+                  weight="bold"
+                />
+              </div>
+              <button
+                onClick={handleAddInterest}
+                className="bg-white/10 hover:bg-white/20 border border-white/10 px-6 rounded-xl font-medium text-white transition-colors flex items-center gap-2"
+              >
+                <Plus size={16} weight="bold" /> Dodaj
+              </button>
+            </div>
           </div>
 
           {/* Action Buttons */}
-          <div className="flex gap-4">
+          <div className="flex justify-end gap-4 mt-2">
             <button
               onClick={handleDiscard}
+              className="px-6 py-3.5 rounded-xl border border-white/10 text-gray-300 hover:bg-white/5 hover:text-white transition-all font-medium"
               disabled={saving}
-              className="flex-1 glass border border-white/20 hover:border-white/30 py-4 rounded-xl font-medium transition-all text-white flex items-center justify-center gap-2 disabled:opacity-50"
             >
-              <Trash2 size={20} />
               Odrzuć zmiany
             </button>
             <button
               onClick={handleSave}
               disabled={saving}
-              className="flex-1 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 disabled:opacity-50 py-4 rounded-xl font-medium transition-all shadow-[0_0_20px_rgba(0,255,255,0.3)] text-white flex items-center justify-center gap-2"
+              className="px-8 py-3.5 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 font-bold text-white shadow-[0_0_20px_rgba(0,255,255,0.3)] transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <Save size={20} />
+              <CheckCircle size={20} weight="fill" />
               {saving ? 'Zapisywanie...' : 'Zapisz profil'}
             </button>
           </div>
-        </section>
+        </div>
       </div>
-    </div>
+    </main>
   );
 }

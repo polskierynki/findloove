@@ -1,15 +1,20 @@
 'use client';
 
-import { useContext, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { Bell, MessageCircle, Shield, Menu, X, Gift, Heart, BadgeCheck, MessageSquareText, User, UserPlus } from 'lucide-react';
+import type { User as SupabaseUser } from '@supabase/supabase-js';
+import { Bell, MessageCircle, Shield, Menu, X, Gift, Heart, BadgeCheck, LogIn, LogOut, UserPlus } from 'lucide-react';
+
+type HeaderProfile = {
+  role?: string | null;
+};
 
 export default function NewHeader() {
   const router = useRouter();
   const pathname = usePathname();
-  const [user, setUser] = useState<any>(null);
-  const [profile, setProfile] = useState<any>(null);
+  const [user, setUser] = useState<SupabaseUser | null>(null);
+  const [profile, setProfile] = useState<HeaderProfile | null>(null);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
@@ -18,29 +23,77 @@ export default function NewHeader() {
     if (path === '/') return 'home';
     if (path.startsWith('/search')) return 'search';
     if (path.startsWith('/messages')) return 'messages';
-    if (path.startsWith('/profile')) return 'profile';
+    if (path.startsWith('/myprofile') || path.startsWith('/profile')) return 'profile';
     return null;
   };
   
   const activeNav = getActiveNav(pathname);
 
+  const loadProfile = useCallback(async (userId: string) => {
+    const { data } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', userId)
+      .maybeSingle();
+
+    setProfile((data as HeaderProfile | null) ?? null);
+  }, []);
+
   useEffect(() => {
-    const getUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      setUser(user);
-      
-      if (user) {
-        const { data } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
-          .single();
-        setProfile(data);
+    let active = true;
+
+    const syncSession = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!active) return;
+
+      const sessionUser = session?.user ?? null;
+      setUser(sessionUser);
+
+      if (sessionUser) {
+        await loadProfile(sessionUser.id);
+      } else {
+        setProfile(null);
       }
     };
-    
-    getUser();
-  }, []);
+
+    void syncSession();
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+      const sessionUser = session?.user ?? null;
+      setUser(sessionUser);
+
+      if (sessionUser) {
+        void loadProfile(sessionUser.id);
+      } else {
+        setProfile(null);
+      }
+    });
+
+    return () => {
+      active = false;
+      authListener.subscription.unsubscribe();
+    };
+  }, [loadProfile]);
+
+  const handleAuthAction = async () => {
+    if (!user) {
+      router.push('/auth');
+      return;
+    }
+
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      console.error('Blad podczas wylogowania:', error.message);
+      return;
+    }
+
+    setNotificationsOpen(false);
+    setMobileMenuOpen(false);
+    router.push('/');
+  };
 
   const isAdmin = profile?.role === 'admin' || profile?.role === 'super_admin';
 
@@ -88,7 +141,7 @@ export default function NewHeader() {
             Wiadomości
           </button>
           <button
-            onClick={() => router.push('/profile')}
+            onClick={() => router.push('/myprofile')}
             className={`nav-item relative text-gray-300 hover:text-white font-medium transition-colors pb-1 flex items-center gap-1.5 whitespace-nowrap ${
               activeNav === 'profile' ? 'active' : ''
             }`}
@@ -151,7 +204,7 @@ export default function NewHeader() {
                   <div
                     className="p-4 border-b border-white/5 hover:bg-white/5 transition-colors cursor-pointer flex gap-4"
                     onClick={() => {
-                      router.push('/profile');
+                      router.push('/myprofile');
                       setNotificationsOpen(false);
                     }}
                   >
@@ -170,7 +223,7 @@ export default function NewHeader() {
                   <div
                     className="p-4 border-b border-white/5 hover:bg-white/5 transition-colors cursor-pointer flex gap-4 bg-white/[0.02]"
                     onClick={() => {
-                      router.push('/profile');
+                      router.push('/myprofile');
                       setNotificationsOpen(false);
                     }}
                   >
@@ -189,7 +242,7 @@ export default function NewHeader() {
                   <div
                     className="p-4 border-b border-white/5 hover:bg-white/5 transition-colors cursor-pointer flex gap-4"
                     onClick={() => {
-                      router.push('/profile');
+                      router.push('/myprofile');
                       setNotificationsOpen(false);
                     }}
                   >
@@ -208,7 +261,7 @@ export default function NewHeader() {
                   <div
                     className="p-4 hover:bg-white/5 transition-colors cursor-pointer flex gap-4"
                     onClick={() => {
-                      router.push('/profile');
+                      router.push('/myprofile');
                       setNotificationsOpen(false);
                     }}
                   >
@@ -238,35 +291,27 @@ export default function NewHeader() {
 
           <div className="h-8 w-[1px] bg-white/20 mx-1 sm:mx-2 hidden sm:block"></div>
 
-          {/* Login Button or Profile Avatar */}
-          {!user ? (
-            <button
-              onClick={() => router.push('/auth')}
-              className="group relative hidden sm:flex items-center gap-2 bg-gradient-to-r from-fuchsia-600 to-cyan-600 hover:from-fuchsia-500 hover:to-cyan-500 px-5 lg:px-6 py-2.5 rounded-full font-medium text-sm text-white transition-all shadow-[0_0_15px_rgba(255,0,255,0.3)] hover:shadow-[0_0_25px_rgba(0,255,255,0.5)] active:scale-95 overflow-hidden"
-            >
-              {/* Animated gradient overlay */}
-              <div className="absolute inset-0 bg-gradient-to-r from-cyan-400 to-fuchsia-400 opacity-0 group-hover:opacity-20 transition-opacity"></div>
-              
-              <User size={18} className="relative z-10 group-hover:scale-110 transition-transform" />
-              <span className="relative z-10">Zaloguj się</span>
-              
-              {/* Pulse ring on hover */}
-              <span className="absolute inset-0 rounded-full bg-cyan-400/20 scale-100 group-hover:scale-110 opacity-0 group-hover:opacity-100 blur-md transition-all duration-300"></span>
-            </button>
-          ) : (
-            <button
-              onClick={() => router.push('/profile')}
-              className="w-10 h-10 rounded-full overflow-hidden border border-cyan-500/30 hover:border-cyan-400 transition-all hover:shadow-[0_0_15px_rgba(0,255,255,0.4)]"
-            >
-              {profile?.image_url ? (
-                <img src={profile.image_url} alt="Avatar" className="w-full h-full object-cover" />
-              ) : (
-                <div className="w-full h-full bg-gradient-to-tr from-fuchsia-500 to-cyan-500 flex items-center justify-center text-white font-bold">
-                  {profile?.name?.charAt(0)}
-                </div>
-              )}
-            </button>
-          )}
+          {/* Desktop auth button (fixed width, dynamic label) */}
+          <button
+            onClick={handleAuthAction}
+            className={`group relative hidden sm:flex min-w-[132px] items-center justify-center gap-2 px-5 lg:px-6 py-2.5 rounded-full font-medium text-sm text-white transition-all active:scale-95 overflow-hidden ${
+              user
+                ? 'bg-gradient-to-r from-slate-700 to-slate-600 hover:from-slate-600 hover:to-slate-500 shadow-[0_0_15px_rgba(148,163,184,0.25)] hover:shadow-[0_0_25px_rgba(148,163,184,0.35)]'
+                : 'bg-gradient-to-r from-fuchsia-600 to-cyan-600 hover:from-fuchsia-500 hover:to-cyan-500 shadow-[0_0_15px_rgba(255,0,255,0.3)] hover:shadow-[0_0_25px_rgba(0,255,255,0.5)]'
+            }`}
+            title={user ? 'Wyloguj się' : 'Zaloguj się'}
+          >
+            <div className="absolute inset-0 bg-gradient-to-r from-cyan-400 to-fuchsia-400 opacity-0 group-hover:opacity-20 transition-opacity"></div>
+
+            {user ? (
+              <LogOut size={18} className="relative z-10 group-hover:scale-110 transition-transform" />
+            ) : (
+              <LogIn size={18} className="relative z-10 group-hover:scale-110 transition-transform" />
+            )}
+            <span className="relative z-10">{user ? 'Wyloguj' : 'Zaloguj'}</span>
+
+            <span className="absolute inset-0 rounded-full bg-cyan-400/20 scale-100 group-hover:scale-110 opacity-0 group-hover:opacity-100 blur-md transition-all duration-300"></span>
+          </button>
         </div>
 
         {/* Mobile Menu Button */}
@@ -323,7 +368,7 @@ export default function NewHeader() {
             </button>
             <button
               onClick={() => {
-                router.push('/profile');
+                router.push('/myprofile');
                 setMobileMenuOpen(false);
               }}
               className={`text-left px-4 py-2 rounded-lg transition-colors ${
@@ -346,19 +391,28 @@ export default function NewHeader() {
               </button>
             )}
             
-            {/* Mobile Login/Register Button */}
-            {!user && (
-              <div className="mt-4 pt-4 border-t border-white/10 space-y-2">
-                <button
-                  onClick={() => {
+            {/* Mobile auth actions */}
+            <div className="mt-4 pt-4 border-t border-white/10 space-y-2">
+              <button
+                onClick={async () => {
+                  if (!user) {
                     router.push('/auth');
-                    setMobileMenuOpen(false);
-                  }}
-                  className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-fuchsia-600 to-cyan-600 hover:from-fuchsia-500 hover:to-cyan-500 px-5 py-3 rounded-full font-medium text-white shadow-[0_0_15px_rgba(255,0,255,0.3)] active:scale-95 transition-all"
-                >
-                  <User size={18} />
-                  Zaloguj się
-                </button>
+                  } else {
+                    await handleAuthAction();
+                  }
+                  setMobileMenuOpen(false);
+                }}
+                className={`w-full flex items-center justify-center gap-2 px-5 py-3 rounded-full font-medium text-white active:scale-95 transition-all ${
+                  user
+                    ? 'bg-gradient-to-r from-slate-700 to-slate-600 hover:from-slate-600 hover:to-slate-500 shadow-[0_0_15px_rgba(148,163,184,0.25)]'
+                    : 'bg-gradient-to-r from-fuchsia-600 to-cyan-600 hover:from-fuchsia-500 hover:to-cyan-500 shadow-[0_0_15px_rgba(255,0,255,0.3)]'
+                }`}
+              >
+                {user ? <LogOut size={18} /> : <LogIn size={18} />}
+                {user ? 'Wyloguj' : 'Zaloguj'}
+              </button>
+
+              {!user && (
                 <button
                   onClick={() => {
                     router.push('/register');
@@ -369,8 +423,8 @@ export default function NewHeader() {
                   <UserPlus size={18} />
                   Załóż konto
                 </button>
-              </div>
-            )}
+              )}
+            </div>
           </nav>
         </div>
       )}
