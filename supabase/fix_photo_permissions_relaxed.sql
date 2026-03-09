@@ -361,20 +361,20 @@ create policy "Authenticated insert avatar"
   on public.avatars
   for insert
   to authenticated
-  with check (profile_id = auth.uid());
+  with check (true);
 
 create policy "Authenticated update avatar"
   on public.avatars
   for update
   to authenticated
-  using (profile_id = auth.uid())
-  with check (profile_id = auth.uid());
+  using (true)
+  with check (true);
 
 create policy "Authenticated delete avatar"
   on public.avatars
   for delete
   to authenticated
-  using (profile_id = auth.uid());
+  using (true);
 
 -- STORAGE BUCKET: avatars (oddzielny od profile-photos)
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)

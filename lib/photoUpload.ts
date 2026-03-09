@@ -188,6 +188,23 @@ export async function addPhotoToProfilePhotos(
   isMain = false,
   sortOrder = 0,
 ): Promise<PhotoMutationResult> {
+  if (isMain) {
+    const { error: resetMainError } = await supabase
+      .from('profile_photos')
+      .update({ is_main: false })
+      .eq('profile_id', userId)
+      .eq('is_main', true);
+
+    if (resetMainError) {
+      console.error('=== BLAD RESETU is_main PRZED INSERTem ===');
+      console.error('Error object:', resetMainError);
+      return {
+        success: false,
+        error: resetMainError.message || 'Blad resetowania glownego zdjecia przed insertem',
+      };
+    }
+  }
+
   const { error } = await supabase.from('profile_photos').insert({
     profile_id: userId,
     url: photoUrl,
@@ -196,6 +213,32 @@ export async function addPhotoToProfilePhotos(
   });
 
   if (error) {
+    const duplicateMain =
+      isMain &&
+      (error.code === '23505' ||
+        error.message?.includes('profile_photos_one_main_idx') ||
+        error.details?.includes('profile_photos_one_main_idx'));
+
+    if (duplicateMain) {
+      const { error: retryError } = await supabase.from('profile_photos').insert({
+        profile_id: userId,
+        url: photoUrl,
+        is_main: false,
+        sort_order: sortOrder,
+      });
+
+      if (!retryError) {
+        return { success: true };
+      }
+
+      console.error('=== BLAD RETRY INSERTU DO profile_photos ===');
+      console.error('Error object:', retryError);
+      return {
+        success: false,
+        error: retryError.message || 'Blad zapisu zdjecia po ponowieniu insertu',
+      };
+    }
+
     console.error('=== BLAD ZAPISU DO profile_photos ===');
     console.error('Error object:', error);
     console.error('Error message:', error.message);

@@ -243,12 +243,24 @@ export default function MyProfile() {
 
     setSavingPhotos(true);
     try {
-      const totalPhotos = photos.length + pendingPhotos.length;
+      const { data: existingPhotos, error: existingPhotosError } = await supabase
+        .from('profile_photos')
+        .select('id, is_main, sort_order')
+        .eq('profile_id', profile.id)
+        .order('sort_order');
+
+      if (existingPhotosError) {
+        throw new Error(existingPhotosError.message || 'Nie udalo sie pobrac aktualnej galerii');
+      }
+
+      const dbPhotos = existingPhotos || [];
+      const hasMainInDb = dbPhotos.some((photo: any) => photo.is_main);
+      const baseSortOrder = dbPhotos.length;
       
       for (let i = 0; i < pendingPhotos.length; i++) {
         const pending = pendingPhotos[i];
-        const isMain = photos.length === 0 && i === 0; // Pierwsze zdjęcie jako główne
-        const sortOrder = photos.length + i;
+        const isMain = !hasMainInDb && i === 0;
+        const sortOrder = baseSortOrder + i;
 
         const added = await addPhotoToProfilePhotos(profile.id, pending.url, isMain, sortOrder);
         if (!added.success) {
