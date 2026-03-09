@@ -188,9 +188,8 @@ export default function App() {
       // Odczyt statusu premium (profil + fallback localStorage)
       const localPremium = readLocalPremiumFlag();
       let premiumFromProfile = false;
+      let profileBySession: SupabaseProfile | null = null;
       try {
-        let premiumProfile: SupabaseProfile | null = null;
-
         const { data: profileById } = await supabase
           .from('profiles')
           .select('*')
@@ -198,42 +197,45 @@ export default function App() {
           .maybeSingle();
 
         if (profileById) {
-          premiumProfile = profileById as SupabaseProfile;
+          profileBySession = profileById as SupabaseProfile;
         } else if (session.user.email) {
           const { data: profileByEmail } = await supabase
             .from('profiles')
             .select('*')
             .eq('email', session.user.email)
             .maybeSingle();
-          premiumProfile = (profileByEmail as SupabaseProfile) || null;
+          profileBySession = (profileByEmail as SupabaseProfile) || null;
         }
 
-        premiumFromProfile = isPremiumActiveFromProfile(premiumProfile);
+        premiumFromProfile = isPremiumActiveFromProfile(profileBySession);
       } catch (premiumError) {
         console.error('Nie udało się pobrać statusu premium:', premiumError);
       }
 
       setIsPremium(premiumFromProfile || localPremium);
 
-      // Check for admin
+      // Admin ma zawsze pełny dostęp (email główny lub rola z bazy)
+      const hasAdminAccess =
+        session.user.email === adminEmail ||
+        profileBySession?.role === 'admin' ||
+        profileBySession?.role === 'super_admin';
+
+      isAdminRef.current = hasAdminAccess;
+      setIsAdmin(hasAdminAccess);
+
+      // Dla głównego konta admina zachowujemy automatyczne wejście do panelu
       if (session.user.email === adminEmail) {
-        isAdminRef.current = true;
-        setIsAdmin(true);
-        // Pobierz profil admina bezpośrednio z bazy (nie używamy filtrowanej listy profiles)
         const { data } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', adminProfileId)
           .single();
-        
+
         if (data) {
           const adminProfile = mapSupabaseProfile(data as SupabaseProfile);
           setSelectedProfile(adminProfile);
           setView('admin');
         }
-      } else {
-        isAdminRef.current = false;
-        setIsAdmin(false);
       }
     } else {
       setIsLoggedIn(false);
@@ -442,8 +444,8 @@ export default function App() {
   // Guest restrictions hook
   const guestRestrictions = useGuestRestrictions(isLoggedIn);
 
-  // Profile completion restrictions hook
-  const profileCompletion = useProfileCompletion(isLoggedIn);
+  // Profile completion restrictions hook (admin ma zawsze odblokowany dostęp)
+  const profileCompletion = useProfileCompletion(isLoggedIn, isAdmin);
 
   // Funkcja do sprawdzania limitu randek (3/h dla darmowych)
   const canStartSpeedDate = () => {
@@ -729,7 +731,7 @@ export default function App() {
                 onUnlockGallery={unlockGallery}
                 onLoginRequest={() => setView('auth')}
                 onOpenAuthorProfile={openProfileById}
-                isAdmin={userName === adminEmail}
+                isAdmin={isAdmin}
                 guestRestrictions={guestRestrictions}
                 onGuestFeatureBlock={guestRestrictions.triggerFeatureModal}
               />
@@ -862,8 +864,8 @@ export default function App() {
         </>
       )}
 
-        {/* Profile completion modal for logged-in users */}
-        {isLoggedIn && (
+        {/* Profile completion modal for logged-in users (pomijane dla admina) */}
+        {isLoggedIn && !isAdmin && (
           <ProfileCompletionModal
             isOpen={showCompletionModal}
             onClose={() => setShowCompletionModal(false)}

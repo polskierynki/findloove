@@ -7,7 +7,7 @@ import { getProfileCompletionLevel, ProfileCompletionLevel, getCompletionMessage
  * Hook monitorujący poziom uzupełnienia profilu użytkownika
  * i zwracający restrykcje dostępu do treści innych użytkowników
  */
-export function useProfileCompletion(isLoggedIn: boolean) {
+export function useProfileCompletion(isLoggedIn: boolean, isAdmin = false) {
   const [currentProfile, setCurrentProfile] = useState<Profile | null>(null);
   const [completionLevel, setCompletionLevel] = useState<ProfileCompletionLevel>({
     hasPhoto: false,
@@ -20,6 +20,19 @@ export function useProfileCompletion(isLoggedIn: boolean) {
   });
 
   useEffect(() => {
+    if (isAdmin) {
+      setCompletionLevel({
+        hasPhoto: true,
+        hasBio: true,
+        hasContactInfo: true,
+        canViewPhotos: true,
+        canViewBios: true,
+        canContact: true,
+        missingFields: [],
+      });
+      return;
+    }
+
     if (!isLoggedIn) {
       setCurrentProfile(null);
       setCompletionLevel({
@@ -100,7 +113,7 @@ export function useProfileCompletion(isLoggedIn: boolean) {
     return () => {
       channel.unsubscribe();
     };
-  }, [isLoggedIn]);
+  }, [isAdmin, isLoggedIn]);
 
   return {
     completionLevel,
