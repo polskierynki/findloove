@@ -7,10 +7,22 @@ import { Bell, MessageCircle, Shield, Menu, X, Gift, Heart, BadgeCheck, MessageS
 
 export default function NewHeader() {
   const router = useRouter();
+  const pathname = usePathname();
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  
+  // Determine active nav item based on current pathname
+  const getActiveNav = (path: string) => {
+    if (path === '/') return 'home';
+    if (path.startsWith('/search')) return 'search';
+    if (path.startsWith('/messages')) return 'messages';
+    if (path.startsWith('/profile')) return 'profile';
+    return null;
+  };
+  
+  const activeNav = getActiveNav(pathname);
 
   useEffect(() => {
     const getUser = async () => {
@@ -53,25 +65,41 @@ export default function NewHeader() {
         <nav className="hidden lg:flex flex-1 justify-center items-center gap-6 xl:gap-10 z-0">
           <button
             onClick={() => router.push('/')}
-            className="nav-item active relative text-cyan-300 hover:text-cyan-100 font-medium transition-colors pb-1 whitespace-nowrap shadow-[0_0_10px_rgba(0,255,255,0.4)]"
+            className={`nav-item relative font-medium transition-colors pb-1 whitespace-nowrap ${
+              activeNav === 'home'
+                ? 'text-cyan-300 shadow-[0_0_10px_rgba(0,255,255,0.4)]'
+                : 'text-cyan-300/60 hover:text-cyan-300'
+            }`}
           >
             Odkrywaj
           </button>
           <button
             onClick={() => router.push('/search')}
-            className="nav-item relative text-cyan-300/60 hover:text-cyan-300 font-medium transition-colors pb-1 whitespace-nowrap"
+            className={`nav-item relative font-medium transition-colors pb-1 whitespace-nowrap ${
+              activeNav === 'search'
+                ? 'text-cyan-300 shadow-[0_0_10px_rgba(0,255,255,0.4)]'
+                : 'text-cyan-300/60 hover:text-cyan-300'
+            }`}
           >
             Szukaj
           </button>
           <button
             onClick={() => router.push('/messages')}
-            className="nav-item relative text-cyan-300/60 hover:text-cyan-300 font-medium transition-colors pb-1 whitespace-nowrap"
+            className={`nav-item relative font-medium transition-colors pb-1 whitespace-nowrap ${
+              activeNav === 'messages'
+                ? 'text-cyan-300 shadow-[0_0_10px_rgba(0,255,255,0.4)]'
+                : 'text-cyan-300/60 hover:text-cyan-300'
+            }`}
           >
             Wiadomości
           </button>
           <button
             onClick={() => router.push('/profile')}
-            className="nav-item relative text-cyan-300/60 hover:text-cyan-300 font-medium transition-colors pb-1 flex items-center gap-1.5 whitespace-nowrap"
+            className={`nav-item relative font-medium transition-colors pb-1 flex items-center gap-1.5 whitespace-nowrap ${
+              activeNav === 'profile'
+                ? 'text-cyan-300 shadow-[0_0_10px_rgba(0,255,255,0.4)]'
+                : 'text-cyan-300/60 hover:text-cyan-300'
+            }`}
           >
             Mój profil
           </button>
@@ -260,7 +288,11 @@ export default function NewHeader() {
                 router.push('/');
                 setMobileMenuOpen(false);
               }}
-              className="text-left px-4 py-2 text-cyan-300/60 hover:text-cyan-300 hover:bg-cyan-500/10 rounded-lg transition-colors"
+              className={`text-left px-4 py-2 rounded-lg transition-colors ${
+                activeNav === 'home'
+                  ? 'text-cyan-300 bg-cyan-500/10 font-medium'
+                  : 'text-cyan-300/60 hover:text-cyan-300 hover:bg-cyan-500/10'
+              }`}
             >
               Odkrywaj
             </button>
@@ -269,7 +301,11 @@ export default function NewHeader() {
                 router.push('/search');
                 setMobileMenuOpen(false);
               }}
-              className="text-left px-4 py-2 text-cyan-300/60 hover:text-cyan-300 hover:bg-cyan-500/10 rounded-lg transition-colors"
+              className={`text-left px-4 py-2 rounded-lg transition-colors ${
+                activeNav === 'search'
+                  ? 'text-cyan-300 bg-cyan-500/10 font-medium'
+                  : 'text-cyan-300/60 hover:text-cyan-300 hover:bg-cyan-500/10'
+              }`}
             >
               Szukaj
             </button>
@@ -278,7 +314,11 @@ export default function NewHeader() {
                 router.push('/messages');
                 setMobileMenuOpen(false);
               }}
-              className="text-left px-4 py-2 text-cyan-300/60 hover:text-cyan-300 hover:bg-cyan-500/10 rounded-lg transition-colors"
+              className={`text-left px-4 py-2 rounded-lg transition-colors ${
+                activeNav === 'messages'
+                  ? 'text-cyan-300 bg-cyan-500/10 font-medium'
+                  : 'text-cyan-300/60 hover:text-cyan-300 hover:bg-cyan-500/10'
+              }`}
             >
               Wiadomości
             </button>
@@ -287,7 +327,11 @@ export default function NewHeader() {
                 router.push('/profile');
                 setMobileMenuOpen(false);
               }}
-              className="text-left px-4 py-2 text-cyan-300/60 hover:text-cyan-300 hover:bg-cyan-500/10 rounded-lg transition-colors"
+              className={`text-left px-4 py-2 rounded-lg transition-colors ${
+                activeNav === 'profile'
+                  ? 'text-cyan-300 bg-cyan-500/10 font-medium'
+                  : 'text-cyan-300/60 hover:text-cyan-300 hover:bg-cyan-500/10'
+              }`}
             >
               Mój profil
             </button>
