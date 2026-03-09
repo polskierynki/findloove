@@ -171,6 +171,83 @@ create policy "Authenticated delete photos"
   to authenticated
   using (true);
 
+-- TABLE: public.profile_comments (komentarze użytkowników pod profilami)
+create table if not exists public.profile_comments (
+  id uuid primary key default gen_random_uuid(),
+  profile_id uuid references public.profiles(id) on delete cascade not null,
+  author_profile_id uuid references public.profiles(id) on delete cascade not null,
+  content text not null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table public.profile_comments add column if not exists id uuid;
+alter table public.profile_comments add column if not exists profile_id uuid;
+alter table public.profile_comments add column if not exists author_profile_id uuid;
+alter table public.profile_comments add column if not exists content text;
+alter table public.profile_comments add column if not exists created_at timestamptz default now();
+alter table public.profile_comments add column if not exists updated_at timestamptz default now();
+
+update public.profile_comments set id = gen_random_uuid() where id is null;
+update public.profile_comments set created_at = now() where created_at is null;
+update public.profile_comments set updated_at = now() where updated_at is null;
+update public.profile_comments set content = '' where content is null;
+
+alter table public.profile_comments alter column id set default gen_random_uuid();
+alter table public.profile_comments alter column profile_id set not null;
+alter table public.profile_comments alter column author_profile_id set not null;
+alter table public.profile_comments alter column content set not null;
+alter table public.profile_comments alter column created_at set default now();
+alter table public.profile_comments alter column created_at set not null;
+alter table public.profile_comments alter column updated_at set default now();
+alter table public.profile_comments alter column updated_at set not null;
+
+create index if not exists profile_comments_profile_created_idx
+  on public.profile_comments (profile_id, created_at desc);
+
+create index if not exists profile_comments_author_created_idx
+  on public.profile_comments (author_profile_id, created_at desc);
+
+grant select on public.profile_comments to anon;
+grant select, insert, update, delete on public.profile_comments to authenticated;
+
+alter table public.profile_comments enable row level security;
+
+drop policy if exists "Public read comments" on public.profile_comments;
+drop policy if exists "Authenticated insert comments" on public.profile_comments;
+drop policy if exists "Authenticated update own comments" on public.profile_comments;
+drop policy if exists "Authenticated delete own comments" on public.profile_comments;
+
+create policy "Public read comments"
+  on public.profile_comments
+  for select
+  using (true);
+
+create policy "Authenticated insert comments"
+  on public.profile_comments
+  for insert
+  to authenticated
+  with check (
+    author_profile_id = auth.uid()
+    and length(trim(content)) between 2 and 400
+  );
+
+create policy "Authenticated update own comments"
+  on public.profile_comments
+  for update
+  to authenticated
+  using (author_profile_id = auth.uid())
+  with check (
+    author_profile_id = auth.uid()
+    and length(trim(content)) between 2 and 400
+  );
+
+create policy "Authenticated delete own comments"
+  on public.profile_comments
+  for delete
+  to authenticated
+  using (author_profile_id = auth.uid());
+
 -- STORAGE BUCKET: profile-photos
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values (
@@ -232,39 +309,176 @@ create policy "Profile photos authenticated delete"
     and (storage.foldername(name))[1] = 'profiles'
   );
 
--- TRIGGER: Auto-update profile.image_url when first photo is added
-create or replace function public.set_profile_image_if_empty()
+-- AVATARS: oddzielna tabela 1:1 dla zdjęcia profilowego (niezależna od galerii)
+create table if not exists public.avatars (
+  id uuid primary key default gen_random_uuid(),
+  profile_id uuid references public.profiles(id) on delete cascade not null,
+  url text not null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table public.avatars add column if not exists id uuid;
+alter table public.avatars add column if not exists profile_id uuid;
+alter table public.avatars add column if not exists url text;
+alter table public.avatars add column if not exists created_at timestamptz default now();
+alter table public.avatars add column if not exists updated_at timestamptz default now();
+
+update public.avatars set id = gen_random_uuid() where id is null;
+update public.avatars set created_at = now() where created_at is null;
+update public.avatars set updated_at = now() where updated_at is null;
+
+alter table public.avatars alter column id set default gen_random_uuid();
+alter table public.avatars alter column profile_id set not null;
+alter table public.avatars alter column url set not null;
+alter table public.avatars alter column created_at set default now();
+alter table public.avatars alter column created_at set not null;
+alter table public.avatars alter column updated_at set default now();
+alter table public.avatars alter column updated_at set not null;
+
+create unique index if not exists avatars_profile_id_unique_idx
+  on public.avatars (profile_id);
+
+create index if not exists avatars_profile_idx
+  on public.avatars (profile_id);
+
+grant select on public.avatars to anon;
+grant select, insert, update, delete on public.avatars to authenticated;
+
+alter table public.avatars enable row level security;
+
+drop policy if exists "Public read avatars" on public.avatars;
+drop policy if exists "Authenticated insert avatar" on public.avatars;
+drop policy if exists "Authenticated update avatar" on public.avatars;
+drop policy if exists "Authenticated delete avatar" on public.avatars;
+
+create policy "Public read avatars"
+  on public.avatars
+  for select
+  using (true);
+
+create policy "Authenticated insert avatar"
+  on public.avatars
+  for insert
+  to authenticated
+  with check (profile_id = auth.uid());
+
+create policy "Authenticated update avatar"
+  on public.avatars
+  for update
+  to authenticated
+  using (profile_id = auth.uid())
+  with check (profile_id = auth.uid());
+
+create policy "Authenticated delete avatar"
+  on public.avatars
+  for delete
+  to authenticated
+  using (profile_id = auth.uid());
+
+-- STORAGE BUCKET: avatars (oddzielny od profile-photos)
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (
+  'avatars',
+  'avatars',
+  true,
+  10485760,
+  array['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/heic', 'image/avif']
+)
+on conflict (id) do update
+set
+  public = excluded.public,
+  file_size_limit = excluded.file_size_limit,
+  allowed_mime_types = excluded.allowed_mime_types;
+
+drop policy if exists "Avatars public read" on storage.objects;
+drop policy if exists "Avatars authenticated upload" on storage.objects;
+drop policy if exists "Avatars authenticated update" on storage.objects;
+drop policy if exists "Avatars authenticated delete" on storage.objects;
+
+create policy "Avatars public read"
+  on storage.objects
+  for select
+  using (bucket_id = 'avatars');
+
+create policy "Avatars authenticated upload"
+  on storage.objects
+  for insert
+  to authenticated
+  with check (
+    bucket_id = 'avatars'
+    and (storage.foldername(name))[1] = 'avatars'
+  );
+
+create policy "Avatars authenticated update"
+  on storage.objects
+  for update
+  to authenticated
+  using (
+    bucket_id = 'avatars'
+    and (storage.foldername(name))[1] = 'avatars'
+  )
+  with check (
+    bucket_id = 'avatars'
+    and (storage.foldername(name))[1] = 'avatars'
+  );
+
+create policy "Avatars authenticated delete"
+  on storage.objects
+  for delete
+  to authenticated
+  using (
+    bucket_id = 'avatars'
+    and (storage.foldername(name))[1] = 'avatars'
+  );
+
+-- Usuń stare sprzężenie: galeria profile_photos nie ustawia już avatara
+drop trigger if exists set_profile_image_on_photo_insert on public.profile_photos;
+drop function if exists public.set_profile_image_if_empty();
+
+-- Avatar zawsze synchronizuje się do profiles.image_url
+create or replace function public.sync_profile_image_from_avatar()
 returns trigger as $$
 begin
-  if new.is_main = true or new.sort_order = 0 then
+  if tg_op = 'DELETE' then
     update public.profiles
-    set image_url = new.url
-    where id = new.profile_id
-      and (image_url is null or image_url = '' or image_url like '%ui-avatars.com%');
+    set image_url = ''
+    where id = old.profile_id
+      and image_url = old.url;
+    return old;
   end if;
+
+  update public.profiles
+  set image_url = new.url
+  where id = new.profile_id;
+
   return new;
 end;
 $$ language plpgsql;
 
-drop trigger if exists set_profile_image_on_photo_insert on public.profile_photos;
+drop trigger if exists sync_profile_image_on_avatar_change on public.avatars;
 
-create trigger set_profile_image_on_photo_insert
-after insert on public.profile_photos
+create trigger sync_profile_image_on_avatar_change
+after insert or update or delete on public.avatars
 for each row
-execute function public.set_profile_image_if_empty();
+execute function public.sync_profile_image_from_avatar();
 
--- Update existing profiles: if they have photos but no image_url, set it to the first photo
+-- Backfill avatara dla istniejących kont na podstawie aktualnego image_url
+insert into public.avatars (profile_id, url)
+select p.id, p.image_url
+from public.profiles p
+where p.image_url is not null
+  and trim(p.image_url) <> ''
+  and p.image_url not like '%ui-avatars.com%'
+on conflict (profile_id) do update
+set
+  url = excluded.url,
+  updated_at = now();
+
 update public.profiles p
-set image_url = (
-  select url 
-  from public.profile_photos pp 
-  where pp.profile_id = p.id
-  order by is_main desc, sort_order asc
-  limit 1
-)
-where (p.image_url is null or p.image_url = '' or p.image_url like '%ui-avatars.com%')
-  and exists (
-    select 1 from public.profile_photos pp where pp.profile_id = p.id
-  );
+set image_url = a.url
+from public.avatars a
+where a.profile_id = p.id
+  and p.image_url is distinct from a.url;
 
 commit;

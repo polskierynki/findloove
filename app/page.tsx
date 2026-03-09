@@ -479,6 +479,31 @@ export default function App() {
     setView('profile');
   };
 
+  const openProfileById = async (profileId: string) => {
+    if (!profileId) return;
+
+    const alreadyLoaded = profiles.find((profile) => profile.id === profileId);
+    if (alreadyLoaded) {
+      openProfile(alreadyLoaded);
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', profileId)
+      .maybeSingle();
+
+    if (error || !data) {
+      notify('Nie udało się otworzyć wizytówki autora komentarza.');
+      return;
+    }
+
+    const mappedProfile = mapSupabaseProfile(data as SupabaseProfile);
+    setSelectedProfile(mappedProfile);
+    setView('profile');
+  };
+
   const openMessages = (profile?: Profile) => {
     if (!isLoggedIn) {
       notify('Zaloguj się lub zarejestruj, aby korzystać z czatu.');
@@ -703,6 +728,7 @@ export default function App() {
                 unlockedGalleries={unlockedGalleries}
                 onUnlockGallery={unlockGallery}
                 onLoginRequest={() => setView('auth')}
+                onOpenAuthorProfile={openProfileById}
                 isAdmin={userName === adminEmail}
                 guestRestrictions={guestRestrictions}
                 onGuestFeatureBlock={guestRestrictions.triggerFeatureModal}

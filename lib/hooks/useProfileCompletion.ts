@@ -45,30 +45,13 @@ export function useProfileCompletion(isLoggedIn: boolean) {
         .maybeSingle();
 
       if (profileData) {
-        // Sprawdź czy użytkownik ma zdjęcia w profile_photos
-        const { data: photos } = await supabase
-          .from('profile_photos')
-          .select('id')
+        const { data: avatarData } = await supabase
+          .from('avatars')
+          .select('url')
           .eq('profile_id', user.id)
-          .limit(1);
+          .maybeSingle();
 
-        // Jeśli ma zdjęcia w profile_photos, użyj pierwszego jako image
-        let imageUrl = profileData.image_url;
-        if (photos && photos.length > 0) {
-          // Pobierz pierwsze zdjęcie
-          const { data: photoData } = await supabase
-            .from('profile_photos')
-            .select('url, is_main')
-            .eq('profile_id', user.id)
-            .order('is_main', { ascending: false })
-            .order('sort_order')
-            .limit(1)
-            .single();
-          
-          if (photoData?.url) {
-            imageUrl = photoData.url;
-          }
-        }
+        const imageUrl = avatarData?.url || profileData.image_url;
 
         const profile: Profile = {
           id: profileData.id,

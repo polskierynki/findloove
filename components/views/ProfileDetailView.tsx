@@ -22,6 +22,7 @@ interface ProfileDetailViewProps {
   unlockedGalleries: string[];
   onUnlockGallery: (id: string) => void;
   onLoginRequest: () => void;
+  onOpenAuthorProfile?: (profileId: string) => void;
   isAdmin?: boolean;
   guestRestrictions?: {
     isRestricted: boolean;
@@ -52,6 +53,31 @@ const PREMIUM_EMOTE_PACK: { emoji: string; label: string; tokenCost: number }[] 
 ];
 
 type InteractionKind = 'poke' | 'gift' | 'emote';
+
+type ProfileCommentRow = {
+  id: string;
+  profile_id: string;
+  author_profile_id: string;
+  content: string;
+  created_at: string;
+};
+
+type CommentAuthor = {
+  id: string;
+  name: string;
+  image_url: string | null;
+  city: string | null;
+};
+
+type ProfileCommentItem = {
+  id: string;
+  content: string;
+  createdAt: string;
+  authorId: string;
+  authorName: string;
+  authorImage: string;
+  authorCity: string;
+};
 
 /* ── fallback avatar ─────────────────────────────────────────── */
 function ProfileAvatar({ src, name, className }: { src: string; name: string; className: string }) {
@@ -90,6 +116,7 @@ export default function ProfileDetailView({
   unlockedGalleries,
   onUnlockGallery,
   onLoginRequest,
+  onOpenAuthorProfile,
   isAdmin = false,
   guestRestrictions,
   onGuestFeatureBlock,
@@ -104,6 +131,72 @@ export default function ProfileDetailView({
   const [lockModal, setLockModal] = useState(false);
   const [senderProfileId, setSenderProfileId] = useState<string | null>(null);
   const [actionInFlight, setActionInFlight] = useState<string | null>(null);
+  const [comments, setComments] = useState<ProfileCommentItem[]>([]);
+  const [commentsLoading, setCommentsLoading] = useState(false);
+  const [commentText, setCommentText] = useState('');
+  const [commentSaving, setCommentSaving] = useState(false);
+
+  const loadComments = async () => {
+    setCommentsLoading(true);
+    const { data: commentRows, error: commentsError } = await supabase
+      .from('profile_comments')
+      .select('id, profile_id, author_profile_id, content, created_at')
+      .eq('profile_id', p.id)
+      .order('created_at', { ascending: false });
+
+    if (commentsError) {
+      onNotify('Nie udało się pobrać komentarzy: ' + commentsError.message);
+      setComments([]);
+      setCommentsLoading(false);
+      return;
+    }
+
+    const rows = (commentRows || []) as ProfileCommentRow[];
+    if (rows.length === 0) {
+      setComments([]);
+      setCommentsLoading(false);
+      return;
+    }
+
+    const authorIds = Array.from(new Set(rows.map((row) => row.author_profile_id)));
+    const { data: authorRows, error: authorsError } = await supabase
+      .from('profiles')
+      .select('id, name, image_url, city')
+      .in('id', authorIds);
+
+    if (authorsError) {
+      onNotify('Nie udało się pobrać autorów komentarzy: ' + authorsError.message);
+    }
+
+    const authorMap = new Map<string, CommentAuthor>();
+    (authorRows || []).forEach((author: any) => {
+      authorMap.set(author.id, {
+        id: author.id,
+        name: author.name || 'Użytkownik',
+        image_url: author.image_url || null,
+        city: author.city || '',
+      });
+    });
+
+    const mappedComments: ProfileCommentItem[] = rows.map((row) => {
+      const author = authorMap.get(row.author_profile_id);
+      const fallbackName = row.author_profile_id === senderProfileId ? 'Ty' : 'Użytkownik';
+      return {
+        id: row.id,
+        content: row.content,
+        createdAt: row.created_at,
+        authorId: row.author_profile_id,
+        authorName: author?.name || fallbackName,
+        authorImage:
+          author?.image_url ||
+          `https://ui-avatars.com/api/?name=${encodeURIComponent(author?.name || fallbackName)}&background=C05868&color=fff&size=256`,
+        authorCity: author?.city || '',
+      };
+    });
+
+    setComments(mappedComments);
+    setCommentsLoading(false);
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -127,6 +220,72 @@ export default function ProfileDetailView({
       cancelled = true;
     };
   }, [isLoggedIn]);
+
+  useEffect(() => {
+    loadComments();
+  }, [p.id]);
+
+  const openCommentAuthor = (authorId: string) => {
+    if (!authorId || authorId === p.id) return;
+    if (onOpenAuthorProfile) {
+      onOpenAuthorProfile(authorId);
+      return;
+    }
+    window.location.href = `/profile/${encodeURIComponent(authorId)}`;
+  };
+
+  const submitComment = async () => {
+    const content = commentText.trim();
+
+    if (!isLoggedIn) {
+      onLoginRequest();
+      return;
+    }
+
+    if (!senderProfileId) {
+      onNotify('Nie udało się pobrać Twojego profilu. Odśwież stronę i spróbuj ponownie.');
+      return;
+    }
+
+    if (content.length < 2) {
+      onNotify('Komentarz musi mieć co najmniej 2 znaki.');
+      return;
+    }
+
+    if (content.length > 400) {
+      onNotify('Komentarz może mieć maksymalnie 400 znaków.');
+      return;
+    }
+
+    setCommentSaving(true);
+    const { error } = await supabase.from('profile_comments').insert({
+      profile_id: p.id,
+      author_profile_id: senderProfileId,
+      content,
+    });
+    setCommentSaving(false);
+
+    if (error) {
+      onNotify('Nie udało się dodać komentarza: ' + error.message);
+      return;
+    }
+
+    setCommentText('');
+    onNotify('Komentarz został dodany.');
+    loadComments();
+  };
+
+  const formatCommentDate = (isoDate: string): string => {
+    const date = new Date(isoDate);
+    if (Number.isNaN(date.getTime())) return '';
+    return date.toLocaleString('pl-PL', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
 
   const ensureCanInteract = (): boolean => {
     if (!isLoggedIn) {
@@ -500,6 +659,64 @@ export default function ProfileDetailView({
         <p className="text-slate-700 leading-relaxed text-base italic pt-2">
           &quot;{p.bio}&quot;
         </p>
+      </div>
+
+      {/* ── KOMENTARZE ── */}
+      <div className="bg-white border border-slate-100 rounded-3xl p-6 mb-6 shadow-sm">
+        <h4 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-3">Komentarze użytkowników</h4>
+
+        <div className="mb-4 rounded-2xl border border-slate-200 bg-slate-50 p-3">
+          <textarea
+            value={commentText}
+            onChange={(e) => setCommentText(e.target.value)}
+            maxLength={400}
+            placeholder={isLoggedIn ? `Napisz komentarz o profilu ${p.name}...` : 'Zaloguj się, aby dodać komentarz'}
+            disabled={!isLoggedIn || commentSaving}
+            className="h-24 w-full resize-none rounded-xl border border-slate-200 bg-white p-3 text-sm text-slate-700 outline-none focus:border-rose-300 focus:ring-2 focus:ring-rose-100 disabled:opacity-60"
+          />
+          <div className="mt-2 flex items-center justify-between">
+            <span className="text-xs text-slate-400">{commentText.length}/400</span>
+            <button
+              onClick={submitComment}
+              disabled={!isLoggedIn || commentSaving || commentText.trim().length < 2}
+              className="rounded-xl bg-rose-500 px-3 py-1.5 text-xs font-bold text-white hover:bg-rose-600 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {commentSaving ? 'Dodawanie...' : 'Dodaj komentarz'}
+            </button>
+          </div>
+        </div>
+
+        {commentsLoading ? (
+          <p className="text-sm text-slate-500">Ładowanie komentarzy...</p>
+        ) : comments.length === 0 ? (
+          <p className="text-sm text-slate-500">Brak komentarzy. Bądź pierwszą osobą, która skomentuje ten profil.</p>
+        ) : (
+          <div className="space-y-3">
+            {comments.map((comment) => (
+              <article key={comment.id} className="rounded-2xl border border-slate-100 bg-white p-3">
+                <button
+                  onClick={() => openCommentAuthor(comment.authorId)}
+                  className="mb-2 flex w-full items-center gap-2 rounded-xl p-1 text-left hover:bg-slate-50"
+                  title="Przejdź do wizytówki autora"
+                >
+                  <img
+                    src={comment.authorImage}
+                    alt={comment.authorName}
+                    className="h-10 w-10 rounded-full object-cover"
+                  />
+                  <div>
+                    <p className="text-sm font-semibold text-slate-800">{comment.authorName}</p>
+                    <p className="text-xs text-slate-400">
+                      {comment.authorCity ? `${comment.authorCity} • ` : ''}
+                      {formatCommentDate(comment.createdAt)}
+                    </p>
+                  </div>
+                </button>
+                <p className="text-sm leading-relaxed text-slate-700">{comment.content}</p>
+              </article>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* ── STATUS ── */}

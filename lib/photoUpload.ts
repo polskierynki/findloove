@@ -5,6 +5,12 @@ type PhotoMutationResult = {
   error?: string;
 };
 
+type AvatarRecord = {
+  id: string;
+  profile_id: string;
+  url: string;
+};
+
 // Crop image na podstawie koordinat i konwertuj do File
 export async function cropImage(
   imageSrc: string,
@@ -78,6 +84,91 @@ export async function uploadProfilePhoto(
   // Pobierz publiczny URL do pliku z Supabase Storage
   const { data } = supabase.storage.from('profile-photos').getPublicUrl(filePath);
   return { url: data.publicUrl };
+}
+
+// Upload avatara do dedykowanego bucketu 'avatars'
+export async function uploadAvatarPhoto(
+  file: File,
+  userId: string,
+): Promise<{ url: string | null; error?: string }> {
+  const fileExt = file.name.split('.').pop();
+  const filePath = `avatars/${userId}/${Date.now()}.${fileExt}`;
+
+  const { error: uploadError } = await supabase.storage.from('avatars').upload(filePath, file, {
+    cacheControl: '3600',
+    upsert: true,
+  });
+
+  if (uploadError) {
+    console.error('=== BLAD UPLOADU AVATARA DO STORAGE ===');
+    console.error('Error object:', uploadError);
+    console.error('Error message:', uploadError.message);
+    console.table({ userId, filePath, fileSize: file.size, fileType: file.type });
+    return {
+      url: null,
+      error: uploadError.message || 'Blad uploadu avatara do storage.objects',
+    };
+  }
+
+  const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
+  return { url: data.publicUrl };
+}
+
+// Pobierz avatar dla profilu (jeden rekord)
+export async function getAvatarByProfileId(
+  userId: string,
+): Promise<{ avatar: AvatarRecord | null; error?: string }> {
+  const { data, error } = await supabase
+    .from('avatars')
+    .select('id, profile_id, url')
+    .eq('profile_id', userId)
+    .maybeSingle();
+
+  if (error) {
+    console.error('Blad pobierania avatara:', error);
+    return { avatar: null, error: error.message };
+  }
+
+  return { avatar: (data as AvatarRecord) || null };
+}
+
+// Zapisz lub podmień avatar (jeden rekord na profil)
+export async function upsertAvatarForProfile(
+  userId: string,
+  avatarUrl: string,
+): Promise<{ success: boolean; avatar?: AvatarRecord; error?: string }> {
+  const { data, error } = await supabase
+    .from('avatars')
+    .upsert({ profile_id: userId, url: avatarUrl }, { onConflict: 'profile_id' })
+    .select('id, profile_id, url')
+    .single();
+
+  if (error) {
+    console.error('Blad zapisu avatara:', error);
+    return {
+      success: false,
+      error: error.message || 'Blad zapisu avatara',
+    };
+  }
+
+  return {
+    success: true,
+    avatar: data as AvatarRecord,
+  };
+}
+
+// Usuń avatar profilu
+export async function removeAvatarForProfile(userId: string): Promise<PhotoMutationResult> {
+  const { error } = await supabase.from('avatars').delete().eq('profile_id', userId);
+  if (error) {
+    console.error('Blad usuwania avatara:', error);
+    return {
+      success: false,
+      error: error.message || 'Blad usuwania avatara',
+    };
+  }
+
+  return { success: true };
 }
 
 // Dodaj zdjęcie do photos[] w profiles (prosta galeria)

@@ -52,7 +52,17 @@ async function fetchUserStats(userId: string) {
 }
 import { supabase } from '@/lib/supabase';
 
-import { uploadProfilePhoto, addPhotoToProfilePhotos, removePhotoFromProfilePhotos, setMainProfilePhoto, cropImage } from '@/lib/photoUpload';
+import {
+  uploadProfilePhoto,
+  addPhotoToProfilePhotos,
+  removePhotoFromProfilePhotos,
+  setMainProfilePhoto,
+  cropImage,
+  uploadAvatarPhoto,
+  getAvatarByProfileId,
+  upsertAvatarForProfile,
+  removeAvatarForProfile,
+} from '@/lib/photoUpload';
 import { FaceVerificationModal } from './FaceVerificationModal';
 import CropImageModal from '@/components/layout/CropImageModal';
 
@@ -60,6 +70,7 @@ export default function MyProfile() {
   const [profile, setProfile] = useState<any>(null);
   const [showFaceModal, setShowFaceModal] = useState(false);
   const [verifying, setVerifying] = useState(false);
+  const [avatar, setAvatar] = useState<any>(null);
   const [photos, setPhotos] = useState<any[]>([]);
   const [pendingPhotos, setPendingPhotos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -70,6 +81,7 @@ export default function MyProfile() {
   const [stats, setStats] = useState<any>(null);
   const [showCropModal, setShowCropModal] = useState(false);
   const [cropImageSrc, setCropImageSrc] = useState<string>('');
+  const [cropTarget, setCropTarget] = useState<'avatar' | null>(null);
 
   // Pobierz dane profilu i zdjęcia po zalogowaniu
   useEffect(() => {
@@ -150,6 +162,14 @@ export default function MyProfile() {
         
         const { data: ph } = await supabase.from('profile_photos').select('*').eq('profile_id', user.id).order('sort_order');
         setPhotos(ph || []);
+
+        const { avatar: avatarData } = await getAvatarByProfileId(user.id);
+        setAvatar(avatarData || null);
+
+        if (avatarData?.url) {
+          setProfile((prev: any) => (prev ? { ...prev, image_url: avatarData.url } : prev));
+          setForm((prev: any) => ({ ...(prev || {}), image_url: avatarData.url }));
+        }
         
         // Pobierz statystyki aktywności
         const stats = await fetchUserStats(user.id);
@@ -277,19 +297,25 @@ export default function MyProfile() {
     }
   };
 
-  // Wybierz zdjęcie główne do edycji (cropp)
+  // Wybierz avatar do kadrowania
   const handleEditMainPhoto = () => {
-    if (profile?.image) {
-      setCropImageSrc(profile.image);
-      setShowCropModal(true);
+    const currentAvatarUrl = avatar?.url || profile?.image_url;
+    if (!currentAvatarUrl) {
+      alert('Najpierw dodaj avatar.');
+      return;
     }
+
+    setCropTarget('avatar');
+    setCropImageSrc(currentAvatarUrl);
+    setShowCropModal(true);
   };
 
-  // Zapisz skroplowane zdjęcie i ustaw jako główne
+  // Zapisz skadrowane zdjecie i ustaw jako avatar
   const handleSaveCroppedPhoto = async (crop: any, zoom: number) => {
+    if (cropTarget !== 'avatar') return;
+
     setLoading(true);
     try {
-      // Crop image i skonwertuj do File
       const { file, error } = await cropImage(cropImageSrc, crop, zoom);
       
       if (!file || error) {
@@ -297,45 +323,43 @@ export default function MyProfile() {
         return;
       }
 
-      // Uploaduj nowe zdjęcie
-      const { url, error: uploadError } = await uploadProfilePhoto(file, profile.id);
+      const { url, error: uploadError } = await uploadAvatarPhoto(file, profile.id);
       if (!url) {
         alert(`Błąd uploadu: ${uploadError}`);
         return;
       }
 
-      // Dodaj do profile_photos jako główne
-      const added = await addPhotoToProfilePhotos(profile.id, url, true, 0);
-      if (!added.success) {
-        alert(`Błąd zapisu: ${added.error}`);
+      const savedAvatar = await upsertAvatarForProfile(profile.id, url);
+      if (!savedAvatar.success) {
+        alert(`Błąd zapisu avatara: ${savedAvatar.error}`);
         return;
       }
 
-      // Zaktualizuj profil głównym zdjęciem
-      await supabase.from('profiles').update({ image_url: url }).eq('id', profile.id);
+      const { error: profileUpdateError } = await supabase
+        .from('profiles')
+        .update({ image_url: url })
+        .eq('id', profile.id);
 
-      // Pobierz zaktualizowaną listę zdjęć
-      const { data: ph } = await supabase
-        .from('profile_photos')
-        .select('*')
-        .eq('profile_id', profile.id)
-        .order('sort_order');
-      setPhotos(ph || []);
+      if (profileUpdateError) {
+        alert(`Avatar zapisany, ale nie udalo sie zaktualizowac profilu: ${profileUpdateError.message}`);
+      }
 
-      // Zaktualizuj profil w state
-      setProfile({ ...profile, image_url: url });
+      setAvatar(savedAvatar.avatar || { id: '', profile_id: profile.id, url });
+      setProfile((prev: any) => ({ ...(prev || {}), image_url: url }));
+      setForm((prev: any) => ({ ...(prev || {}), image_url: url }));
 
       setShowCropModal(false);
-      alert('✓ Zdjęcie profilowe zostało zmienione!');
+      setCropTarget(null);
+      alert('✓ Avatar został zaktualizowany!');
     } catch (err) {
       console.error('Error saving cropped photo:', err);
-      alert('Błąd przy zapisywaniu zdjęcia');
+      alert('Błąd przy zapisywaniu avatara');
     } finally {
       setLoading(false);
     }
   };
 
-  // Uploaduj nowe zdjęcie do edycji
+  // Uploaduj nowe zdjecie avatara do kadrowania
   const handleProfilePhotoUpload = async (e: any) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -343,16 +367,43 @@ export default function MyProfile() {
     const reader = new FileReader();
     reader.onload = (evt) => {
       const imgSrc = evt.target?.result as string;
+      setCropTarget('avatar');
       setCropImageSrc(imgSrc);
       setShowCropModal(true);
     };
     reader.readAsDataURL(file);
   };
 
-  // Wybierz zdjęcie z galerii do edycji
-  const handleEditPhotoFromGallery = (photoUrl: string) => {
-    setCropImageSrc(photoUrl);
-    setShowCropModal(true);
+  // Usun avatar (oddzielny od galerii)
+  const handleRemoveAvatar = async () => {
+    if (!profile?.id) return;
+
+    setLoading(true);
+    try {
+      const removed = await removeAvatarForProfile(profile.id);
+      if (!removed.success) {
+        alert(`Nie udalo sie usunac avatara: ${removed.error || 'brak dodatkowych informacji'}`);
+        return;
+      }
+
+      const { error: profileUpdateError } = await supabase
+        .from('profiles')
+        .update({ image_url: '' })
+        .eq('id', profile.id);
+
+      if (profileUpdateError) {
+        alert(`Avatar usuniety, ale nie udalo sie wyczyscic image_url: ${profileUpdateError.message}`);
+      }
+
+      setAvatar(null);
+      setProfile((prev: any) => ({ ...(prev || {}), image_url: '' }));
+      setForm((prev: any) => ({ ...(prev || {}), image_url: '' }));
+    } catch (err) {
+      console.error('Error removing avatar:', err);
+      alert('Nieoczekiwany błąd przy usuwaniu avatara.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Usuń zdjęcie
@@ -405,11 +456,7 @@ export default function MyProfile() {
     setVerifying(false);
   };
 
-  const mainPhotoUrl =
-    photos.find((photo) => photo.is_main)?.url ||
-    photos[0]?.url ||
-    profile?.image_url ||
-    '/logo/logo.jpg';
+  const avatarUrl = avatar?.url || profile?.image_url || '/logo/logo.jpg';
 
   const completionChecks = [
     Boolean(profile?.name),
@@ -417,7 +464,7 @@ export default function MyProfile() {
     Boolean(profile?.city),
     Boolean(profile?.bio),
     Boolean(profile?.interests?.length),
-    photos.length > 0 || pendingPhotos.length > 0,
+    Boolean(avatar?.url || profile?.image_url),
   ];
   const completionPercent = Math.round(
     (completionChecks.filter(Boolean).length / completionChecks.length) * 100,
@@ -435,7 +482,7 @@ export default function MyProfile() {
         <div className="relative grid gap-4 md:grid-cols-[96px_1fr_auto] md:items-center">
           <div className="group relative">
             <img
-              src={mainPhotoUrl}
+              src={avatarUrl}
               alt="Zdjecie glowne profilu"
               className="h-24 w-24 rounded-2xl object-cover border-2 border-white shadow"
             />
@@ -443,12 +490,8 @@ export default function MyProfile() {
               onClick={handleEditMainPhoto}
               className="absolute inset-0 flex items-center justify-center rounded-2xl bg-black/40 opacity-0 transition-opacity group-hover:opacity-100"
             >
-              <span className="text-[11px] font-bold text-white">Edytuj</span>
+              <span className="text-[11px] font-bold text-white">Kadruj</span>
             </button>
-            <label className="absolute -bottom-2 -right-2 cursor-pointer rounded-full bg-rose-500 p-2 shadow hover:bg-rose-600">
-              <input type="file" accept="image/*" className="hidden" onChange={handleProfilePhotoUpload} />
-              <span className="text-xs text-white">+</span>
-            </label>
           </div>
 
           <div>
@@ -523,7 +566,10 @@ export default function MyProfile() {
       <CropImageModal
         isOpen={showCropModal}
         imageSrc={cropImageSrc}
-        onClose={() => setShowCropModal(false)}
+        onClose={() => {
+          setShowCropModal(false);
+          setCropTarget(null);
+        }}
         onSave={handleSaveCroppedPhoto}
       />
 
@@ -796,6 +842,47 @@ export default function MyProfile() {
 
           <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
             <div className="mb-3 flex items-center justify-between">
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-600">Avatar</h3>
+              <span className="text-xs font-medium text-slate-500">{avatar?.url ? '1/1' : '0/1'}</span>
+            </div>
+
+            <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-3">
+              <img
+                src={avatarUrl}
+                alt="Avatar"
+                className="h-20 w-20 rounded-2xl border border-slate-200 object-cover"
+              />
+              <div className="flex-1 space-y-2">
+                <label className="inline-flex cursor-pointer items-center rounded-xl bg-rose-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-rose-600">
+                  <input type="file" accept="image/*" className="hidden" onChange={handleProfilePhotoUpload} />
+                  {avatar?.url ? 'Zmien avatar' : 'Dodaj avatar'}
+                </label>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleEditMainPhoto}
+                    className="rounded-xl border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                  >
+                    Kadruj
+                  </button>
+                  {avatar?.url && (
+                    <button
+                      onClick={handleRemoveAvatar}
+                      className="rounded-xl border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-100"
+                    >
+                      Usun
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <p className="mt-3 text-xs text-slate-500">
+              Avatar dziala osobno i nie jest czescia galerii zdjec.
+            </p>
+          </section>
+
+          <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="mb-3 flex items-center justify-between">
               <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-600">Galeria</h3>
               <span className="text-xs font-medium text-slate-500">{photos.length + pendingPhotos.length}/6</span>
             </div>
@@ -821,7 +908,6 @@ export default function MyProfile() {
                   )}
                   <div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-1 bg-black/45 px-1 py-1 text-[10px] text-white opacity-0 transition-opacity group-hover:opacity-100">
                     <button onClick={() => handleRemovePhoto(photo.id)} className="flex-1 truncate font-semibold">Usun</button>
-                    <button onClick={() => handleEditPhotoFromGallery(photo.url)} className="font-semibold text-amber-200">Edytuj</button>
                     {!photo.is_main && (
                       <button onClick={() => handleSetMain(photo.id)} className="font-semibold text-amber-200">Glowne</button>
                     )}
