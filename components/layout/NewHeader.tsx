@@ -3,7 +3,7 @@
 import { useContext, useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { Bell, MessageCircle, Shield, Menu, X, Gift, Heart, BadgeCheck, MessageSquareText, User } from 'lucide-react';
+import { Bell, MessageCircle, Shield, Menu, X, Gift, Heart, BadgeCheck, MessageSquareText, User, UserPlus } from 'lucide-react';
 
 export default function NewHeader() {
   const router = useRouter();
@@ -242,9 +242,16 @@ export default function NewHeader() {
           {!user ? (
             <button
               onClick={() => router.push('/auth')}
-              className="hidden sm:flex items-center gap-2 bg-gradient-to-r from-fuchsia-600 to-cyan-600 hover:from-fuchsia-500 hover:to-cyan-500 px-5 lg:px-6 py-2 rounded-full font-medium text-sm transition-all shadow-[0_0_15px_rgba(255,0,255,0.3)] hover:shadow-[0_0_25px_rgba(0,255,255,0.5)]"
+              className="group relative hidden sm:flex items-center gap-2 bg-gradient-to-r from-fuchsia-600 to-cyan-600 hover:from-fuchsia-500 hover:to-cyan-500 px-5 lg:px-6 py-2.5 rounded-full font-medium text-sm text-white transition-all shadow-[0_0_15px_rgba(255,0,255,0.3)] hover:shadow-[0_0_25px_rgba(0,255,255,0.5)] active:scale-95 overflow-hidden"
             >
-              Zaloguj
+              {/* Animated gradient overlay */}
+              <div className="absolute inset-0 bg-gradient-to-r from-cyan-400 to-fuchsia-400 opacity-0 group-hover:opacity-20 transition-opacity"></div>
+              
+              <User size={18} className="relative z-10 group-hover:scale-110 transition-transform" />
+              <span className="relative z-10">Zaloguj się</span>
+              
+              {/* Pulse ring on hover */}
+              <span className="absolute inset-0 rounded-full bg-cyan-400/20 scale-100 group-hover:scale-110 opacity-0 group-hover:opacity-100 blur-md transition-all duration-300"></span>
             </button>
           ) : (
             <button
@@ -337,6 +344,32 @@ export default function NewHeader() {
               >
                 Panel Admina
               </button>
+            )}
+            
+            {/* Mobile Login/Register Button */}
+            {!user && (
+              <div className="mt-4 pt-4 border-t border-white/10 space-y-2">
+                <button
+                  onClick={() => {
+                    router.push('/auth');
+                    setMobileMenuOpen(false);
+                  }}
+                  className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-fuchsia-600 to-cyan-600 hover:from-fuchsia-500 hover:to-cyan-500 px-5 py-3 rounded-full font-medium text-white shadow-[0_0_15px_rgba(255,0,255,0.3)] active:scale-95 transition-all"
+                >
+                  <User size={18} />
+                  Zaloguj się
+                </button>
+                <button
+                  onClick={() => {
+                    router.push('/register');
+                    setMobileMenuOpen(false);
+                  }}
+                  className="w-full flex items-center justify-center gap-2 border border-cyan-500/40 bg-cyan-500/10 px-5 py-3 rounded-full font-medium text-cyan-200 hover:bg-cyan-500/20 transition-all"
+                >
+                  <UserPlus size={18} />
+                  Załóż konto
+                </button>
+              </div>
             )}
           </nav>
         </div>
