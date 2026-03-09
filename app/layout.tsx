@@ -29,6 +29,7 @@ export const metadata: Metadata = {
 };
 
 import CookieBanner from '@/components/layout/CookieBanner';
+import NewHeader from '@/components/layout/NewHeader';
 
 export default function RootLayout({
   children,
@@ -36,9 +37,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-        {children}
+    <html lang="pl">
+      <head>
+        <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="preload" as="style" />
+        <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+      </head>
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased selection:bg-fuchsia-500/30 selection:text-fuchsia-100`}>
+        <NewHeader />
+        <main className="relative z-10">
+          {children}
+        </main>
         <CookieBanner />
       </body>
     </html>

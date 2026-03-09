@@ -597,7 +597,9 @@ create trigger ban_user_on_third_strike
 
 -- RLS: Blokuj operacje dla zbanowanych użytkowników
 -- Update policy dla profile_comments: zablokowuje dodawanie komentarzy dla zbanowanych
-create or replace policy "Block banned users from commenting"
+drop policy if exists "Block banned users from commenting" on public.profile_comments;
+
+create policy "Block banned users from commenting"
   on public.profile_comments
   for insert
   to authenticated
@@ -611,6 +613,8 @@ create or replace policy "Block banned users from commenting"
   );
 
 -- Admin może usuwać komentarze
+drop policy if exists "Admin delete any comments" on public.profile_comments;
+
 create policy "Admin delete any comments"
   on public.profile_comments
   for delete
