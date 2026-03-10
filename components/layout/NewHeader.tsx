@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
@@ -8,13 +8,57 @@ import { Bell, MessageCircle, Shield, Menu, X, Gift, Heart, BadgeCheck, LogIn, L
 
 type HeaderProfile = {
   role?: string | null;
+  is_verified?: boolean | null;
+  created_at?: string | null;
 };
+
+type NotificationKind = 'gift' | 'like' | 'poke' | 'verification' | 'comment';
+
+type NotificationItem = {
+  id: string;
+  kind: NotificationKind;
+  actorName?: string;
+  actorImageUrl?: string;
+  message: string;
+  createdAt: string;
+  href: string;
+};
+
+function toTimestamp(value?: string | null): number {
+  if (!value) return 0;
+  const ts = Date.parse(value);
+  return Number.isNaN(ts) ? 0 : ts;
+}
+
+function formatNotificationTime(timestamp: string): string {
+  const ts = toTimestamp(timestamp);
+  if (!ts) return 'Przed chwila';
+
+  const diffMs = Date.now() - ts;
+  const diffMin = Math.floor(diffMs / 60000);
+  const diffHour = Math.floor(diffMs / 3600000);
+  const diffDay = Math.floor(diffMs / 86400000);
+
+  if (diffMin < 1) return 'Teraz';
+  if (diffMin < 60) return `${diffMin} min temu`;
+  if (diffHour < 24) return `${diffHour} godz. temu`;
+  if (diffDay === 1) return 'Wczoraj';
+  if (diffDay < 7) return `${diffDay} dni temu`;
+
+  return new Date(ts).toLocaleDateString('pl-PL', {
+    day: 'numeric',
+    month: 'short',
+  });
+}
 
 export default function NewHeader() {
   const router = useRouter();
   const pathname = usePathname();
   const [user, setUser] = useState<SupabaseUser | null>(null);
   const [profile, setProfile] = useState<HeaderProfile | null>(null);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
+  const [lastReadAt, setLastReadAt] = useState<number>(0);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
@@ -23,7 +67,7 @@ export default function NewHeader() {
     if (path === '/') return 'home';
     if (path.startsWith('/search')) return 'search';
     if (path.startsWith('/messages')) return 'messages';
-    if (path.startsWith('/myprofile') || path.startsWith('/profile')) return 'profile';
+    if (path.startsWith('/myprofile')) return 'profile';
     return null;
   };
   
@@ -32,12 +76,201 @@ export default function NewHeader() {
   const loadProfile = useCallback(async (userId: string) => {
     const { data } = await supabase
       .from('profiles')
-      .select('role')
+      .select('role, is_verified, created_at')
       .eq('id', userId)
       .maybeSingle();
 
     setProfile((data as HeaderProfile | null) ?? null);
   }, []);
+
+  const loadNotifications = useCallback(async () => {
+    if (!user) {
+      setNotifications([]);
+      return;
+    }
+
+    setNotificationsLoading(true);
+
+    try {
+      const myProfileId = user.id;
+
+      const [likesRes, interactionsRes, commentsRes] = await Promise.all([
+        supabase
+          .from('likes')
+          .select('id, from_profile_id, created_at')
+          .eq('to_profile_id', myProfileId)
+          .order('created_at', { ascending: false })
+          .limit(20),
+        supabase
+          .from('profile_interactions')
+          .select('id, from_profile_id, kind, label, emoji, created_at')
+          .eq('to_profile_id', myProfileId)
+          .in('kind', ['gift', 'poke'])
+          .order('created_at', { ascending: false })
+          .limit(20),
+        supabase
+          .from('profile_comments')
+          .select('id, author_profile_id, content, created_at')
+          .eq('profile_id', myProfileId)
+          .neq('author_profile_id', myProfileId)
+          .order('created_at', { ascending: false })
+          .limit(20),
+      ]);
+
+      if (likesRes.error) {
+        console.error('Blad ladowania polubien do powiadomien:', likesRes.error.message);
+      }
+
+      if (
+        interactionsRes.error &&
+        !interactionsRes.error.message.toLowerCase().includes('does not exist')
+      ) {
+        console.error('Blad ladowania zaczepien/prezentow do powiadomien:', interactionsRes.error.message);
+      }
+
+      if (
+        commentsRes.error &&
+        !commentsRes.error.message.toLowerCase().includes('does not exist')
+      ) {
+        console.error('Blad ladowania komentarzy do powiadomien:', commentsRes.error.message);
+      }
+
+      type LikeRow = { id: string; from_profile_id: string; created_at: string };
+      type InteractionRow = {
+        id: string;
+        from_profile_id: string;
+        kind: 'gift' | 'poke' | 'emote';
+        label?: string | null;
+        emoji?: string | null;
+        created_at: string;
+      };
+      type CommentRow = {
+        id: string;
+        author_profile_id: string;
+        content: string;
+        created_at: string;
+      };
+
+      const likes = (likesRes.data as LikeRow[] | null) ?? [];
+      const interactions = interactionsRes.error
+        ? []
+        : ((interactionsRes.data as InteractionRow[] | null) ?? []);
+      const comments = commentsRes.error
+        ? []
+        : ((commentsRes.data as CommentRow[] | null) ?? []);
+
+      const actorIds = Array.from(
+        new Set([
+          ...likes.map((row) => row.from_profile_id),
+          ...interactions.map((row) => row.from_profile_id),
+          ...comments.map((row) => row.author_profile_id),
+        ]),
+      );
+
+      const actorMap = new Map<string, { id: string; name?: string | null; image_url?: string | null }>();
+
+      if (actorIds.length > 0) {
+        const { data: actors, error: actorsError } = await supabase
+          .from('profiles')
+          .select('id, name, image_url')
+          .in('id', actorIds);
+
+        if (actorsError) {
+          console.error('Blad ladowania autorow powiadomien:', actorsError.message);
+        } else {
+          for (const actor of actors ?? []) {
+            actorMap.set(actor.id as string, {
+              id: actor.id as string,
+              name: (actor as { name?: string | null }).name,
+              image_url: (actor as { image_url?: string | null }).image_url,
+            });
+          }
+        }
+      }
+
+      const nextNotifications: NotificationItem[] = [];
+
+      for (const like of likes) {
+        const actor = actorMap.get(like.from_profile_id);
+        const actorName = actor?.name || 'Ktos';
+        nextNotifications.push({
+          id: `like-${like.id}`,
+          kind: 'like',
+          actorName,
+          actorImageUrl: actor?.image_url || undefined,
+          message: `${actorName} polubil Twoj profil. Sprawdz, czy to match!`,
+          createdAt: like.created_at,
+          href: `/profile/${encodeURIComponent(like.from_profile_id)}`,
+        });
+      }
+
+      for (const interaction of interactions) {
+        const actor = actorMap.get(interaction.from_profile_id);
+        const actorName = actor?.name || 'Ktos';
+
+        if (interaction.kind === 'gift') {
+          const giftLabel = interaction.label ? ` (${interaction.label})` : '';
+          const giftEmoji = interaction.emoji ? ` ${interaction.emoji}` : '';
+          nextNotifications.push({
+            id: `gift-${interaction.id}`,
+            kind: 'gift',
+            actorName,
+            actorImageUrl: actor?.image_url || undefined,
+            message: `${actorName} wyslal Ci prezent${giftLabel}!${giftEmoji}`,
+            createdAt: interaction.created_at,
+            href: `/profile/${encodeURIComponent(interaction.from_profile_id)}`,
+          });
+        }
+
+        if (interaction.kind === 'poke') {
+          nextNotifications.push({
+            id: `poke-${interaction.id}`,
+            kind: 'poke',
+            actorName,
+            actorImageUrl: actor?.image_url || undefined,
+            message: `${actorName} zaczepil Cie. Odpowiesz?`,
+            createdAt: interaction.created_at,
+            href: `/profile/${encodeURIComponent(interaction.from_profile_id)}`,
+          });
+        }
+      }
+
+      for (const comment of comments) {
+        const actor = actorMap.get(comment.author_profile_id);
+        const actorName = actor?.name || 'Ktos';
+        const snippet = comment.content.length > 90
+          ? `${comment.content.slice(0, 90)}...`
+          : comment.content;
+
+        nextNotifications.push({
+          id: `comment-${comment.id}`,
+          kind: 'comment',
+          actorName,
+          actorImageUrl: actor?.image_url || undefined,
+          message: `${actorName} skomentowal Twoj profil: "${snippet}"`,
+          createdAt: comment.created_at,
+          href: '/myprofile',
+        });
+      }
+
+      if (profile?.is_verified) {
+        nextNotifications.push({
+          id: `verification-${myProfileId}`,
+          kind: 'verification',
+          message: 'Twoj profil zostal pomyslnie zweryfikowany.',
+          createdAt: profile.created_at || new Date().toISOString(),
+          href: '/myprofile',
+        });
+      }
+
+      nextNotifications.sort((a, b) => toTimestamp(b.createdAt) - toTimestamp(a.createdAt));
+      setNotifications(nextNotifications.slice(0, 40));
+    } catch (error) {
+      console.error('Blad ladowania centrum powiadomien:', error);
+    } finally {
+      setNotificationsLoading(false);
+    }
+  }, [profile?.created_at, profile?.is_verified, user]);
 
   useEffect(() => {
     let active = true;
@@ -77,6 +310,57 @@ export default function NewHeader() {
       authListener.subscription.unsubscribe();
     };
   }, [loadProfile]);
+
+  useEffect(() => {
+    if (!user) {
+      setNotifications([]);
+      setLastReadAt(0);
+      return;
+    }
+
+    void loadNotifications();
+  }, [loadNotifications, user]);
+
+  useEffect(() => {
+    if (!notificationsOpen || !user) return;
+
+    void loadNotifications();
+
+    const refreshTimer = window.setInterval(() => {
+      void loadNotifications();
+    }, 20000);
+
+    return () => {
+      window.clearInterval(refreshTimer);
+    };
+  }, [loadNotifications, notificationsOpen, user]);
+
+  const unreadNotificationsCount = useMemo(() => {
+    if (!lastReadAt) return notifications.length;
+
+    return notifications.filter((notification) => toTimestamp(notification.createdAt) > lastReadAt).length;
+  }, [lastReadAt, notifications]);
+
+  const markAllNotificationsAsRead = useCallback(() => {
+    setLastReadAt(Date.now());
+  }, []);
+
+  const openNotification = useCallback(
+    (href: string) => {
+      router.push(href);
+      setNotificationsOpen(false);
+    },
+    [router],
+  );
+
+  const toggleNotifications = useCallback(() => {
+    const nextOpenState = !notificationsOpen;
+    setNotificationsOpen(nextOpenState);
+
+    if (nextOpenState) {
+      markAllNotificationsAsRead();
+    }
+  }, [markAllNotificationsAsRead, notificationsOpen]);
 
   const handleAuthAction = async () => {
     if (!user) {
@@ -177,12 +461,14 @@ export default function NewHeader() {
           {/* Notifications */}
           <div className="relative" id="notification-wrapper">
             <button
-              onClick={() => setNotificationsOpen(!notificationsOpen)}
+              onClick={toggleNotifications}
               className="relative text-cyan-400 hover:text-cyan-300 transition-all hover:scale-110 duration-300 w-10 h-10 flex items-center justify-center rounded-full hover:shadow-[0_0_15px_rgba(0,255,255,0.6)]"
               id="bell-btn"
             >
               <Bell size={26} />
-              <span className="absolute top-2 right-1.5 w-2.5 h-2.5 bg-fuchsia-500 rounded-full shadow-[0_0_8px_rgba(255,0,255,0.8)] border-2 border-[#110a22]"></span>
+              {unreadNotificationsCount > 0 && (
+                <span className="absolute top-2 right-1.5 w-2.5 h-2.5 bg-fuchsia-500 rounded-full shadow-[0_0_8px_rgba(255,0,255,0.8)] border-2 border-[#110a22]"></span>
+              )}
             </button>
 
             {/* Notification Dropdown - Enhanced with 4 notification types */}
@@ -192,96 +478,91 @@ export default function NewHeader() {
                 <div className="p-5 border-b border-white/10 bg-black/20 flex justify-between items-center">
                   <h3 className="text-white font-medium flex items-center gap-2 text-lg">
                     <Bell size={20} className="text-fuchsia-400" /> Powiadomienia
+                    {unreadNotificationsCount > 0 && (
+                      <span className="ml-1 inline-flex min-w-5 h-5 px-1.5 items-center justify-center rounded-full bg-fuchsia-500/20 border border-fuchsia-500/40 text-xs text-fuchsia-300">
+                        {unreadNotificationsCount > 99 ? '99+' : unreadNotificationsCount}
+                      </span>
+                    )}
                   </h3>
-                  <button className="text-xs text-cyan-400 hover:text-cyan-300 transition-colors bg-cyan-500/10 px-3 py-1.5 rounded-full border border-cyan-500/30">
+                  <button
+                    onClick={markAllNotificationsAsRead}
+                    disabled={notifications.length === 0}
+                    className="text-xs text-cyan-400 hover:text-cyan-300 transition-colors bg-cyan-500/10 px-3 py-1.5 rounded-full border border-cyan-500/30 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
                     Oznacz przeczytane
                   </button>
                 </div>
 
                 {/* Notifications List */}
                 <div className="max-h-[400px] overflow-y-auto custom-scrollbar">
-                  {/* Item 1: Gift */}
-                  <div
-                    className="p-4 border-b border-white/5 hover:bg-white/5 transition-colors cursor-pointer flex gap-4"
-                    onClick={() => {
-                      router.push('/myprofile');
-                      setNotificationsOpen(false);
-                    }}
-                  >
-                    <div className="w-10 h-10 rounded-full bg-amber-500/20 border border-amber-500/30 flex items-center justify-center shrink-0 shadow-[0_0_10px_rgba(245,158,11,0.2)]">
-                      <Gift size={20} className="text-amber-400" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-200">
-                        <span className="font-medium text-white">Marek_88</span> wysłał Ci prezent (Róża)! 🌹
-                      </p>
-                      <p className="text-xs text-gray-500 mt-1">5 min temu</p>
-                    </div>
-                  </div>
+                  {notificationsLoading ? (
+                    <div className="p-8 text-center text-sm text-cyan-300/80">Ladowanie powiadomien...</div>
+                  ) : notifications.length === 0 ? (
+                    <div className="p-8 text-center text-sm text-gray-400">Brak nowych powiadomien.</div>
+                  ) : (
+                    notifications.map((notification, idx) => {
+                      const isLast = idx === notifications.length - 1;
 
-                  {/* Item 2: Like */}
-                  <div
-                    className="p-4 border-b border-white/5 hover:bg-white/5 transition-colors cursor-pointer flex gap-4 bg-white/[0.02]"
-                    onClick={() => {
-                      router.push('/myprofile');
-                      setNotificationsOpen(false);
-                    }}
-                  >
-                    <div className="w-10 h-10 rounded-full bg-red-500/20 border border-red-500/30 flex items-center justify-center shrink-0 shadow-[0_0_10px_rgba(239,68,68,0.2)]">
-                      <Heart size={20} className="text-red-500 fill-red-500" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-200">
-                        <span className="font-medium text-white">Kamil</span> polubił Twój profil. Sprawdź, czy to match!
-                      </p>
-                      <p className="text-xs text-gray-500 mt-1">1 godz. temu</p>
-                    </div>
-                  </div>
+                      return (
+                        <div
+                          key={notification.id}
+                          className={`p-4 ${isLast ? '' : 'border-b border-white/5'} hover:bg-white/5 transition-colors cursor-pointer flex gap-4`}
+                          onClick={() => openNotification(notification.href)}
+                        >
+                          {notification.kind === 'gift' && (
+                            <div className="w-10 h-10 rounded-full bg-amber-500/20 border border-amber-500/30 flex items-center justify-center shrink-0 shadow-[0_0_10px_rgba(245,158,11,0.2)]">
+                              <Gift size={20} className="text-amber-400" />
+                            </div>
+                          )}
 
-                  {/* Item 3: Verification */}
-                  <div
-                    className="p-4 border-b border-white/5 hover:bg-white/5 transition-colors cursor-pointer flex gap-4"
-                    onClick={() => {
-                      router.push('/myprofile');
-                      setNotificationsOpen(false);
-                    }}
-                  >
-                    <div className="w-10 h-10 rounded-full bg-blue-500/20 border border-blue-500/30 flex items-center justify-center shrink-0 shadow-[0_0_10px_rgba(59,130,246,0.2)]">
-                      <BadgeCheck size={20} className="text-blue-400" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-200">
-                        Twój profil został pomyślnie <span className="text-blue-400 font-medium">zweryfikowany</span>.
-                      </p>
-                      <p className="text-xs text-gray-500 mt-1">Wczoraj, 14:30</p>
-                    </div>
-                  </div>
+                          {notification.kind === 'like' && (
+                            <div className="w-10 h-10 rounded-full bg-red-500/20 border border-red-500/30 flex items-center justify-center shrink-0 shadow-[0_0_10px_rgba(239,68,68,0.2)]">
+                              <Heart size={20} className="text-red-500 fill-red-500" />
+                            </div>
+                          )}
 
-                  {/* Item 4: Comment */}
-                  <div
-                    className="p-4 hover:bg-white/5 transition-colors cursor-pointer flex gap-4"
-                    onClick={() => {
-                      router.push('/myprofile');
-                      setNotificationsOpen(false);
-                    }}
-                  >
-                    <img
-                      src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?ixlib=rb-4.0.3&w=100&q=80"
-                      className="w-10 h-10 rounded-full object-cover border border-white/10 shrink-0"
-                      alt="Ania_x"
-                    />
-                    <div>
-                      <p className="text-sm text-gray-200">
-                        <span className="font-medium text-white">Ania_x</span> skomentowała Twoje zdjęcie w galerii.
-                      </p>
-                      <p className="text-xs text-gray-500 mt-1">2 dni temu</p>
-                    </div>
-                  </div>
+                          {notification.kind === 'verification' && (
+                            <div className="w-10 h-10 rounded-full bg-blue-500/20 border border-blue-500/30 flex items-center justify-center shrink-0 shadow-[0_0_10px_rgba(59,130,246,0.2)]">
+                              <BadgeCheck size={20} className="text-blue-400" />
+                            </div>
+                          )}
+
+                          {notification.kind === 'poke' && (
+                            <div className="w-10 h-10 rounded-full bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center shrink-0 shadow-[0_0_10px_rgba(0,255,255,0.2)]">
+                              <MessageCircle size={20} className="text-cyan-300" />
+                            </div>
+                          )}
+
+                          {notification.kind === 'comment' && notification.actorImageUrl && (
+                            <img
+                              src={notification.actorImageUrl}
+                              className="w-10 h-10 rounded-full object-cover border border-white/10 shrink-0"
+                              alt={notification.actorName || 'Komentarz'}
+                            />
+                          )}
+
+                          {notification.kind === 'comment' && !notification.actorImageUrl && (
+                            <div className="w-10 h-10 rounded-full bg-white/10 border border-white/15 flex items-center justify-center shrink-0">
+                              <MessageCircle size={18} className="text-cyan-300" />
+                            </div>
+                          )}
+
+                          <div>
+                            <p className="text-sm text-gray-200">{notification.message}</p>
+                            <p className="text-xs text-gray-500 mt-1">{formatNotificationTime(notification.createdAt)}</p>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
                 </div>
 
                 {/* Footer */}
                 <div className="p-3 border-t border-white/10 bg-black/40 text-center">
-                  <button className="text-sm text-gray-400 hover:text-white transition-colors py-1 px-4 rounded-full hover:bg-white/5">
+                  <button
+                    onClick={() => openNotification('/myprofile')}
+                    className="text-sm text-gray-400 hover:text-white transition-colors py-1 px-4 rounded-full hover:bg-white/5"
+                  >
                     Zobacz wszystkie
                   </button>
                 </div>
