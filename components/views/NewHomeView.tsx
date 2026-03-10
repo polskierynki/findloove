@@ -8,6 +8,22 @@ import { Profile } from '@/lib/types';
 import { LOOKING_FOR_OPTIONS } from './constants/profileFormOptions';
 import { useLikes } from '@/lib/hooks/useLikes';
 
+const HIDDEN_ADMIN_EMAILS = new Set([
+  'lio1985lodz@gmail.com',
+  'lsobczak@rentcompany.nl',
+]);
+
+function isHiddenAdminProfile(profile: { role?: string | null; email?: string | null }): boolean {
+  const normalizedRole = (profile.role || '').trim().toLowerCase();
+  const normalizedEmail = (profile.email || '').trim().toLowerCase();
+
+  return (
+    normalizedRole === 'admin' ||
+    normalizedRole === 'super_admin' ||
+    HIDDEN_ADMIN_EMAILS.has(normalizedEmail)
+  );
+}
+
 export default function NewHomeView() {
   const router = useRouter();
   const [profiles, setProfiles] = useState<Profile[]>([]);
@@ -42,7 +58,11 @@ export default function NewHomeView() {
         const { data, error } = await query;
 
         if (error) throw error;
-        setProfiles((data as Profile[]) || []);
+
+        const visibleProfiles = ((data as Array<Profile & { role?: string | null; email?: string | null }>) || [])
+          .filter((profile) => !isHiddenAdminProfile(profile));
+
+        setProfiles(visibleProfiles as Profile[]);
       } catch (error) {
         console.error('Error loading profiles:', error);
       } finally {

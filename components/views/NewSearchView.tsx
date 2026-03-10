@@ -53,6 +53,22 @@ const CITY_COORDS: Record<string, [number, number]> = {
   'Chorzów':        [50.2969, 18.9541],
 };
 
+const HIDDEN_ADMIN_EMAILS = new Set([
+  'lio1985lodz@gmail.com',
+  'lsobczak@rentcompany.nl',
+]);
+
+function isHiddenAdminProfile(profile: { role?: string | null; email?: string | null }): boolean {
+  const normalizedRole = (profile.role || '').trim().toLowerCase();
+  const normalizedEmail = (profile.email || '').trim().toLowerCase();
+
+  return (
+    normalizedRole === 'admin' ||
+    normalizedRole === 'super_admin' ||
+    HIDDEN_ADMIN_EMAILS.has(normalizedEmail)
+  );
+}
+
 function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371;
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
@@ -85,10 +101,62 @@ type SearchProfile = {
   pets?: string;
   sexual_orientation?: string;
   created_at?: string;
+  role?: string | null;
+  email?: string | null;
   distanceKm?: number | null;
+  matchScore?: number;
 };
 
-type SearchSort = 'closest' | 'newest' | 'ageAsc' | 'ageDesc';
+type SearchSort = 'match' | 'closest' | 'newest' | 'ageAsc' | 'ageDesc';
+
+function calculateMatchScore(
+  profile: SearchProfile,
+  params: {
+    ageMin: number;
+    ageMax: number;
+    distanceLimit: number;
+    selectedLookingFor: Set<string>;
+    selectedOrientation: Set<string>;
+    selectedPets: Set<string>;
+    selectedDrinking: Set<string>;
+  },
+): number {
+  let score = 45;
+
+  // Age alignment around selected age center.
+  const ageCenter = (params.ageMin + params.ageMax) / 2;
+  const ageRadius = Math.max(1, (params.ageMax - params.ageMin) / 2);
+  const ageDelta = Math.abs(profile.age - ageCenter);
+  const ageFactor = Math.max(0, 1 - ageDelta / ageRadius);
+  score += Math.round(ageFactor * 20);
+
+  if (params.selectedLookingFor.size > 0 && profile.looking_for && params.selectedLookingFor.has(profile.looking_for)) {
+    score += 12;
+  }
+
+  if (
+    params.selectedOrientation.size > 0 &&
+    profile.sexual_orientation &&
+    params.selectedOrientation.has(profile.sexual_orientation)
+  ) {
+    score += 8;
+  }
+
+  if (params.selectedPets.size > 0 && profile.pets && params.selectedPets.has(profile.pets)) {
+    score += 7;
+  }
+
+  if (params.selectedDrinking.size > 0 && profile.drinking && params.selectedDrinking.has(profile.drinking)) {
+    score += 8;
+  }
+
+  if (profile.distanceKm !== null && profile.distanceKm !== undefined) {
+    const distanceFactor = Math.max(0, 1 - profile.distanceKm / Math.max(params.distanceLimit, 50));
+    score += Math.round(distanceFactor * 15);
+  }
+
+  return Math.min(99, Math.max(30, score));
+}
 
 export default function NewSearchView() {
   const router = useRouter();
@@ -99,7 +167,7 @@ export default function NewSearchView() {
   const [ageMax, setAgeMax] = useState(80);
   const [distance, setDistance] = useState(200);
   const [baseCity, setBaseCity] = useState('');
-  const [sortBy, setSortBy] = useState<SearchSort>('closest');
+  const [sortBy, setSortBy] = useState<SearchSort>('match');
   const [selectedLookingFor, setSelectedLookingFor] = useState<Set<string>>(new Set());
   const [selectedOrientation, setSelectedOrientation] = useState<Set<string>>(new Set());
   const [selectedPets, setSelectedPets] = useState<Set<string>>(new Set());
@@ -163,7 +231,7 @@ export default function NewSearchView() {
     try {
       let query = supabase
         .from('profiles')
-        .select('id, name, age, city, image_url, looking_for, interests, drinking, pets, sexual_orientation, created_at')
+        .select('id, name, age, city, image_url, looking_for, interests, drinking, pets, sexual_orientation, created_at, role, email')
         .order('created_at', { ascending: false });
 
       if (currentUserId) {
@@ -200,10 +268,12 @@ export default function NewSearchView() {
         ? { lat: cityCoords[0], lon: cityCoords[1] }
         : geoCoords;
 
-      let results = ((data || []) as SearchProfile[]).map((profile) => ({
-        ...profile,
-        distanceKm: referencePoint ? distanceFromPointToCity(referencePoint, profile.city) : null,
-      }));
+      let results = ((data || []) as SearchProfile[])
+        .filter((profile) => !isHiddenAdminProfile(profile))
+        .map((profile) => ({
+          ...profile,
+          distanceKm: referencePoint ? distanceFromPointToCity(referencePoint, profile.city) : null,
+        }));
 
       // Distance filter, based on selected city or current GPS
       if (referencePoint && distance < 500) {
@@ -214,8 +284,30 @@ export default function NewSearchView() {
         });
       }
 
+      results = results.map((profile) => ({
+        ...profile,
+        matchScore: calculateMatchScore(profile, {
+          ageMin,
+          ageMax,
+          distanceLimit: distance,
+          selectedLookingFor,
+          selectedOrientation,
+          selectedPets,
+          selectedDrinking,
+        }),
+      }));
+
       // Sort client-side
       results.sort((a, b) => {
+        if (sortBy === 'match') {
+          const scoreDiff = (b.matchScore || 0) - (a.matchScore || 0);
+          if (scoreDiff !== 0) return scoreDiff;
+
+          const aDist = a.distanceKm ?? Number.MAX_SAFE_INTEGER;
+          const bDist = b.distanceKm ?? Number.MAX_SAFE_INTEGER;
+          return aDist - bDist;
+        }
+
         if (sortBy === 'newest') {
           return Date.parse(b.created_at || '') - Date.parse(a.created_at || '');
         }
@@ -500,6 +592,7 @@ export default function NewSearchView() {
               onChange={(e) => setSortBy(e.target.value as SearchSort)}
               className="bg-black/30 border border-cyan-500/20 rounded-xl py-2 px-4 text-sm text-white outline-none focus:border-cyan-500 transition-colors"
             >
+              <option value="match">Najlepsze dopasowanie</option>
               <option value="closest">Najbliżej</option>
               <option value="newest">Najnowsze</option>
               <option value="ageAsc">Wiek: od najmłodszych</option>
@@ -539,7 +632,7 @@ export default function NewSearchView() {
                       <div className="absolute top-4 left-4 right-4 flex justify-between items-center z-10">
                         <div className="bg-black/40 backdrop-blur-md px-3 py-1 rounded-full border border-fuchsia-500/30 flex items-center gap-1.5 shadow-[0_0_10px_rgba(255,0,255,0.2)]">
                           <Sparkle className="text-fuchsia-400" size={14} weight="fill" />
-                          <span className="text-xs font-semibold text-white">Profil</span>
+                          <span className="text-xs font-semibold text-white">{profile.matchScore || 0}% Match</span>
                         </div>
                         {profile.looking_for && (
                           <div className={`bg-black/40 backdrop-blur-md px-3 py-1 rounded-full border flex items-center gap-1.5 ${
