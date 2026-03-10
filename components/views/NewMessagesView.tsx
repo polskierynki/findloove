@@ -150,6 +150,8 @@ export default function NewMessagesView() {
 
     const loadConversations = async () => {
       try {
+        setChatError(null);
+
         // Get all unique conversation partners
         const { data: sentMessages } = await supabase
           .from('messages')
@@ -220,6 +222,10 @@ export default function NewMessagesView() {
         setConversations(conversationsData);
       } catch (error) {
         console.error('Error loading conversations:', error);
+        const message = (error as { message?: string } | null)?.message;
+        if (message) {
+          setChatError(`Brak dostepu do listy rozmow: ${message}`);
+        }
       }
     };
 
@@ -272,6 +278,8 @@ export default function NewMessagesView() {
 
     const loadMessages = async () => {
       try {
+        setChatError(null);
+
         const { data } = await supabase
           .from('messages')
           .select('*')
@@ -283,6 +291,10 @@ export default function NewMessagesView() {
         setMessages((data as Message[]) || []);
       } catch (error) {
         console.error('Error loading messages:', error);
+        const message = (error as { message?: string } | null)?.message;
+        if (message) {
+          setChatError(`Brak dostepu do wiadomosci: ${message}`);
+        }
       }
     };
 
