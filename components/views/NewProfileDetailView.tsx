@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import EmojiPicker from 'emoji-picker-react';
 import {
   ArrowLeft,
   Heart,
@@ -140,8 +141,12 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
   const [photoCommentsLoading, setPhotoCommentsLoading] = useState(false);
   const [photoCommentsTableAvailable, setPhotoCommentsTableAvailable] = useState(true);
   const [commentsError, setCommentsError] = useState<string | null>(null);
+  const [showGeneralCommentEmojiPicker, setShowGeneralCommentEmojiPicker] = useState(false);
+  const [showPhotoCommentEmojiPicker, setShowPhotoCommentEmojiPicker] = useState(false);
   const generalCommentInputRef = useRef<HTMLInputElement>(null);
   const photoCommentInputRef = useRef<HTMLInputElement>(null);
+  const generalEmojiRef = useRef<HTMLDivElement>(null);
+  const photoEmojiRef = useRef<HTMLDivElement>(null);
 
   const allPhotos = useMemo(() => {
     if (!profile) return [];
@@ -614,8 +619,15 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
                       void handleAddGeneralComment();
                     }
                   }}
-                  className="w-full bg-black/40 border border-cyan-500/20 rounded-full py-3.5 pl-6 pr-14 text-base text-white placeholder-cyan-400/40 outline-none backdrop-blur-md transition-all focus:bg-black/60 focus:border-cyan-500/50 shadow-[inset_0_0_10px_rgba(0,255,255,0.05)]"
+                  className="w-full bg-black/40 border border-cyan-500/20 rounded-full py-3.5 pl-6 pr-24 text-base text-white placeholder-cyan-400/40 outline-none backdrop-blur-md transition-all focus:bg-black/60 focus:border-cyan-500/50 shadow-[inset_0_0_10px_rgba(0,255,255,0.05)]"
                 />
+                <button
+                  onClick={() => setShowGeneralCommentEmojiPicker(!showGeneralCommentEmojiPicker)}
+                  className="absolute right-14 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-cyan-500/10 flex items-center justify-center text-cyan-400 hover:bg-cyan-500/20 transition-all"
+                  title="Dodaj emoji"
+                >
+                  😀
+                </button>
                 <button
                   onClick={() => void handleAddGeneralComment()}
                   disabled={isSubmittingComment || !commentText.trim()}
@@ -624,6 +636,18 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
                   <PaperPlaneTilt size={18} weight="fill" />
                 </button>
               </div>
+              {showGeneralCommentEmojiPicker && (
+                <div ref={generalEmojiRef} className="mt-2 flex justify-center">
+                  <EmojiPicker
+                    onEmojiClick={(e) => {
+                      setCommentText((prev) => prev + e.emoji);
+                      generalCommentInputRef.current?.focus();
+                    }}
+                    height={300}
+                    width={280}
+                  />
+                </div>
+              )}
             </div>
           </div>
         </aside>
@@ -945,8 +969,16 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
                       }
                     }}
                     disabled={!photoCommentsTableAvailable}
-                    className="w-full bg-black/40 border border-cyan-500/20 rounded-full py-3 pl-5 pr-14 text-sm text-white placeholder-cyan-400/40 outline-none focus:border-cyan-500/50 transition-all disabled:opacity-50"
+                    className="w-full bg-black/40 border border-cyan-500/20 rounded-full py-3 pl-5 pr-20 text-sm text-white placeholder-cyan-400/40 outline-none focus:border-cyan-500/50 transition-all disabled:opacity-50"
                   />
+                  <button
+                    onClick={() => setShowPhotoCommentEmojiPicker(!showPhotoCommentEmojiPicker)}
+                    disabled={!photoCommentsTableAvailable}
+                    className="absolute right-10 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-cyan-500/10 flex items-center justify-center text-sm hover:bg-cyan-500/20 transition-all disabled:opacity-50"
+                    title="Dodaj emoji"
+                  >
+                    😀
+                  </button>
                   <button
                     onClick={() => void handleAddPhotoComment()}
                     disabled={isSubmittingPhotoComment || !photoCommentText.trim() || !photoCommentsTableAvailable}
@@ -955,6 +987,18 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
                     <PaperPlaneTilt size={16} weight="fill" />
                   </button>
                 </div>
+                {showPhotoCommentEmojiPicker && (
+                  <div ref={photoEmojiRef} className="mt-2 flex justify-center">
+                    <EmojiPicker
+                      onEmojiClick={(e) => {
+                        setPhotoCommentText((prev) => prev + e.emoji);
+                        photoCommentInputRef.current?.focus();
+                      }}
+                      height={300}
+                      width={280}
+                    />
+                  </div>
+                )}
               </div>
             </div>
           </div>
