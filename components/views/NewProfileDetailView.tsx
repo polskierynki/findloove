@@ -64,7 +64,7 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
             content,
             author_profile_id,
             created_at,
-            profiles!author_profile_id (name, image, city)
+            profiles!author_profile_id (name, image_url, city)
           `)
           .eq('profile_id', profileId)
           .order('created_at', { ascending: false });
@@ -73,7 +73,11 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
           id: c.id,
           content: c.content,
           author_profile_id: c.author_profile_id,
-          author: c.profiles || { name: 'User', image: '', city: '' },
+          author: {
+            name: c.profiles?.name || 'User',
+            image: c.profiles?.image_url || '',
+            city: c.profiles?.city || '',
+          },
           created_at: c.created_at,
           like_count: 2,
         })));

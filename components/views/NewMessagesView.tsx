@@ -20,6 +20,69 @@ function isHiddenAdminProfile(profile: { role?: string | null; email?: string | 
   );
 }
 
+async function resolveProfileIdForAuthUser(user: {
+  id: string;
+  email?: string | null;
+  user_metadata?: Record<string, unknown>;
+}): Promise<string | null> {
+  const normalizedEmail = user.email?.trim().toLowerCase() || null;
+
+  // 1) Preferred mapping: profile row with the same id as auth user id.
+  const { data: byId, error: byIdError } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('id', user.id)
+    .maybeSingle();
+
+  if (!byIdError && byId?.id) {
+    return byId.id as string;
+  }
+
+  // 2) Fallback mapping by email for legacy accounts migrated from older schema.
+  if (normalizedEmail) {
+    const { data: byEmail, error: byEmailError } = await supabase
+      .from('profiles')
+      .select('id')
+      .ilike('email', normalizedEmail)
+      .maybeSingle();
+
+    if (!byEmailError && byEmail?.id) {
+      return byEmail.id as string;
+    }
+  }
+
+  // 3) Last resort: create a minimal profile row so FK on messages can pass.
+  const fallbackName =
+    (typeof user.user_metadata?.name === 'string' && user.user_metadata.name.trim()) ||
+    (normalizedEmail ? normalizedEmail.split('@')[0] : '') ||
+    'Uzytkownik';
+
+  const { data: created, error: createError } = await supabase
+    .from('profiles')
+    .upsert(
+      {
+        id: user.id,
+        email: normalizedEmail,
+        name: fallbackName,
+        age: 30,
+        city: 'Nieznane',
+        bio: '',
+        interests: [],
+        image_url: '',
+      },
+      { onConflict: 'id' },
+    )
+    .select('id')
+    .maybeSingle();
+
+  if (createError) {
+    console.error('Nie udalo sie utworzyc/finalizowac profilu dla czatu:', createError.message);
+    return null;
+  }
+
+  return (created?.id as string | undefined) || user.id;
+}
+
 interface Message {
   id: string;
   from_profile_id: string;
@@ -45,16 +108,29 @@ export default function NewMessagesView() {
   const [messageText, setMessageText] = useState('');
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [chatError, setChatError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Get current user
   useEffect(() => {
     const getCurrentUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      setCurrentUserId(user?.id || null);
+
+      if (!user) {
+        setCurrentUserId(null);
+        setLoading(false);
+        return;
+      }
+
+      const resolvedProfileId = await resolveProfileIdForAuthUser(user);
+      if (!resolvedProfileId) {
+        setChatError('Nie mozna uruchomic czatu, bo profil konta nie zostal poprawnie znaleziony.');
+      }
+      setCurrentUserId(resolvedProfileId);
       setLoading(false);
     };
-    getCurrentUser();
+
+    void getCurrentUser();
   }, []);
 
   // Load conversations
@@ -217,6 +293,8 @@ export default function NewMessagesView() {
   const sendMessage = async () => {
     if (!messageText.trim() || !selectedProfile || !currentUserId) return;
 
+    setChatError(null);
+
     try {
       const { data, error } = await supabase
         .from('messages')
@@ -228,7 +306,14 @@ export default function NewMessagesView() {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        if ((error as { code?: string }).code === '23503') {
+          setChatError('Nie mozna wyslac wiadomosci: konto nadawcy nie jest poprawnie powiazane z profilem. Odswiez strone.');
+        } else {
+          setChatError(`Nie udalo sie wyslac wiadomosci: ${error.message}`);
+        }
+        throw error;
+      }
 
       setMessages(prev => [...prev, data as Message]);
       setMessageText('');
@@ -481,6 +566,9 @@ export default function NewMessagesView() {
 
               {/* Chat Input */}
               <div className="p-6 border-t border-white/5 bg-black/20 backdrop-blur-sm">
+                {chatError && (
+                  <p className="mb-3 text-sm text-red-300">{chatError}</p>
+                )}
                 <div className="relative flex items-center bg-black/40 border border-cyan-500/20 rounded-full px-2 py-2 border-glow-magenta transition-all focus-within:bg-black/60">
                   <input
                     type="text"
