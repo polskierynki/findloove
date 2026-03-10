@@ -143,7 +143,7 @@ export default function NewLikesView() {
                             : 'border-cyan-500/30 shadow-[0_0_10px_rgba(0,255,255,0.2)]'
                         }`}>
                           <span className="text-xs font-semibold text-white">
-                            {LOOKING_FOR_OPTIONS.find(opt => opt.value === profile.details.looking_for)?.emoji} {LOOKING_FOR_OPTIONS.find(opt => opt.value === profile.details.looking_for)?.label}
+                            {LOOKING_FOR_OPTIONS.find(opt => opt.value === profile.details.looking_for)?.label}
                           </span>
                         </div>
                       )}

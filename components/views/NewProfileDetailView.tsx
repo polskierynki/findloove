@@ -24,6 +24,7 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { Profile } from '@/lib/types';
 import { useLikes } from '@/lib/hooks/useLikes';
+import { ALL_INTERESTS } from './constants/profileFormOptions';
 
 interface Comment {
   id: string;
@@ -388,14 +389,22 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
             <h3 className="text-sm font-medium text-cyan-400 uppercase tracking-widest mb-4">Moje zajawki</h3>
 
             <div className="flex flex-wrap gap-3">
-              {profile.interests?.map((interest) => (
-                <span
-                  key={interest}
-                  className="px-5 py-2.5 rounded-full border border-fuchsia-500/30 bg-gradient-to-r from-fuchsia-500/10 to-transparent backdrop-blur-md shadow-[0_0_15px_rgba(255,0,255,0.05)] hover:shadow-[0_0_20px_rgba(255,0,255,0.2)] hover:border-fuchsia-400 transition-all cursor-default text-sm tracking-wide text-white flex items-center gap-2"
-                >
-                  <Sparkle size={16} weight="fill" className="text-fuchsia-400" /> {interest}
-                </span>
-              ))}
+              {profile.interests?.map((interest) => {
+                const interestData = ALL_INTERESTS.find((i) => i.value === interest);
+                const IconComponent = interestData?.icon;
+                const iconColor = interestData?.color || 'text-fuchsia-400';
+                return (
+                  <span
+                    key={interest}
+                    className="px-5 py-2.5 rounded-full border border-fuchsia-500/30 bg-gradient-to-r from-fuchsia-500/10 to-transparent backdrop-blur-md shadow-[0_0_15px_rgba(255,0,255,0.05)] hover:shadow-[0_0_20px_rgba(255,0,255,0.2)] hover:border-fuchsia-400 transition-all cursor-default text-sm tracking-wide text-white flex items-center gap-2"
+                  >
+                    {IconComponent
+                      ? <IconComponent size={16} weight="duotone" className={iconColor} />
+                      : <Sparkle size={16} weight="fill" className="text-fuchsia-400" />}
+                    {interest}
+                  </span>
+                );
+              })}
             </div>
           </div>
 
