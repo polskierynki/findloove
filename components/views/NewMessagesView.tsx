@@ -1,8 +1,24 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { MagnifyingGlass, Prohibit, Trash, Flag, PaperPlaneRight } from '@phosphor-icons/react';
+import { useSearchParams } from 'next/navigation';
+import { MagnifyingGlass, Prohibit, Trash, Flag, PaperPlaneRight, ArrowLeft } from '@phosphor-icons/react';
 import { supabase } from '@/lib/supabase';
+
+const HIDDEN_ADMIN_EMAILS = new Set([
+  'lio1985lodz@gmail.com',
+]);
+
+function isHiddenAdminProfile(profile: { role?: string | null; email?: string | null }): boolean {
+  const normalizedRole = (profile.role || '').trim().toLowerCase();
+  const normalizedEmail = (profile.email || '').trim().toLowerCase();
+
+  return (
+    normalizedRole === 'admin' ||
+    normalizedRole === 'super_admin' ||
+    HIDDEN_ADMIN_EMAILS.has(normalizedEmail)
+  );
+}
 
 interface Message {
   id: string;
@@ -21,6 +37,8 @@ interface ConversationProfile {
 }
 
 export default function NewMessagesView() {
+  const searchParams = useSearchParams();
+  const targetProfileId = searchParams.get('user');
   const [conversations, setConversations] = useState<ConversationProfile[]>([]);
   const [selectedProfile, setSelectedProfile] = useState<ConversationProfile | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -71,11 +89,15 @@ export default function NewMessagesView() {
         // Get profile details
         const { data: profiles } = await supabase
           .from('profiles')
-          .select('id, name, image_url')
+          .select('id, name, image_url, role, email')
           .in('id', Array.from(profileIds));
 
+        const visibleProfiles = (profiles || []).filter(
+          (profile) => !isHiddenAdminProfile(profile as { role?: string | null; email?: string | null }),
+        );
+
         // Build conversations with last message
-        const conversationsData: ConversationProfile[] = (profiles || []).map(profile => {
+        const conversationsData: ConversationProfile[] = visibleProfiles.map(profile => {
           const sentToProfile = sentMessages?.filter(m => m.to_profile_id === profile.id) || [];
           const receivedFromProfile = receivedMessages?.filter(m => m.from_profile_id === profile.id) || [];
           const allMessages = [...sentToProfile, ...receivedFromProfile].sort((a, b) => 
@@ -108,6 +130,46 @@ export default function NewMessagesView() {
 
     loadConversations();
   }, [currentUserId]);
+
+  // Open direct conversation when arriving from profile cards (`/messages?user=<id>`)
+  useEffect(() => {
+    if (!targetProfileId || !currentUserId || targetProfileId === currentUserId) return;
+
+    const existing = conversations.find((c) => c.id === targetProfileId);
+    if (existing) {
+      if (selectedProfile?.id !== existing.id) {
+        setSelectedProfile(existing);
+      }
+      return;
+    }
+
+    const loadTargetProfile = async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, name, image_url, role, email')
+        .eq('id', targetProfileId)
+        .maybeSingle();
+
+      if (error || !data) return;
+      if (isHiddenAdminProfile(data as { role?: string | null; email?: string | null })) return;
+
+      const directConversation: ConversationProfile = {
+        id: data.id as string,
+        name: (data as { name?: string | null }).name || 'User',
+        image_url: (data as { image_url?: string | null }).image_url || '',
+        lastMessage: '',
+        lastMessageTime: '',
+      };
+
+      setConversations((prev) => {
+        if (prev.some((c) => c.id === directConversation.id)) return prev;
+        return [directConversation, ...prev];
+      });
+      setSelectedProfile(directConversation);
+    };
+
+    void loadTargetProfile();
+  }, [conversations, currentUserId, selectedProfile?.id, targetProfileId]);
 
   // Load messages for selected conversation
   useEffect(() => {
@@ -281,7 +343,7 @@ export default function NewMessagesView() {
     <div className="relative z-10 pt-24 pb-6 px-6 lg:px-12 max-w-[1800px] mx-auto">
       <div className="glass rounded-[2rem] w-full chat-height flex overflow-hidden border border-white/10 shadow-[0_0_40px_rgba(0,0,0,0.5)]">
         {/* Left Column: Contacts */}
-        <div className="w-full md:w-80 lg:w-96 border-r border-white/5 bg-black/20 flex flex-col">
+        <div className={`${selectedProfile ? 'hidden md:flex' : 'flex'} w-full md:w-80 lg:w-96 border-r border-white/5 bg-black/20 flex-col`}>
           <div className="p-6 border-b border-white/5">
             <h2 className="text-2xl font-light mb-4">Wiadomości</h2>
             <div className="relative group">
@@ -336,12 +398,19 @@ export default function NewMessagesView() {
         </div>
 
         {/* Right Column: Chat Window */}
-        <div className="flex-1 flex flex-col bg-black/10 relative hidden md:flex">
+        <div className={`flex-1 flex-col bg-black/10 relative ${selectedProfile ? 'flex' : 'hidden md:flex'}`}>
           {selectedProfile ? (
             <>
               {/* Chat Header with Action Icons */}
               <div className="h-20 border-b border-white/5 flex items-center justify-between px-8 bg-black/20 backdrop-blur-sm z-10">
                 <div className="flex items-center gap-4">
+                  <button
+                    onClick={() => setSelectedProfile(null)}
+                    className="md:hidden p-2 rounded-lg bg-white/5 border border-white/10 text-cyan-300 hover:bg-white/10"
+                    title="Wróć do listy"
+                  >
+                    <ArrowLeft size={18} weight="bold" />
+                  </button>
                   <div className="w-10 h-10 rounded-full overflow-hidden border border-cyan-500/20">
                     <img 
                       src={selectedProfile.image_url || `https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&q=80`} 

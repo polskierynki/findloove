@@ -10,7 +10,6 @@ import { useLikes } from '@/lib/hooks/useLikes';
 
 const HIDDEN_ADMIN_EMAILS = new Set([
   'lio1985lodz@gmail.com',
-  'lsobczak@rentcompany.nl',
 ]);
 
 function isHiddenAdminProfile(profile: { role?: string | null; email?: string | null }): boolean {
@@ -233,7 +232,7 @@ export default function NewHomeView() {
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            router.push('/messages');
+                            router.push(`/messages?user=${encodeURIComponent(profile.id)}`);
                           }}
                           className="pointer-events-auto flex-1 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 shadow-[0_0_15px_rgba(0,255,255,0.3)] py-2.5 rounded-xl flex items-center justify-center gap-2 text-white transition-all"
                         >

@@ -6,7 +6,7 @@
 -- Usuwa profile które NIE mają odpowiadającego wpisu w auth.users
 -- (czyli wszystkie seed-owane demo profile, które nie mają konta).
 -- Prawdziwe profile (stworzone przez rejestrację) zostają nienaruszone.
--- Dodatkowo chroni profile admin/super_admin oraz wybrane konto realne.
+-- Dodatkowo chroni profile admin/super_admin oraz konto admina po emailu.
 
 -- Podgląd, co zostanie usunięte:
 select id, name, email, role
@@ -16,7 +16,6 @@ where p.id not in (
 )
 and coalesce(p.role, '') not in ('admin', 'super_admin')
 and lower(coalesce(p.email, '')) not in (
-  'lsobczak@rentcompany.nl',
   'lio1985lodz@gmail.com'
 );
 
@@ -26,7 +25,6 @@ where p.id not in (
 )
 and coalesce(p.role, '') not in ('admin', 'super_admin')
 and lower(coalesce(p.email, '')) not in (
-  'lsobczak@rentcompany.nl',
   'lio1985lodz@gmail.com'
 );
 

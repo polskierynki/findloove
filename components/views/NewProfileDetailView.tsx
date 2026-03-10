@@ -355,7 +355,10 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
             </button>
 
             {/* Main CTA Button */}
-            <button className="cta-dock-btn flex flex-col items-center justify-center group relative z-50 -mt-14 w-20">
+            <button
+              onClick={() => router.push(`/messages?user=${encodeURIComponent(profileId)}`)}
+              className="cta-dock-btn flex flex-col items-center justify-center group relative z-50 -mt-14 w-20"
+            >
               <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-cyan-600 to-blue-600 p-[2px] shadow-[0_10px_30px_rgba(0,255,255,0.4)] group-hover:shadow-[0_10px_40px_rgba(0,255,255,0.6)] transition-all transform group-hover:-translate-y-2">
                 <div className="w-full h-full rounded-full bg-gradient-to-tr from-cyan-500 to-blue-500 flex items-center justify-center border-2 border-[#110a22]">
                   <PaperPlaneTilt size={30} weight="fill" className="text-white drop-shadow-md group-hover:scale-110 transition-transform" />
