@@ -575,7 +575,7 @@ export default function NewMyProfileView() {
                     <option value="" className="bg-gray-900">Wybierz...</option>
                     {LOOKING_FOR_OPTIONS.map((opt) => (
                       <option key={opt.value} value={opt.value} className="bg-gray-900">
-                        {opt.emoji} {opt.label}
+                        {opt.label}
                       </option>
                     ))}
                   </select>
