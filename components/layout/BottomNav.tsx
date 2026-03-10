@@ -8,6 +8,7 @@ interface BottomNavProps {
   currentView: AppView;
   onNavigate: (view: ViewType | 'myprofile') => void;
   isLoggedIn?: boolean;
+  isAdmin?: boolean;
 }
 
 const NAV_ITEMS: { id: ViewType | 'myprofile'; icon: React.ReactNode; label: string; path: string }[] = [
@@ -19,10 +20,12 @@ const NAV_ITEMS: { id: ViewType | 'myprofile'; icon: React.ReactNode; label: str
   { id: 'myprofile', icon: <User size={22} />, label: 'Profil', path: '/myprofile' },
 ];
 
-export default function BottomNav({ currentView, onNavigate, isLoggedIn = false }: BottomNavProps) {
-  const visibleNavItems = isLoggedIn
-    ? NAV_ITEMS
-    : NAV_ITEMS.filter((item) => item.id !== 'messages');
+export default function BottomNav({ currentView, onNavigate, isLoggedIn = false, isAdmin = false }: BottomNavProps) {
+  const visibleNavItems = NAV_ITEMS.filter((item) => {
+    if (!isLoggedIn && item.id === 'messages') return false;
+    if (isAdmin && item.id === 'myprofile') return false;
+    return true;
+  });
   
   const pathname = usePathname();
   const router = useRouter();

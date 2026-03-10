@@ -52,6 +52,7 @@ function formatNotificationTime(timestamp: string): string {
 }
 
 export default function NewHeader() {
+  const adminEmail = 'lio1985lodz@gmail.com';
   const router = useRouter();
   const pathname = usePathname();
   const [user, setUser] = useState<SupabaseUser | null>(null);
@@ -379,7 +380,10 @@ export default function NewHeader() {
     router.push('/');
   };
 
-  const isAdmin = profile?.role === 'admin' || profile?.role === 'super_admin';
+  const isAdmin =
+    user?.email?.trim().toLowerCase() === adminEmail ||
+    profile?.role === 'admin' ||
+    profile?.role === 'super_admin';
 
   return (
     <>
@@ -424,14 +428,16 @@ export default function NewHeader() {
           >
             Wiadomości
           </button>
-          <button
-            onClick={() => router.push('/myprofile')}
-            className={`nav-item relative text-gray-300 hover:text-white font-medium transition-colors pb-1 flex items-center gap-1.5 whitespace-nowrap ${
-              activeNav === 'profile' ? 'active' : ''
-            }`}
-          >
-            Mój profil
-          </button>
+          {!isAdmin && (
+            <button
+              onClick={() => router.push('/myprofile')}
+              className={`nav-item relative text-gray-300 hover:text-white font-medium transition-colors pb-1 flex items-center gap-1.5 whitespace-nowrap ${
+                activeNav === 'profile' ? 'active' : ''
+              }`}
+            >
+              Mój profil
+            </button>
+          )}
         </nav>
 
         {/* Right Side Icons & Avatar/Login */}
@@ -647,19 +653,21 @@ export default function NewHeader() {
             >
               Wiadomości
             </button>
-            <button
-              onClick={() => {
-                router.push('/myprofile');
-                setMobileMenuOpen(false);
-              }}
-              className={`text-left px-4 py-2 rounded-lg transition-colors ${
-                activeNav === 'profile'
-                  ? 'text-cyan-300 bg-cyan-500/10 font-medium'
-                  : 'text-cyan-300/60 hover:text-cyan-300 hover:bg-cyan-500/10'
-              }`}
-            >
-              Mój profil
-            </button>
+            {!isAdmin && (
+              <button
+                onClick={() => {
+                  router.push('/myprofile');
+                  setMobileMenuOpen(false);
+                }}
+                className={`text-left px-4 py-2 rounded-lg transition-colors ${
+                  activeNav === 'profile'
+                    ? 'text-cyan-300 bg-cyan-500/10 font-medium'
+                    : 'text-cyan-300/60 hover:text-cyan-300 hover:bg-cyan-500/10'
+                }`}
+              >
+                Mój profil
+              </button>
+            )}
             {isAdmin && (
               <button
                 onClick={() => {

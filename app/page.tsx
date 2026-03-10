@@ -835,6 +835,7 @@ export default function App() {
         <BottomNav
           currentView={view}
           isLoggedIn={isLoggedIn}
+          isAdmin={isAdmin}
           onNavigate={(v) => {
             setShowPremiumView(false);
             if (v === 'myprofile') {
