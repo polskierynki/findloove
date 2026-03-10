@@ -33,7 +33,8 @@ export default function BottomNav({ currentView, onNavigate, isLoggedIn = false 
     if (path.startsWith('/search')) return 'search';
     if (path.startsWith('/messages')) return 'messages';
     if (path.startsWith('/likes')) return 'likes';
-    if (path.startsWith('/myprofile') || path.startsWith('/profile')) return 'myprofile';
+    if (path.startsWith('/myprofile')) return 'myprofile';
+    // /profile/[id] (cudze profile) nie podświetlają żadnej zakładki
     return null;
   };
   
