@@ -286,10 +286,65 @@ body.photo-modal-open nav[data-app-nav='bottom'] {
 
 .photo-modal-overlay {
   animation: photo-modal-fade-in 220ms ease;
+  padding: 0.5rem;
+  padding-top: calc(env(safe-area-inset-top, 0px) + 0.5rem);
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 0.5rem);
 }
 
 .photo-modal-shell {
   animation: photo-modal-panel-in 260ms cubic-bezier(0.22, 1, 0.36, 1);
+  height: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) minmax(210px, 42vh);
+}
+
+.photo-modal-media,
+.photo-modal-comments {
+  min-height: 0;
+}
+
+.photo-modal-media {
+  overflow: hidden;
+}
+
+.photo-modal-image {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;
+}
+
+@supports (height: 1dvh) {
+  .photo-modal-shell {
+    grid-template-rows: minmax(0, 1fr) minmax(210px, 42dvh);
+  }
+}
+
+@media (min-width: 768px) {
+  .photo-modal-overlay {
+    padding: 0.75rem;
+    padding-top: calc(env(safe-area-inset-top, 0px) + 0.75rem);
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 0.75rem);
+  }
+
+  .photo-modal-shell {
+    grid-template-rows: minmax(0, 1fr) minmax(240px, 38vh);
+  }
+
+  @supports (height: 1dvh) {
+    .photo-modal-shell {
+      grid-template-rows: minmax(0, 1fr) minmax(240px, 38dvh);
+    }
+  }
+}
+
+@media (min-width: 1024px) {
+  .photo-modal-shell {
+    grid-template-columns: minmax(0, 1fr) 420px;
+    grid-template-rows: minmax(0, 1fr);
+  }
 }
 
 /* Chat Styling */

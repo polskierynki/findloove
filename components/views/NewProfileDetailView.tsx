@@ -289,6 +289,16 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
     const content = commentText.trim();
     if (!content || isSubmittingComment) return;
 
+    if (content.length < 2) {
+      setCommentsError('Komentarz musi miec minimum 2 znaki.');
+      return;
+    }
+
+    if (content.length > 400) {
+      setCommentsError('Komentarz moze miec maksymalnie 400 znakow.');
+      return;
+    }
+
     setCommentsError(null);
     setIsSubmittingComment(true);
 
@@ -842,13 +852,13 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
           onClick={closePhotoCommentModal}
         >
           <div
-            className="photo-modal-shell w-full h-full glass border border-white/10 overflow-hidden grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_420px]"
+            className="photo-modal-shell w-full h-full glass border border-white/10 overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="relative bg-black/45 flex items-center justify-center p-4 md:p-8">
+            <div className="photo-modal-media relative bg-black/45 flex items-center justify-center p-3 md:p-6 lg:p-8">
               <button
                 onClick={closePhotoCommentModal}
-                className="absolute top-4 right-4 z-20 w-10 h-10 rounded-full bg-black/60 border border-white/15 flex items-center justify-center text-white hover:text-cyan-300 transition-colors"
+                className="absolute top-3 right-3 md:top-4 md:right-4 z-20 w-10 h-10 rounded-full bg-black/60 border border-white/15 flex items-center justify-center text-white hover:text-cyan-300 transition-colors"
               >
                 <X size={18} weight="bold" />
               </button>
@@ -857,13 +867,13 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
                 <>
                   <button
                     onClick={() => goToPhoto('prev')}
-                    className="absolute left-4 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-black/60 border border-white/15 flex items-center justify-center text-white hover:text-cyan-300 transition-colors"
+                    className="absolute left-2 md:left-4 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-black/60 border border-white/15 flex items-center justify-center text-white hover:text-cyan-300 transition-colors"
                   >
                     <CaretLeft size={18} weight="bold" />
                   </button>
                   <button
                     onClick={() => goToPhoto('next')}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-black/60 border border-white/15 flex items-center justify-center text-white hover:text-cyan-300 transition-colors"
+                    className="absolute right-2 md:right-4 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-black/60 border border-white/15 flex items-center justify-center text-white hover:text-cyan-300 transition-colors"
                   >
                     <CaretRight size={18} weight="bold" />
                   </button>
@@ -873,16 +883,16 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
               <img
                 src={allPhotos[activePhotoIndex] || profile.image_url || 'https://images.unsplash.com/photo-1515372039744-b8f02a3ae446?w=1400&q=80'}
                 alt={`${profile.name} - foto ${activePhotoIndex + 1}`}
-                className="max-h-full max-w-full object-contain rounded-2xl shadow-[0_20px_80px_rgba(0,0,0,0.7)]"
+                className="photo-modal-image max-h-full max-w-full object-contain rounded-2xl shadow-[0_20px_80px_rgba(0,0,0,0.7)]"
                 onClick={() => photoCommentInputRef.current?.focus()}
               />
 
-              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-black/60 border border-white/15 text-xs text-white">
+              <div className="absolute bottom-2 md:bottom-4 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-black/60 border border-white/15 text-xs text-white">
                 Zdjęcie {Math.min(activePhotoIndex + 1, Math.max(allPhotos.length, 1))} / {Math.max(allPhotos.length, 1)}
               </div>
             </div>
 
-            <div className="p-6 md:p-8 flex flex-col bg-[#0a0710]/92">
+            <div className="photo-modal-comments p-4 md:p-6 lg:p-8 flex flex-col bg-[#0a0710]/92">
               <h3 className="text-base font-medium text-cyan-300/80 tracking-wider uppercase flex items-center gap-2 pb-4 border-b border-cyan-500/20">
                 <Quotes size={20} weight="fill" className="text-cyan-400" /> Komentarze do zdjęcia
               </h3>
