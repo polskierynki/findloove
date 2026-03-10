@@ -124,8 +124,8 @@ export default function NewHomeView() {
                   </div>
 
                   {/* Profile Info - Always visible, slides up on hover */}
-                  <div className="absolute bottom-0 left-0 w-full p-6 z-10 transform transition-transform duration-300 ease-out group-hover:-translate-y-12">
-                    <div className="card-meta flex flex-col gap-3 relative z-10">
+                  <div className="absolute bottom-0 left-0 w-full pb-3 px-5 pt-2 z-10 transform transition-transform duration-300 ease-out group-hover:-translate-y-12">
+                    <div className="card-meta flex flex-col gap-2.5 relative z-10">
                       <div>
                         <div className="flex items-center gap-2">
                           <h2 className="text-3xl font-medium text-white">
