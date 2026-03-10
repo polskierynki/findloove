@@ -3,7 +3,7 @@
 
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
-import { Home, Search, MessageCircle, LogIn, LogOut, HeartHandshake, User, Crown, Bot } from 'lucide-react';
+import { Home, Search, MessageCircle, LogIn, LogOut, HeartHandshake, User, Crown, Bot, Heart } from 'lucide-react';
 import { useLogout } from '@/lib/hooks/useLogout';
 import { AppView, ViewType } from '@/lib/types';
 
@@ -12,6 +12,7 @@ const NAV_ITEMS: { id: ViewType | 'myprofile'; icon: React.ReactNode; label: str
   { id: 'discover', icon: <HeartHandshake size={20} />, label: 'Szybkie Randki' },
   { id: 'search',   icon: <Search size={20} />,        label: 'Szukaj' },
   { id: 'messages', icon: <MessageCircle size={20} />, label: 'Poczta' },
+  { id: 'likes',    icon: <Heart size={20} />,         label: 'Ulubione' },
   { id: 'myprofile', icon: <User size={20} />,         label: 'Moj profil' },
 ];
 
