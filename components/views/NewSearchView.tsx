@@ -65,11 +65,12 @@ function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): nu
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-function distanceBetweenCities(cityA: string, cityB: string): number | null {
-  const a = CITY_COORDS[cityA];
-  const b = CITY_COORDS[cityB];
-  if (!a || !b) return null;
-  return Math.round(haversineKm(a[0], a[1], b[0], b[1]));
+type GeoCoords = { lat: number; lon: number };
+
+function distanceFromPointToCity(point: GeoCoords, city: string): number | null {
+  const cityCoords = CITY_COORDS[city];
+  if (!cityCoords) return null;
+  return Math.round(haversineKm(point.lat, point.lon, cityCoords[0], cityCoords[1]));
 }
 
 type SearchProfile = {
@@ -83,7 +84,11 @@ type SearchProfile = {
   drinking?: string;
   pets?: string;
   sexual_orientation?: string;
+  created_at?: string;
+  distanceKm?: number | null;
 };
+
+type SearchSort = 'closest' | 'newest' | 'ageAsc' | 'ageDesc';
 
 export default function NewSearchView() {
   const router = useRouter();
@@ -94,6 +99,7 @@ export default function NewSearchView() {
   const [ageMax, setAgeMax] = useState(80);
   const [distance, setDistance] = useState(200);
   const [baseCity, setBaseCity] = useState('');
+  const [sortBy, setSortBy] = useState<SearchSort>('closest');
   const [selectedLookingFor, setSelectedLookingFor] = useState<Set<string>>(new Set());
   const [selectedOrientation, setSelectedOrientation] = useState<Set<string>>(new Set());
   const [selectedPets, setSelectedPets] = useState<Set<string>>(new Set());
@@ -104,7 +110,35 @@ export default function NewSearchView() {
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [applied, setApplied] = useState(false);
+  const [geoCoords, setGeoCoords] = useState<GeoCoords | null>(null);
+  const [isLocating, setIsLocating] = useState(false);
+  const [geoError, setGeoError] = useState<string | null>(null);
+
+  const detectMyLocation = useCallback(() => {
+    if (typeof window === 'undefined' || !navigator.geolocation) {
+      setGeoError('Twoja przeglądarka nie wspiera geolokalizacji.');
+      return;
+    }
+
+    setIsLocating(true);
+    setGeoError(null);
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setGeoCoords({ lat: pos.coords.latitude, lon: pos.coords.longitude });
+        setIsLocating(false);
+      },
+      () => {
+        setGeoError('Brak zgody na lokalizację. Wybierz miasto ręcznie.');
+        setIsLocating(false);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 300000,
+      },
+    );
+  }, []);
 
   // Load current user
   useEffect(() => {
@@ -118,13 +152,18 @@ export default function NewSearchView() {
     getLikedProfileIds().then((ids) => setLikedIds(new Set(ids)));
   }, [getLikedProfileIds]);
 
+  // Try to get precise user location once (fallback to selected city when unavailable)
+  useEffect(() => {
+    detectMyLocation();
+  }, [detectMyLocation]);
+
   // Fetch real profiles
   const fetchProfiles = useCallback(async () => {
     setLoading(true);
     try {
       let query = supabase
         .from('profiles')
-        .select('id, name, age, city, image_url, looking_for, interests, drinking, pets, sexual_orientation')
+        .select('id, name, age, city, image_url, looking_for, interests, drinking, pets, sexual_orientation, created_at')
         .order('created_at', { ascending: false });
 
       if (currentUserId) {
@@ -156,17 +195,43 @@ export default function NewSearchView() {
       const { data, error } = await query;
       if (error) throw error;
 
-      let results = (data || []) as SearchProfile[];
+      const cityCoords = baseCity ? CITY_COORDS[baseCity] : null;
+      const referencePoint: GeoCoords | null = cityCoords
+        ? { lat: cityCoords[0], lon: cityCoords[1] }
+        : geoCoords;
 
-      // Client-side distance filter (city-based)
-      if (baseCity && distance < 500) {
+      let results = ((data || []) as SearchProfile[]).map((profile) => ({
+        ...profile,
+        distanceKm: referencePoint ? distanceFromPointToCity(referencePoint, profile.city) : null,
+      }));
+
+      // Distance filter, based on selected city or current GPS
+      if (referencePoint && distance < 500) {
         results = results.filter((p) => {
-          if (p.city === baseCity) return true;
-          const d = distanceBetweenCities(baseCity, p.city);
-          if (d === null) return true; // unknown city = include
-          return d <= distance;
+          if (baseCity && p.city === baseCity) return true;
+          if (p.distanceKm === null) return true;
+          return p.distanceKm <= distance;
         });
       }
+
+      // Sort client-side
+      results.sort((a, b) => {
+        if (sortBy === 'newest') {
+          return Date.parse(b.created_at || '') - Date.parse(a.created_at || '');
+        }
+
+        if (sortBy === 'ageAsc') {
+          return a.age - b.age;
+        }
+
+        if (sortBy === 'ageDesc') {
+          return b.age - a.age;
+        }
+
+        const aDist = a.distanceKm ?? Number.MAX_SAFE_INTEGER;
+        const bDist = b.distanceKm ?? Number.MAX_SAFE_INTEGER;
+        return aDist - bDist;
+      });
 
       setProfiles(results);
     } catch (err) {
@@ -174,14 +239,25 @@ export default function NewSearchView() {
     } finally {
       setLoading(false);
     }
-  }, [ageMin, ageMax, baseCity, currentUserId, distance, selectedDrinking, selectedLookingFor, selectedOrientation, selectedPets]);
+  }, [
+    ageMin,
+    ageMax,
+    baseCity,
+    currentUserId,
+    distance,
+    geoCoords,
+    selectedDrinking,
+    selectedLookingFor,
+    selectedOrientation,
+    selectedPets,
+    sortBy,
+  ]);
 
   useEffect(() => {
     void fetchProfiles();
   }, [fetchProfiles]);
 
   const handleApplyFilters = () => {
-    setApplied(true);
     void fetchProfiles();
   };
 
@@ -280,12 +356,31 @@ export default function NewSearchView() {
                   </button>
                 )}
               </div>
+              <div className="mt-2 flex items-center justify-between gap-2">
+                <span className="text-[11px] text-cyan-300/60">
+                  {baseCity
+                    ? 'Odległość liczona od wybranego miasta'
+                    : geoCoords
+                    ? 'Odległość liczona od Twojej lokalizacji GPS'
+                    : 'Brak lokalizacji GPS - wybierz miasto'}
+                </span>
+                <button
+                  onClick={detectMyLocation}
+                  disabled={isLocating}
+                  className="text-[11px] text-cyan-300 hover:text-cyan-200 disabled:opacity-50"
+                >
+                  {isLocating ? 'Lokalizuję...' : 'Użyj GPS'}
+                </button>
+              </div>
+              {geoError && !baseCity && (
+                <p className="mt-1 text-[11px] text-amber-300/80">{geoError}</p>
+              )}
             </div>
 
             {/* Distance (only meaningful when city selected) */}
-            <div className={baseCity ? '' : 'opacity-40 pointer-events-none'}>
+            <div className={baseCity || geoCoords ? '' : 'opacity-40 pointer-events-none'}>
               <div className="flex justify-between text-sm text-cyan-400 mb-2">
-                <label>Odległość od miasta</label>
+                <label>Zakres kilometrów</label>
                 <span>{distance >= 500 ? 'Cała Polska' : `do ${distance} km`}</span>
               </div>
               <input
@@ -400,6 +495,16 @@ export default function NewSearchView() {
                 : <>Znaleziono <span className="text-white font-medium">{profiles.length}</span> {profiles.length === 1 ? 'profil' : profiles.length < 5 ? 'profile' : 'profili'}</>
               }
             </p>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as SearchSort)}
+              className="bg-black/30 border border-cyan-500/20 rounded-xl py-2 px-4 text-sm text-white outline-none focus:border-cyan-500 transition-colors"
+            >
+              <option value="closest">Najbliżej</option>
+              <option value="newest">Najnowsze</option>
+              <option value="ageAsc">Wiek: od najmłodszych</option>
+              <option value="ageDesc">Wiek: od najstarszych</option>
+            </select>
           </div>
 
           {/* Profile Grid */}
@@ -414,9 +519,7 @@ export default function NewSearchView() {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
               {profiles.map((profile) => {
-                const distFromBase = baseCity && profile.city !== baseCity
-                  ? distanceBetweenCities(baseCity, profile.city)
-                  : null;
+                const distFromBase = profile.distanceKm ?? null;
                 const isLiked = likedIds.has(profile.id);
                 return (
                   <div
@@ -462,7 +565,7 @@ export default function NewSearchView() {
                           <p className="text-sm text-cyan-400 flex items-center gap-1">
                             <MapPin size={14} weight="fill" />
                             {profile.city}
-                            {distFromBase !== null && (
+                            {(baseCity || geoCoords) && distFromBase !== null && (
                               <span className="text-cyan-400/60"> • {distFromBase} km stąd</span>
                             )}
                             {baseCity && profile.city === baseCity && (
