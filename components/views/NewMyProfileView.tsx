@@ -537,13 +537,13 @@ export default function NewMyProfileView() {
                 <div className="relative">
                   <GenderIntersex
                     size={20}
-                    className="absolute left-4 top-1/2 -translate-y-1/2 text-cyan-400 shadow-[0_0_10px_rgba(0,255,255,0.5)]"
+                    className="absolute left-4 top-1/2 -translate-y-1/2 text-cyan-400"
                     weight="duotone"
                   />
                   <select
                     value={sexualOrientation}
                     onChange={(e) => setSexualOrientation(e.target.value)}
-                    className="w-full bg-black/30 border border-white/10 rounded-xl py-3 pl-12 pr-4 text-white outline-none focus:border-cyan-500/50 focus:bg-black/50 focus:shadow-[0_0_20px_rgba(0,255,255,0.3)] transition-all duration-300 appearance-none"
+                    className="w-full bg-black/30 border border-white/10 rounded-xl py-3 pl-12 pr-4 text-white outline-none focus:border-cyan-500/50 focus:bg-black/50 focus:shadow-[0_0_20px_rgba(0,255,255,0.1)] transition-all duration-300 appearance-none"
                   >
                     <option value="" className="bg-gray-900">Wybierz...</option>
                     {SEXUAL_ORIENTATION_OPTIONS.map((opt) => (
@@ -564,13 +564,13 @@ export default function NewMyProfileView() {
                 <div className="relative">
                   <HeartStraight
                     size={20}
-                    className="absolute left-4 top-1/2 -translate-y-1/2 text-fuchsia-400 shadow-[0_0_10px_rgba(255,0,255,0.5)]"
+                    className="absolute left-4 top-1/2 -translate-y-1/2 text-fuchsia-400"
                     weight="fill"
                   />
                   <select
                     value={lookingFor}
                     onChange={(e) => setLookingFor(e.target.value)}
-                    className="w-full bg-black/30 border border-white/10 rounded-xl py-3 pl-12 pr-4 text-white outline-none focus:border-fuchsia-500/50 focus:bg-black/50 focus:shadow-[0_0_20px_rgba(255,0,255,0.3)] transition-all duration-300 appearance-none"
+                    className="w-full bg-black/30 border border-white/10 rounded-xl py-3 pl-12 pr-4 text-white outline-none focus:border-fuchsia-500/50 focus:bg-black/50 focus:shadow-[0_0_20px_rgba(255,0,255,0.1)] transition-all duration-300 appearance-none"
                   >
                     <option value="" className="bg-gray-900">Wybierz...</option>
                     {LOOKING_FOR_OPTIONS.map((opt) => (
