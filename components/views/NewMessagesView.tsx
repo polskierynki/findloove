@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { MagnifyingGlass, Prohibit, Trash, Flag, PaperPlaneRight, ArrowLeft } from '@phosphor-icons/react';
 import { supabase } from '@/lib/supabase';
@@ -106,10 +106,18 @@ export default function NewMessagesView() {
   const [selectedProfile, setSelectedProfile] = useState<ConversationProfile | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [messageText, setMessageText] = useState('');
+  const [authUserId, setAuthUserId] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [chatError, setChatError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const identityIds = useMemo(
+    () => Array.from(new Set([authUserId, currentUserId].filter(Boolean))) as string[],
+    [authUserId, currentUserId],
+  );
+
+  const identityIdsCsv = useMemo(() => identityIds.join(','), [identityIds]);
 
   // Get current user
   useEffect(() => {
@@ -117,10 +125,13 @@ export default function NewMessagesView() {
       const { data: { user } } = await supabase.auth.getUser();
 
       if (!user) {
+        setAuthUserId(null);
         setCurrentUserId(null);
         setLoading(false);
         return;
       }
+
+      setAuthUserId(user.id);
 
       const resolvedProfileId = await resolveProfileIdForAuthUser(user);
       if (!resolvedProfileId) {
@@ -135,7 +146,7 @@ export default function NewMessagesView() {
 
   // Load conversations
   useEffect(() => {
-    if (!currentUserId) return;
+    if (identityIds.length === 0) return;
 
     const loadConversations = async () => {
       try {
@@ -143,19 +154,27 @@ export default function NewMessagesView() {
         const { data: sentMessages } = await supabase
           .from('messages')
           .select('to_profile_id, created_at, content')
-          .eq('from_profile_id', currentUserId)
+          .in('from_profile_id', identityIds)
           .order('created_at', { ascending: false });
 
         const { data: receivedMessages } = await supabase
           .from('messages')
           .select('from_profile_id, created_at, content')
-          .eq('to_profile_id', currentUserId)
+          .in('to_profile_id', identityIds)
           .order('created_at', { ascending: false });
 
         // Get unique profile IDs
         const profileIds = new Set<string>();
-        sentMessages?.forEach(msg => profileIds.add(msg.to_profile_id));
-        receivedMessages?.forEach(msg => profileIds.add(msg.from_profile_id));
+        sentMessages?.forEach((msg) => {
+          if (msg.to_profile_id && !identityIds.includes(msg.to_profile_id)) {
+            profileIds.add(msg.to_profile_id);
+          }
+        });
+        receivedMessages?.forEach((msg) => {
+          if (msg.from_profile_id && !identityIds.includes(msg.from_profile_id)) {
+            profileIds.add(msg.from_profile_id);
+          }
+        });
 
         if (profileIds.size === 0) {
           setConversations([]);
@@ -204,12 +223,12 @@ export default function NewMessagesView() {
       }
     };
 
-    loadConversations();
-  }, [currentUserId]);
+    void loadConversations();
+  }, [identityIds]);
 
   // Open direct conversation when arriving from profile cards (`/messages?user=<id>`)
   useEffect(() => {
-    if (!targetProfileId || !currentUserId || targetProfileId === currentUserId) return;
+    if (!targetProfileId || identityIds.length === 0 || identityIds.includes(targetProfileId)) return;
 
     const existing = conversations.find((c) => c.id === targetProfileId);
     if (existing) {
@@ -245,18 +264,20 @@ export default function NewMessagesView() {
     };
 
     void loadTargetProfile();
-  }, [conversations, currentUserId, selectedProfile?.id, targetProfileId]);
+  }, [conversations, identityIds, selectedProfile?.id, targetProfileId]);
 
   // Load messages for selected conversation
   useEffect(() => {
-    if (!selectedProfile || !currentUserId) return;
+    if (!selectedProfile || identityIds.length === 0) return;
 
     const loadMessages = async () => {
       try {
         const { data } = await supabase
           .from('messages')
           .select('*')
-          .or(`and(from_profile_id.eq.${currentUserId},to_profile_id.eq.${selectedProfile.id}),and(from_profile_id.eq.${selectedProfile.id},to_profile_id.eq.${currentUserId})`)
+          .or(
+            `and(from_profile_id.in.(${identityIdsCsv}),to_profile_id.eq.${selectedProfile.id}),and(from_profile_id.eq.${selectedProfile.id},to_profile_id.in.(${identityIdsCsv}))`,
+          )
           .order('created_at', { ascending: true });
 
         setMessages((data as Message[]) || []);
@@ -274,16 +295,22 @@ export default function NewMessagesView() {
         event: 'INSERT',
         schema: 'public',
         table: 'messages',
-        filter: `from_profile_id=eq.${selectedProfile.id},to_profile_id=eq.${currentUserId}`,
       }, (payload) => {
-        setMessages(prev => [...prev, payload.new as Message]);
+        const nextMessage = payload.new as Message;
+        const isRelevant =
+          (nextMessage.from_profile_id === selectedProfile.id && identityIds.includes(nextMessage.to_profile_id)) ||
+          (nextMessage.to_profile_id === selectedProfile.id && identityIds.includes(nextMessage.from_profile_id));
+
+        if (isRelevant) {
+          setMessages((prev) => [...prev, nextMessage]);
+        }
       })
       .subscribe();
 
     return () => {
       subscription.unsubscribe();
     };
-  }, [selectedProfile, currentUserId]);
+  }, [identityIds, identityIdsCsv, selectedProfile]);
 
   // Scroll to bottom on new messages
   useEffect(() => {
@@ -345,7 +372,7 @@ export default function NewMessagesView() {
   };
 
   const handleDeleteMessages = async () => {
-    if (!selectedProfile || !currentUserId) return;
+    if (!selectedProfile || identityIds.length === 0) return;
     
     const confirmed = window.confirm('Czy na pewno chcesz usunąć wszystkie wiadomości z tą rozmową?');
     if (!confirmed) return;
@@ -354,7 +381,9 @@ export default function NewMessagesView() {
       await supabase
         .from('messages')
         .delete()
-        .or(`and(from_profile_id.eq.${currentUserId},to_profile_id.eq.${selectedProfile.id}),and(from_profile_id.eq.${selectedProfile.id},to_profile_id.eq.${currentUserId})`);
+        .or(
+          `and(from_profile_id.in.(${identityIdsCsv}),to_profile_id.eq.${selectedProfile.id}),and(from_profile_id.eq.${selectedProfile.id},to_profile_id.in.(${identityIdsCsv}))`,
+        );
 
       setMessages([]);
       alert('Wiadomości zostały usunięte');
@@ -418,7 +447,7 @@ export default function NewMessagesView() {
     return (
       <div className="relative z-10 pt-24 pb-6 px-6 lg:px-12 max-w-[1800px] mx-auto">
         <div className="glass rounded-[2rem] p-12 text-center">
-          <p className="text-white">Musisz być zalogowany, aby korzystać z czatu</p>
+          <p className="text-white">{authUserId ? 'Brak profilu czatu dla konta. Odswiez strone.' : 'Musisz być zalogowany, aby korzystać z czatu'}</p>
         </div>
       </div>
     );
@@ -543,7 +572,7 @@ export default function NewMessagesView() {
                   </div>
                 ) : (
                   messages.map((msg) => {
-                    const isFromMe = msg.from_profile_id === currentUserId;
+                    const isFromMe = identityIds.includes(msg.from_profile_id);
                     const msgTime = new Date(msg.created_at).toLocaleTimeString('pl-PL', { 
                       hour: '2-digit', 
                       minute: '2-digit' 
@@ -580,7 +609,7 @@ export default function NewMessagesView() {
                   />
                   <button 
                     onClick={sendMessage}
-                    disabled={!messageText.trim()}
+                    disabled={!messageText.trim() || !currentUserId}
                     className="w-10 h-10 bg-gradient-to-tr from-fuchsia-600 to-cyan-600 rounded-full flex items-center justify-center text-white hover:scale-105 transition-transform shadow-[0_0_15px_rgba(255,0,255,0.4)] mr-1 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                   >
                     <PaperPlaneRight size={18} weight="fill" />
