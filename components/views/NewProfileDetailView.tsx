@@ -313,7 +313,11 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
       await loadGeneralComments();
     } catch (error) {
       console.error('Blad dodawania komentarza ogolnego:', error);
-      setCommentsError('Nie udalo sie dodac komentarza. Sprobuj ponownie.');
+      const message =
+        (error as { message?: string; code?: string } | null)?.message ||
+        (error as { code?: string } | null)?.code ||
+        'Nieznany blad';
+      setCommentsError(`Nie udalo sie dodac komentarza: ${message}`);
     } finally {
       setIsSubmittingComment(false);
     }
@@ -351,7 +355,11 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
       photoCommentInputRef.current?.focus();
     } catch (error) {
       console.error('Blad dodawania komentarza do zdjecia:', error);
-      setCommentsError('Nie udalo sie dodac komentarza do zdjecia.');
+      const message =
+        (error as { message?: string; code?: string } | null)?.message ||
+        (error as { code?: string } | null)?.code ||
+        'Nieznany blad';
+      setCommentsError(`Nie udalo sie dodac komentarza do zdjecia: ${message}`);
     } finally {
       setIsSubmittingPhotoComment(false);
     }
@@ -369,6 +377,7 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
     setActivePhotoIndex(photoIndex);
     setIsPhotoModalOpen(true);
     setPhotoCommentText('');
+    setCommentsError(null);
   }, []);
 
   const goToPhoto = useCallback((direction: 'prev' | 'next') => {
@@ -416,6 +425,16 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
 
     void loadPhotoComments(activePhotoIndex);
   }, [activePhotoIndex, allPhotos.length, isPhotoModalOpen, loadPhotoComments]);
+
+  useEffect(() => {
+    if (!isPhotoModalOpen) return;
+
+    const focusTimer = window.setTimeout(() => {
+      photoCommentInputRef.current?.focus();
+    }, 80);
+
+    return () => window.clearTimeout(focusTimer);
+  }, [activePhotoIndex, isPhotoModalOpen]);
 
   if (loading) {
     return <div className="pt-28 text-center text-cyan-400">Ładowanie profilu...</div>;
@@ -583,6 +602,7 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
               src={profile.image_url || 'https://images.unsplash.com/photo-1515372039744-b8f02a3ae446?w=1400&q=80'}
               alt={profile.name}
               className="w-full h-full object-cover rounded-[2.8rem] shadow-inner relative z-10 transform transition-transform duration-1000 group-hover:scale-105"
+              onClick={() => openPhotoCommentModal(0)}
             />
             <div className="absolute inset-0 bg-gradient-to-t from-[#07050f] via-transparent to-transparent rounded-[3rem] z-20 pointer-events-none opacity-90 transition-opacity group-hover:opacity-70"></div>
 
@@ -794,11 +814,11 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
 
       {isPhotoModalOpen && (
         <div
-          className="fixed inset-0 z-[120] bg-black/85 backdrop-blur-sm p-4 md:p-8"
+          className="fixed inset-0 z-[220] bg-black/92 backdrop-blur-sm"
           onClick={() => setIsPhotoModalOpen(false)}
         >
           <div
-            className="max-w-6xl h-full mx-auto glass rounded-[2rem] border border-white/10 overflow-hidden grid grid-cols-1 lg:grid-cols-2"
+            className="w-full h-full glass border border-white/10 overflow-hidden grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_420px]"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="relative bg-black/40 flex items-center justify-center p-4 md:p-8">
@@ -830,6 +850,7 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
                 src={allPhotos[activePhotoIndex] || profile.image_url || 'https://images.unsplash.com/photo-1515372039744-b8f02a3ae446?w=1400&q=80'}
                 alt={`${profile.name} - foto ${activePhotoIndex + 1}`}
                 className="max-h-full max-w-full object-contain rounded-2xl"
+                onClick={() => photoCommentInputRef.current?.focus()}
               />
 
               <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-black/55 border border-white/15 text-xs text-white">

@@ -3,13 +3,78 @@
 import { useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 
-// Fallback demo id when no auth user is available.
-const FALLBACK_PROFILE_ID = '00000000-0000-0000-0000-000000000001';
+type AuthLikeUser = {
+  id: string;
+  email?: string | null;
+  user_metadata?: Record<string, unknown>;
+};
+
+async function resolveProfileIdForAuthUser(user: AuthLikeUser): Promise<string | null> {
+  const normalizedEmail = user.email?.trim().toLowerCase() || null;
+
+  const { data: byId, error: byIdError } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('id', user.id)
+    .maybeSingle();
+
+  if (!byIdError && byId?.id) {
+    return byId.id as string;
+  }
+
+  if (normalizedEmail) {
+    const { data: byEmail, error: byEmailError } = await supabase
+      .from('profiles')
+      .select('id')
+      .ilike('email', normalizedEmail)
+      .maybeSingle();
+
+    if (!byEmailError && byEmail?.id) {
+      return byEmail.id as string;
+    }
+  }
+
+  const fallbackName =
+    (typeof user.user_metadata?.name === 'string' && user.user_metadata.name.trim()) ||
+    (normalizedEmail ? normalizedEmail.split('@')[0] : '') ||
+    'Uzytkownik';
+
+  const { data: created, error: createError } = await supabase
+    .from('profiles')
+    .upsert(
+      {
+        id: user.id,
+        email: normalizedEmail,
+        name: fallbackName,
+        age: 30,
+        city: 'Nieznane',
+        bio: '',
+        interests: [],
+        image_url: '',
+      },
+      { onConflict: 'id' },
+    )
+    .select('id')
+    .maybeSingle();
+
+  if (createError) {
+    console.error('Blad mapowania auth->profile dla ulubionych:', createError.message);
+    return null;
+  }
+
+  return (created?.id as string | undefined) || user.id;
+}
 
 export function useLikes() {
-  const getSenderId = useCallback(async (): Promise<string> => {
+  const getSenderId = useCallback(async (): Promise<string | null> => {
     const { data } = await supabase.auth.getUser();
-    return data.user?.id || FALLBACK_PROFILE_ID;
+    if (!data.user) return null;
+
+    return resolveProfileIdForAuthUser({
+      id: data.user.id,
+      email: data.user.email,
+      user_metadata: data.user.user_metadata,
+    });
   }, []);
 
   const likeProfile = useCallback(async (toProfileId: string): Promise<void> => {
@@ -17,6 +82,7 @@ export function useLikes() {
     if (toProfileId.startsWith('mock-')) return;
 
     const senderId = await getSenderId();
+    if (!senderId) return;
 
     if (senderId === toProfileId) return;
 
@@ -30,6 +96,7 @@ export function useLikes() {
     if (toProfileId.startsWith('mock-')) return;
 
     const senderId = await getSenderId();
+    if (!senderId) return;
 
     if (senderId === toProfileId) return;
 
@@ -44,6 +111,7 @@ export function useLikes() {
     if (toProfileId.startsWith('mock-')) return false;
 
     const senderId = await getSenderId();
+    if (!senderId) return false;
 
     if (senderId === toProfileId) return false;
 
@@ -64,6 +132,7 @@ export function useLikes() {
 
   const getLikedProfileIds = useCallback(async (): Promise<string[]> => {
     const senderId = await getSenderId();
+    if (!senderId) return [];
 
     const { data, error } = await supabase
       .from('likes')
