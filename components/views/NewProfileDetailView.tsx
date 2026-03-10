@@ -372,9 +372,9 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
               {profile.interests?.map((interest) => (
                 <span
                   key={interest}
-                  className="px-5 py-2.5 rounded-full border border-fuchsia-500/30 bg-gradient-to-r from-fuchsia-500/10 to-transparent backdrop-blur-md shadow-[0_0_15px_rgba(255,0,255,0.05)] hover:shadow-[0_0_20px_rgba(255,0,255,0.2)] hover:border-fuchsia-400 transition-all cursor-default text-sm tracking-wide text-white"
+                  className="px-5 py-2.5 rounded-full border border-fuchsia-500/30 bg-gradient-to-r from-fuchsia-500/10 to-transparent backdrop-blur-md shadow-[0_0_15px_rgba(255,0,255,0.05)] hover:shadow-[0_0_20px_rgba(255,0,255,0.2)] hover:border-fuchsia-400 transition-all cursor-default text-sm tracking-wide text-white flex items-center gap-2"
                 >
-                  ✨ {interest}
+                  <Sparkle size={16} weight="fill" className="text-fuchsia-400" /> {interest}
                 </span>
               ))}
             </div>
@@ -383,7 +383,7 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
           {/* Received Gifts Widget */}
           <div className="glass rounded-[2rem] p-6 relative overflow-hidden">
             <h3 className="text-base font-medium text-cyan-300/70 tracking-wider uppercase flex items-center gap-2 mb-5">
-              🎁 Otrzymane prezenty
+              <Gift size={20} weight="duotone" className="text-amber-400" /> Otrzymane prezenty
             </h3>
             <div className="grid grid-cols-4 gap-4">
               {[

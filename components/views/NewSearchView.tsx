@@ -2,8 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Heart, MessageCircle, Sparkles } from 'lucide-react';
-import { MapPin, Sliders } from '@phosphor-icons/react';
+import { Heart, ChatCircle, Sparkle, MapPin, Sliders } from '@phosphor-icons/react';
 import { 
   LOOKING_FOR_OPTIONS, 
   SEXUAL_ORIENTATION_OPTIONS, 
@@ -245,7 +244,7 @@ export default function NewSearchView() {
                   {/* Match Badge */}
                   <div className="absolute top-4 left-4 right-4 flex justify-between items-center z-10">
                     <div className="bg-black/40 backdrop-blur-md px-3 py-1 rounded-full border border-fuchsia-500/30 flex items-center gap-1.5 shadow-[0_0_10px_rgba(255,0,255,0.2)]">
-                      <Sparkles className="text-fuchsia-400" size={14} />
+                      <Sparkle className="text-fuchsia-400" size={14} weight="fill" />
                       <span className="text-xs font-semibold text-white">{profile.matchScore}% Match</span>
                     </div>
                     {profile.looking_for && (
@@ -279,7 +278,7 @@ export default function NewSearchView() {
                           onClick={(e) => e.stopPropagation()}
                           className="pointer-events-auto flex-1 bg-white/10 hover:bg-white/20 backdrop-blur-md border border-cyan-500/20 py-2.5 rounded-xl flex items-center justify-center gap-2 text-white transition-all hover:border-red-400/50 hover:text-red-400"
                         >
-                          <Heart size={20} />
+                          <Heart size={20} weight="regular" />
                         </button>
                         <button
                           onClick={(e) => {
@@ -288,7 +287,7 @@ export default function NewSearchView() {
                           }}
                           className="pointer-events-auto flex-1 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 shadow-[0_0_15px_rgba(0,255,255,0.3)] py-2.5 rounded-xl flex items-center justify-center gap-2 text-white"
                         >
-                          <MessageCircle size={20} />
+                          <ChatCircle size={20} weight="fill" />
                         </button>
                       </div>
                     </div>

@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Heart, MessageCircle, Sparkles } from 'lucide-react';
-import { MapPin } from '@phosphor-icons/react';
+import { Heart, ChatCircle, Sparkle, MapPin } from '@phosphor-icons/react';
 import { supabase } from '@/lib/supabase';
 import { Profile } from '@/lib/types';
 import { LOOKING_FOR_OPTIONS } from './constants/profileFormOptions';
@@ -61,7 +60,7 @@ export default function NewHomeView() {
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <button className="px-5 py-2.5 rounded-full glass border-cyan-500/30 bg-cyan-500/10 text-sm font-medium transition-all shadow-[inset_0_0_15px_rgba(0,255,255,0.1)] text-cyan-300 hover:bg-cyan-500/20">
-            <Sparkles className="inline-block mr-1.5 text-cyan-400" size={16} /> Rekomendowani
+            <Sparkle className="inline-block mr-1.5 text-cyan-400" size={16} weight="fill" /> Rekomendowani
           </button>
           <button className="px-5 py-2.5 rounded-full glass border-cyan-500/30 text-sm font-light text-cyan-300/70 transition-all hover:bg-cyan-500/10 hover:border-cyan-500/50">
             W pobliżu
@@ -101,7 +100,7 @@ export default function NewHomeView() {
                   {/* Match Badge */}
                   <div className="absolute top-4 left-4 right-4 flex justify-between items-center z-10">
                     <div className="bg-black/40 backdrop-blur-md px-3 py-1 rounded-full border border-fuchsia-500/30 flex items-center gap-1.5 shadow-[0_0_10px_rgba(255,0,255,0.2)]">
-                      <Sparkles className="text-fuchsia-400" size={14} />
+                      <Sparkle className="text-fuchsia-400" size={14} weight="fill" />
                       <span className="text-xs font-semibold text-white">{matchScore}% Match</span>
                     </div>
                     <div className="flex items-center gap-2">
@@ -149,8 +148,9 @@ export default function NewHomeView() {
                         >
                           <Heart
                             size={20}
+                            weight={isLiked ? 'fill' : 'regular'}
                             className={`${
-                              isLiked ? 'fill-red-400 text-red-400' : ''
+                              isLiked ? 'text-red-400' : ''
                             } group-hover/btn:scale-110 transition-transform`}
                           />
                         </button>
@@ -161,7 +161,7 @@ export default function NewHomeView() {
                           }}
                           className="pointer-events-auto flex-1 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 shadow-[0_0_15px_rgba(0,255,255,0.3)] py-2.5 rounded-xl flex items-center justify-center gap-2 text-white transition-all"
                         >
-                          <MessageCircle size={20} />
+                          <ChatCircle size={20} weight="fill" />
                         </button>
                       </div>
                     </div>
