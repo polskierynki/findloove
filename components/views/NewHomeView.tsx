@@ -13,16 +13,33 @@ export default function NewHomeView() {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [likedProfiles, setLikedProfiles] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const { likeProfile } = useLikes();
+
+  // Get current user ID
+  useEffect(() => {
+    const getCurrentUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setCurrentUserId(user?.id || null);
+    };
+    getCurrentUser();
+  }, []);
 
   useEffect(() => {
     const loadProfiles = async () => {
       try {
-        const { data, error } = await supabase
+        let query = supabase
           .from('profiles')
           .select('*')
           .limit(20)
           .order('created_at', { ascending: false });
+
+        // Exclude current user's profile
+        if (currentUserId) {
+          query = query.neq('id', currentUserId);
+        }
+
+        const { data, error } = await query;
 
         if (error) throw error;
         setProfiles((data as Profile[]) || []);
@@ -34,7 +51,7 @@ export default function NewHomeView() {
     };
 
     loadProfiles();
-  }, []);
+  }, [currentUserId]);
 
   const toggleLike = async (profileId: string) => {
     // Update local state immediately for UI feedback
