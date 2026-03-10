@@ -338,7 +338,7 @@ export default function App() {
             setView('home');
           }
         }
-      } else if (routeView === 'messages' && !isLoggedIn) {
+      } else if (routeView === 'messages' && !isLoggedIn && !loading) {
         canonicalView = 'auth';
         canonicalProfileId = null;
         if (view !== 'auth') {
@@ -556,10 +556,10 @@ export default function App() {
   };
 
   useEffect(() => {
-    if (!isLoggedIn && view === 'messages') {
+    if (!isLoggedIn && view === 'messages' && !loading) {
       setView('auth');
     }
-  }, [isLoggedIn, view]);
+  }, [isLoggedIn, view, loading]);
 
   const searchFor = (cat: LookingForCategory) => {
     setSearchLookingFor(cat);
