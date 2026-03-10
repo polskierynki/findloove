@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useChat } from 'ai/react';
+import { createPortal } from 'react-dom';
 import EmojiPicker from 'emoji-picker-react';
 import { X, Send } from 'lucide-react';
 
@@ -13,7 +14,12 @@ interface AIAssistantProps {
 export default function AIAssistant({ isOpen, onClose }: AIAssistantProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [isClient, setIsClient] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   const { messages, input, handleInputChange, handleSubmit, isLoading, setMessages } = useChat({
     api: '/api/chat',
@@ -154,19 +160,26 @@ export default function AIAssistant({ isOpen, onClose }: AIAssistantProps) {
             <Send size={16} />
           </button>
         </form>
-        {showEmojiPicker && (
-          <div className="mt-2 flex justify-center">
-            <EmojiPicker
-              onEmojiClick={(e) => {
-                handleInputChange({
-                  target: { value: input + e.emoji },
-                } as React.ChangeEvent<HTMLInputElement>);
-                inputRef.current?.focus();
-              }}
-              height={300}
-              width={280}
-            />
-          </div>
+        {showEmojiPicker && isClient && createPortal(
+          <div className="fixed inset-0 z-[199]" onClick={() => setShowEmojiPicker(false)}>
+            <div
+              className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white border border-slate-200 rounded-xl shadow-xl flex justify-center p-4"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <EmojiPicker
+                onEmojiClick={(e) => {
+                  handleInputChange({
+                    target: { value: input + e.emoji },
+                  } as React.ChangeEvent<HTMLInputElement>);
+                  inputRef.current?.focus();
+                  setShowEmojiPicker(false);
+                }}
+                height={300}
+                width={280}
+              />
+            </div>
+          </div>,
+          document.body,
         )}
       </div>
     </div>

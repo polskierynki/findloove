@@ -145,8 +145,6 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
   const [showPhotoCommentEmojiPicker, setShowPhotoCommentEmojiPicker] = useState(false);
   const generalCommentInputRef = useRef<HTMLInputElement>(null);
   const photoCommentInputRef = useRef<HTMLInputElement>(null);
-  const generalEmojiRef = useRef<HTMLDivElement>(null);
-  const photoEmojiRef = useRef<HTMLDivElement>(null);
 
   const allPhotos = useMemo(() => {
     if (!profile) return [];
@@ -636,17 +634,24 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
                   <PaperPlaneTilt size={18} weight="fill" />
                 </button>
               </div>
-              {showGeneralCommentEmojiPicker && (
-                <div ref={generalEmojiRef} className="mt-2 flex justify-center">
-                  <EmojiPicker
-                    onEmojiClick={(e) => {
-                      setCommentText((prev) => prev + e.emoji);
-                      generalCommentInputRef.current?.focus();
-                    }}
-                    height={300}
-                    width={280}
-                  />
-                </div>
+              {showGeneralCommentEmojiPicker && isClient && createPortal(
+                <div className="fixed inset-0 z-[199]" onClick={() => setShowGeneralCommentEmojiPicker(false)}>
+                  <div
+                    className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-black/95 backdrop-blur-md border border-white/10 rounded-xl shadow-[0_0_40px_rgba(0,255,255,0.3)] flex justify-center p-4"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <EmojiPicker
+                      onEmojiClick={(e) => {
+                        setCommentText((prev) => prev + e.emoji);
+                        generalCommentInputRef.current?.focus();
+                        setShowGeneralCommentEmojiPicker(false);
+                      }}
+                      height={300}
+                      width={280}
+                    />
+                  </div>
+                </div>,
+                document.body,
               )}
             </div>
           </div>
@@ -987,17 +992,24 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
                     <PaperPlaneTilt size={16} weight="fill" />
                   </button>
                 </div>
-                {showPhotoCommentEmojiPicker && (
-                  <div ref={photoEmojiRef} className="mt-2 flex justify-center">
-                    <EmojiPicker
-                      onEmojiClick={(e) => {
-                        setPhotoCommentText((prev) => prev + e.emoji);
-                        photoCommentInputRef.current?.focus();
-                      }}
-                      height={300}
-                      width={280}
-                    />
-                  </div>
+                {showPhotoCommentEmojiPicker && isClient && createPortal(
+                  <div className="fixed inset-0 z-[199]" onClick={() => setShowPhotoCommentEmojiPicker(false)}>
+                    <div
+                      className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-black/95 backdrop-blur-md border border-white/10 rounded-xl shadow-[0_0_40px_rgba(0,255,255,0.3)] flex justify-center p-4"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <EmojiPicker
+                        onEmojiClick={(e) => {
+                          setPhotoCommentText((prev) => prev + e.emoji);
+                          photoCommentInputRef.current?.focus();
+                          setShowPhotoCommentEmojiPicker(false);
+                        }}
+                        height={300}
+                        width={280}
+                      />
+                    </div>
+                  </div>,
+                  document.body,
                 )}
               </div>
             </div>

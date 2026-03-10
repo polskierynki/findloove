@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Chatbox, Session } from '@talkjs/react-components';
+import { Chatbox } from '@talkjs/react-components';
 
 interface TalkJSChatProps {
   currentUserId: string;
@@ -55,14 +55,15 @@ export default function TalkJSChat({
   return (
     <div className="flex-1 overflow-hidden bg-black/10 flex flex-col w-full">
       {ready ? (
-        <Session appId="tGMNi9UN" userId={currentUserId}>
-          <Chatbox
-            style={{
-              width: '100%',
-              height: '100%',
-            }}
-          />
-        </Session>
+        <Chatbox
+          appId="tGMNi9UN"
+          userId={currentUserId}
+          conversationId="default_inbox"
+          style={{
+            width: '100%',
+            height: '100%',
+          }}
+        />
       ) : (
         <div className="flex items-center justify-center h-full">
           <div className="text-center">
