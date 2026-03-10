@@ -47,6 +47,7 @@ export default function NewHeader() {
   const [user, setUser] = useState<SupabaseUser | null>(null);
   const [profile, setProfile] = useState<HeaderProfile | null>(null);
   const [lastReadAt, setLastReadAt] = useState<number>(0);
+  const [unreadMessagesCount, setUnreadMessagesCount] = useState<number>(0);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
@@ -71,6 +72,30 @@ export default function NewHeader() {
 
     setProfile((data as HeaderProfile | null) ?? null);
   }, []);
+
+  const loadUnreadMessagesCount = useCallback(async () => {
+    if (!user) {
+      setUnreadMessagesCount(0);
+      return;
+    }
+    try {
+      const stored = localStorage.getItem('messages_opened_at');
+      let query = supabase
+        .from('messages')
+        .select('*', { count: 'exact', head: true })
+        .eq('to_profile_id', user.id);
+      if (stored) {
+        const ts = parseInt(stored, 10);
+        if (!isNaN(ts)) {
+          query = query.gt('created_at', new Date(ts).toISOString());
+        }
+      }
+      const { count } = await query;
+      setUnreadMessagesCount(count ?? 0);
+    } catch {
+      // ignore network errors
+    }
+  }, [user]);
 
   const isAdmin =
     user?.email?.trim().toLowerCase() === adminEmail ||
@@ -130,6 +155,13 @@ export default function NewHeader() {
   useEffect(() => {
     if (!user) {
       setLastReadAt(0);
+      setUnreadMessagesCount(0);
+      return;
+    }
+    const stored = localStorage.getItem('notifications_read_at');
+    if (stored) {
+      const ts = parseInt(stored, 10);
+      if (!isNaN(ts)) setLastReadAt(ts);
     }
   }, [user]);
 
@@ -147,6 +179,25 @@ export default function NewHeader() {
     };
   }, [loadNotifications, notificationsOpen, user]);
 
+  useEffect(() => {
+    if (!user) {
+      setUnreadMessagesCount(0);
+      return;
+    }
+    void loadUnreadMessagesCount();
+    const interval = window.setInterval(() => {
+      if (!document.hidden) void loadUnreadMessagesCount();
+    }, 30000);
+    return () => window.clearInterval(interval);
+  }, [user, loadUnreadMessagesCount]);
+
+  useEffect(() => {
+    if (pathname.startsWith('/messages')) {
+      localStorage.setItem('messages_opened_at', String(Date.now()));
+      setUnreadMessagesCount(0);
+    }
+  }, [pathname]);
+
   const unreadNotificationsCount = useMemo(() => {
     if (!lastReadAt) return notifications.length;
 
@@ -154,7 +205,9 @@ export default function NewHeader() {
   }, [lastReadAt, notifications]);
 
   const markAllNotificationsAsRead = useCallback(() => {
-    setLastReadAt(Date.now());
+    const now = Date.now();
+    setLastReadAt(now);
+    localStorage.setItem('notifications_read_at', String(now));
   }, []);
 
   const openNotification = useCallback(
@@ -274,9 +327,11 @@ export default function NewHeader() {
             className="relative text-cyan-400 hover:text-cyan-300 transition-all hover:scale-110 duration-300 w-10 h-10 flex items-center justify-center rounded-full hover:shadow-[0_0_15px_rgba(0,255,255,0.6)]"
           >
             <MessageCircle size={26} />
-            <span className="absolute top-1 right-0 w-[18px] h-[18px] bg-cyan-500 rounded-full text-[10px] font-bold flex items-center justify-center shadow-[0_0_8px_rgba(0,255,255,0.8)] text-black border-2 border-[#110a22]">
-              3
-            </span>
+            {unreadMessagesCount > 0 && (
+              <span className="absolute top-1 right-0 min-w-[18px] h-[18px] px-1 bg-cyan-500 rounded-full text-[10px] font-bold flex items-center justify-center shadow-[0_0_8px_rgba(0,255,255,0.8)] text-black border-2 border-[#110a22]">
+                {unreadMessagesCount > 99 ? '99+' : unreadMessagesCount}
+              </span>
+            )}
           </button>
 
           {/* Notifications */}
