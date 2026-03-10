@@ -27,6 +27,7 @@ import ProfileDetailView from '@/components/views/ProfileDetailView';
 import MessagesView from '@/components/views/MessagesView';
 import SafetyView from '@/components/views/SafetyView';
 import LikesView from '@/components/views/LikesView';
+import NewLikesView from '@/components/views/NewLikesView';
 import SearchView from '@/components/views/SearchView';
 import AuthView from '@/components/views/AuthView';
 import RegisterView from '@/components/views/RegisterView';
@@ -812,18 +813,7 @@ export default function App() {
               />
             )}
             {!loading && view === 'likes' && (
-              <LikesView
-                profiles={profiles}
-                onBack={() => setView('home')}
-                onMessage={openMessages}
-                isLoggedIn={isLoggedIn}
-                isPremium={isPremium}
-                tokens={tokens}
-                onSpendToken={() => spendTokens(2)}
-                onUnlockLikes={unlockLikes}
-                unlockedLikes={unlockedLikes || isPremium}
-                onLoginRequest={() => setView('auth')}
-              />
+              <NewLikesView />
             )}
             {view === 'terms' && <TermsView onBack={() => setView('home')} />}
             {view === 'privacy' && <PrivacyView onBack={() => setView('home')} />}
