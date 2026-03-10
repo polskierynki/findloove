@@ -15,7 +15,7 @@ const NAV_ITEMS: { id: ViewType | 'myprofile'; icon: React.ReactNode; label: str
   { id: 'discover', icon: <HeartHandshake size={22} />, label: 'Randki', path: '/discover' },
   { id: 'search', icon: <Search size={20} />, label: 'Szukaj', path: '/search' },
   { id: 'messages', icon: <MessageCircle size={22} />, label: 'Poczta', path: '/messages' },
-  { id: 'likes', icon: <Heart size={20} />, label: 'Lubię', path: '/likes' },
+  { id: 'likes', icon: <Heart size={20} />, label: 'Ulubione', path: '/likes' },
   { id: 'myprofile', icon: <User size={22} />, label: 'Profil', path: '/myprofile' },
 ];
 
