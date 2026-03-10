@@ -23,6 +23,7 @@ import {
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { Profile } from '@/lib/types';
+import { useLikes } from '@/lib/hooks/useLikes';
 
 interface Comment {
   id: string;
@@ -35,6 +36,7 @@ interface Comment {
 
 export default function NewProfileDetailView({ profileId }: { profileId: string }) {
   const router = useRouter();
+  const { likeProfile, unlikeProfile, hasLikedProfile } = useLikes();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -74,6 +76,9 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
           created_at: c.created_at,
           like_count: 2,
         })));
+
+        const liked = await hasLikedProfile(profileId);
+        setIsLiked(liked);
       } catch (error) {
         console.error('Error loading profile:', error);
       } finally {
@@ -311,7 +316,21 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
           {/* Interaction Dock */}
           <div className="glass-panel mx-auto w-full max-w-lg px-6 py-2 rounded-full flex justify-between items-center border border-cyan-500/20 shadow-[0_20px_50px_rgba(0,0,0,0.6),inset_0_0_20px_rgba(255,255,255,0.05)] relative -mt-12 z-40 backdrop-blur-xl">
             <button
-              onClick={() => setIsLiked(!isLiked)}
+              onClick={async () => {
+                const nextLikedState = !isLiked;
+                setIsLiked(nextLikedState);
+
+                try {
+                  if (nextLikedState) {
+                    await likeProfile(profileId);
+                  } else {
+                    await unlikeProfile(profileId);
+                  }
+                } catch (error) {
+                  console.error('Blad aktualizacji polubienia profilu:', error);
+                  setIsLiked(!nextLikedState);
+                }
+              }}
               className="cta-dock-btn flex flex-col items-center justify-center gap-1 p-2 group w-16"
             >
               <div className="w-12 h-12 rounded-full bg-white/10 border border-cyan-500/20 flex items-center justify-center group-hover:bg-red-500/20 group-hover:border-red-500/50 transition-all shadow-inner">

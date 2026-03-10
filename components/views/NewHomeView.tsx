@@ -14,7 +14,7 @@ export default function NewHomeView() {
   const [likedProfiles, setLikedProfiles] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const { likeProfile } = useLikes();
+  const { likeProfile, unlikeProfile, getLikedProfileIds } = useLikes();
 
   // Get current user ID
   useEffect(() => {
@@ -53,8 +53,23 @@ export default function NewHomeView() {
     loadProfiles();
   }, [currentUserId]);
 
+  useEffect(() => {
+    const loadLikedProfiles = async () => {
+      if (!currentUserId) {
+        setLikedProfiles(new Set());
+        return;
+      }
+
+      const likedIds = await getLikedProfileIds();
+      setLikedProfiles(new Set(likedIds));
+    };
+
+    void loadLikedProfiles();
+  }, [currentUserId, getLikedProfileIds]);
+
   const toggleLike = async (profileId: string) => {
-    // Update local state immediately for UI feedback
+    const wasLiked = likedProfiles.has(profileId);
+
     setLikedProfiles((prev) => {
       const newSet = new Set(prev);
       if (newSet.has(profileId)) {
@@ -65,8 +80,24 @@ export default function NewHomeView() {
       return newSet;
     });
 
-    // Save to database
-    await likeProfile(profileId);
+    try {
+      if (wasLiked) {
+        await unlikeProfile(profileId);
+      } else {
+        await likeProfile(profileId);
+      }
+    } catch (error) {
+      console.error('Blad aktualizacji ulubionych:', error);
+      setLikedProfiles((prev) => {
+        const rollback = new Set(prev);
+        if (wasLiked) {
+          rollback.add(profileId);
+        } else {
+          rollback.delete(profileId);
+        }
+        return rollback;
+      });
+    }
   };
 
   return (

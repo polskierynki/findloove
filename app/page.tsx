@@ -28,6 +28,7 @@ import MessagesView from '@/components/views/MessagesView';
 import SafetyView from '@/components/views/SafetyView';
 import LikesView from '@/components/views/LikesView';
 import NewLikesView from '@/components/views/NewLikesView';
+import NewNotificationsView from '@/components/views/NewNotificationsView';
 import SearchView from '@/components/views/SearchView';
 import AuthView from '@/components/views/AuthView';
 import RegisterView from '@/components/views/RegisterView';
@@ -71,6 +72,7 @@ const ROUTABLE_APP_VIEWS: AppView[] = [
   'cookies',
   'admin',
   'myprofile',
+  'notifications',
 ];
 
 function isRoutableAppView(value: string | null): value is AppView {
@@ -91,6 +93,7 @@ const STATIC_PATH_TO_VIEW: Record<string, AppView> = {
   '/cookies': 'cookies',
   '/admin': 'admin',
   '/myprofile': 'myprofile',
+  '/notifications': 'notifications',
 };
 
 function normalizePathname(pathname: string): string {
@@ -814,6 +817,9 @@ export default function App() {
             )}
             {!loading && view === 'likes' && (
               <NewLikesView />
+            )}
+            {!loading && view === 'notifications' && (
+              <NewNotificationsView isAdmin={isAdmin} />
             )}
             {view === 'terms' && <TermsView onBack={() => setView('home')} />}
             {view === 'privacy' && <PrivacyView onBack={() => setView('home')} />}

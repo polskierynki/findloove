@@ -5,23 +5,12 @@ import { useRouter, usePathname } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 import { Bell, MessageCircle, Shield, Menu, X, Gift, Heart, BadgeCheck, LogIn, LogOut, UserPlus } from 'lucide-react';
+import { useNotifications } from '@/lib/hooks/useNotifications';
 
 type HeaderProfile = {
   role?: string | null;
   is_verified?: boolean | null;
   created_at?: string | null;
-};
-
-type NotificationKind = 'gift' | 'like' | 'poke' | 'verification' | 'comment';
-
-type NotificationItem = {
-  id: string;
-  kind: NotificationKind;
-  actorName?: string;
-  actorImageUrl?: string;
-  message: string;
-  createdAt: string;
-  href: string;
 };
 
 function toTimestamp(value?: string | null): number {
@@ -57,8 +46,6 @@ export default function NewHeader() {
   const pathname = usePathname();
   const [user, setUser] = useState<SupabaseUser | null>(null);
   const [profile, setProfile] = useState<HeaderProfile | null>(null);
-  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
-  const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [lastReadAt, setLastReadAt] = useState<number>(0);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -68,6 +55,7 @@ export default function NewHeader() {
     if (path === '/') return 'home';
     if (path.startsWith('/search')) return 'search';
     if (path.startsWith('/messages')) return 'messages';
+    if (path.startsWith('/likes')) return 'likes';
     if (path.startsWith('/myprofile')) return 'profile';
     return null;
   };
@@ -84,194 +72,21 @@ export default function NewHeader() {
     setProfile((data as HeaderProfile | null) ?? null);
   }, []);
 
-  const loadNotifications = useCallback(async () => {
-    if (!user) {
-      setNotifications([]);
-      return;
-    }
+  const isAdmin =
+    user?.email?.trim().toLowerCase() === adminEmail ||
+    profile?.role === 'admin' ||
+    profile?.role === 'super_admin';
 
-    setNotificationsLoading(true);
-
-    try {
-      const myProfileId = user.id;
-
-      const [likesRes, interactionsRes, commentsRes] = await Promise.all([
-        supabase
-          .from('likes')
-          .select('id, from_profile_id, created_at')
-          .eq('to_profile_id', myProfileId)
-          .order('created_at', { ascending: false })
-          .limit(20),
-        supabase
-          .from('profile_interactions')
-          .select('id, from_profile_id, kind, label, emoji, created_at')
-          .eq('to_profile_id', myProfileId)
-          .in('kind', ['gift', 'poke'])
-          .order('created_at', { ascending: false })
-          .limit(20),
-        supabase
-          .from('profile_comments')
-          .select('id, author_profile_id, content, created_at')
-          .eq('profile_id', myProfileId)
-          .neq('author_profile_id', myProfileId)
-          .order('created_at', { ascending: false })
-          .limit(20),
-      ]);
-
-      if (likesRes.error) {
-        console.error('Blad ladowania polubien do powiadomien:', likesRes.error.message);
-      }
-
-      if (
-        interactionsRes.error &&
-        !interactionsRes.error.message.toLowerCase().includes('does not exist')
-      ) {
-        console.error('Blad ladowania zaczepien/prezentow do powiadomien:', interactionsRes.error.message);
-      }
-
-      if (
-        commentsRes.error &&
-        !commentsRes.error.message.toLowerCase().includes('does not exist')
-      ) {
-        console.error('Blad ladowania komentarzy do powiadomien:', commentsRes.error.message);
-      }
-
-      type LikeRow = { id: string; from_profile_id: string; created_at: string };
-      type InteractionRow = {
-        id: string;
-        from_profile_id: string;
-        kind: 'gift' | 'poke' | 'emote';
-        label?: string | null;
-        emoji?: string | null;
-        created_at: string;
-      };
-      type CommentRow = {
-        id: string;
-        author_profile_id: string;
-        content: string;
-        created_at: string;
-      };
-
-      const likes = (likesRes.data as LikeRow[] | null) ?? [];
-      const interactions = interactionsRes.error
-        ? []
-        : ((interactionsRes.data as InteractionRow[] | null) ?? []);
-      const comments = commentsRes.error
-        ? []
-        : ((commentsRes.data as CommentRow[] | null) ?? []);
-
-      const actorIds = Array.from(
-        new Set([
-          ...likes.map((row) => row.from_profile_id),
-          ...interactions.map((row) => row.from_profile_id),
-          ...comments.map((row) => row.author_profile_id),
-        ]),
-      );
-
-      const actorMap = new Map<string, { id: string; name?: string | null; image_url?: string | null }>();
-
-      if (actorIds.length > 0) {
-        const { data: actors, error: actorsError } = await supabase
-          .from('profiles')
-          .select('id, name, image_url')
-          .in('id', actorIds);
-
-        if (actorsError) {
-          console.error('Blad ladowania autorow powiadomien:', actorsError.message);
-        } else {
-          for (const actor of actors ?? []) {
-            actorMap.set(actor.id as string, {
-              id: actor.id as string,
-              name: (actor as { name?: string | null }).name,
-              image_url: (actor as { image_url?: string | null }).image_url,
-            });
-          }
-        }
-      }
-
-      const nextNotifications: NotificationItem[] = [];
-
-      for (const like of likes) {
-        const actor = actorMap.get(like.from_profile_id);
-        const actorName = actor?.name || 'Ktos';
-        nextNotifications.push({
-          id: `like-${like.id}`,
-          kind: 'like',
-          actorName,
-          actorImageUrl: actor?.image_url || undefined,
-          message: `${actorName} polubil Twoj profil. Sprawdz, czy to match!`,
-          createdAt: like.created_at,
-          href: `/profile/${encodeURIComponent(like.from_profile_id)}`,
-        });
-      }
-
-      for (const interaction of interactions) {
-        const actor = actorMap.get(interaction.from_profile_id);
-        const actorName = actor?.name || 'Ktos';
-
-        if (interaction.kind === 'gift') {
-          const giftLabel = interaction.label ? ` (${interaction.label})` : '';
-          const giftEmoji = interaction.emoji ? ` ${interaction.emoji}` : '';
-          nextNotifications.push({
-            id: `gift-${interaction.id}`,
-            kind: 'gift',
-            actorName,
-            actorImageUrl: actor?.image_url || undefined,
-            message: `${actorName} wyslal Ci prezent${giftLabel}!${giftEmoji}`,
-            createdAt: interaction.created_at,
-            href: `/profile/${encodeURIComponent(interaction.from_profile_id)}`,
-          });
-        }
-
-        if (interaction.kind === 'poke') {
-          nextNotifications.push({
-            id: `poke-${interaction.id}`,
-            kind: 'poke',
-            actorName,
-            actorImageUrl: actor?.image_url || undefined,
-            message: `${actorName} zaczepil Cie. Odpowiesz?`,
-            createdAt: interaction.created_at,
-            href: `/profile/${encodeURIComponent(interaction.from_profile_id)}`,
-          });
-        }
-      }
-
-      for (const comment of comments) {
-        const actor = actorMap.get(comment.author_profile_id);
-        const actorName = actor?.name || 'Ktos';
-        const snippet = comment.content.length > 90
-          ? `${comment.content.slice(0, 90)}...`
-          : comment.content;
-
-        nextNotifications.push({
-          id: `comment-${comment.id}`,
-          kind: 'comment',
-          actorName,
-          actorImageUrl: actor?.image_url || undefined,
-          message: `${actorName} skomentowal Twoj profil: "${snippet}"`,
-          createdAt: comment.created_at,
-          href: '/myprofile',
-        });
-      }
-
-      if (profile?.is_verified) {
-        nextNotifications.push({
-          id: `verification-${myProfileId}`,
-          kind: 'verification',
-          message: 'Twoj profil zostal pomyslnie zweryfikowany.',
-          createdAt: profile.created_at || new Date().toISOString(),
-          href: '/myprofile',
-        });
-      }
-
-      nextNotifications.sort((a, b) => toTimestamp(b.createdAt) - toTimestamp(a.createdAt));
-      setNotifications(nextNotifications.slice(0, 40));
-    } catch (error) {
-      console.error('Blad ladowania centrum powiadomien:', error);
-    } finally {
-      setNotificationsLoading(false);
-    }
-  }, [profile?.created_at, profile?.is_verified, user]);
+  const {
+    notifications,
+    loading: notificationsLoading,
+    refresh: loadNotifications,
+  } = useNotifications({
+    userId: user?.id || null,
+    isAdmin,
+    profileIsVerified: Boolean(profile?.is_verified),
+    profileCreatedAt: profile?.created_at ?? null,
+  });
 
   useEffect(() => {
     let active = true;
@@ -314,13 +129,9 @@ export default function NewHeader() {
 
   useEffect(() => {
     if (!user) {
-      setNotifications([]);
       setLastReadAt(0);
-      return;
     }
-
-    void loadNotifications();
-  }, [loadNotifications, user]);
+  }, [user]);
 
   useEffect(() => {
     if (!notificationsOpen || !user) return;
@@ -380,11 +191,6 @@ export default function NewHeader() {
     router.push('/');
   };
 
-  const isAdmin =
-    user?.email?.trim().toLowerCase() === adminEmail ||
-    profile?.role === 'admin' ||
-    profile?.role === 'super_admin';
-
   return (
     <>
       {/* Floating Particles Background */}
@@ -427,6 +233,15 @@ export default function NewHeader() {
             }`}
           >
             Wiadomości
+          </button>
+          <button
+            onClick={() => router.push('/likes')}
+            className={`nav-item relative text-gray-300 hover:text-white font-medium transition-colors pb-1 flex items-center gap-1.5 whitespace-nowrap ${
+              activeNav === 'likes' ? 'active' : ''
+            }`}
+          >
+            <Heart size={16} className="text-fuchsia-400" />
+            Ulubione
           </button>
           {!isAdmin && (
             <button
@@ -566,7 +381,7 @@ export default function NewHeader() {
                 {/* Footer */}
                 <div className="p-3 border-t border-white/10 bg-black/40 text-center">
                   <button
-                    onClick={() => openNotification('/myprofile')}
+                    onClick={() => openNotification('/notifications')}
                     className="text-sm text-gray-400 hover:text-white transition-colors py-1 px-4 rounded-full hover:bg-white/5"
                   >
                     Zobacz wszystkie
@@ -652,6 +467,19 @@ export default function NewHeader() {
               }`}
             >
               Wiadomości
+            </button>
+            <button
+              onClick={() => {
+                router.push('/likes');
+                setMobileMenuOpen(false);
+              }}
+              className={`text-left px-4 py-2 rounded-lg transition-colors ${
+                activeNav === 'likes'
+                  ? 'text-cyan-300 bg-cyan-500/10 font-medium'
+                  : 'text-cyan-300/60 hover:text-cyan-300 hover:bg-cyan-500/10'
+              }`}
+            >
+              Ulubione
             </button>
             {!isAdmin && (
               <button
