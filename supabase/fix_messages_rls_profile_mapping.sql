@@ -39,15 +39,17 @@ create policy "messages_select_participant"
     or to_profile_id = auth.uid()
     or exists (
       select 1
-      from public.profiles p
-      where p.id = public.messages.from_profile_id
-        and lower(coalesce(p.email, '')) = lower(coalesce(auth.jwt() ->> 'email', ''))
+      from public.profiles me
+      where me.id = public.messages.from_profile_id
+        and nullif(auth.jwt() ->> 'email', '') is not null
+        and lower(coalesce(me.email, '')) = lower(auth.jwt() ->> 'email')
     )
     or exists (
       select 1
-      from public.profiles p
-      where p.id = public.messages.to_profile_id
-        and lower(coalesce(p.email, '')) = lower(coalesce(auth.jwt() ->> 'email', ''))
+      from public.profiles me
+      where me.id = public.messages.to_profile_id
+        and nullif(auth.jwt() ->> 'email', '') is not null
+        and lower(coalesce(me.email, '')) = lower(auth.jwt() ->> 'email')
     )
   );
 
@@ -60,9 +62,10 @@ create policy "messages_insert_sender"
     from_profile_id = auth.uid()
     or exists (
       select 1
-      from public.profiles p
-      where p.id = public.messages.from_profile_id
-        and lower(coalesce(p.email, '')) = lower(coalesce(auth.jwt() ->> 'email', ''))
+      from public.profiles me
+      where me.id = public.messages.from_profile_id
+        and nullif(auth.jwt() ->> 'email', '') is not null
+        and lower(coalesce(me.email, '')) = lower(auth.jwt() ->> 'email')
     )
   );
 
@@ -76,15 +79,17 @@ create policy "messages_delete_participant"
     or to_profile_id = auth.uid()
     or exists (
       select 1
-      from public.profiles p
-      where p.id = public.messages.from_profile_id
-        and lower(coalesce(p.email, '')) = lower(coalesce(auth.jwt() ->> 'email', ''))
+      from public.profiles me
+      where me.id = public.messages.from_profile_id
+        and nullif(auth.jwt() ->> 'email', '') is not null
+        and lower(coalesce(me.email, '')) = lower(auth.jwt() ->> 'email')
     )
     or exists (
       select 1
-      from public.profiles p
-      where p.id = public.messages.to_profile_id
-        and lower(coalesce(p.email, '')) = lower(coalesce(auth.jwt() ->> 'email', ''))
+      from public.profiles me
+      where me.id = public.messages.to_profile_id
+        and nullif(auth.jwt() ->> 'email', '') is not null
+        and lower(coalesce(me.email, '')) = lower(auth.jwt() ->> 'email')
     )
   );
 

@@ -253,6 +253,45 @@ html, body {
   width: 100%; 
 }
 
+body.photo-modal-open {
+  overflow: hidden;
+  overscroll-behavior: contain;
+}
+
+body.photo-modal-open #main-header,
+body.photo-modal-open nav[data-app-nav='bottom'] {
+  opacity: 0;
+  pointer-events: none;
+}
+
+@keyframes photo-modal-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes photo-modal-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.photo-modal-overlay {
+  animation: photo-modal-fade-in 220ms ease;
+}
+
+.photo-modal-shell {
+  animation: photo-modal-panel-in 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
 /* Chat Styling */
 .chat-height { 
   height: calc(100vh - 180px); 

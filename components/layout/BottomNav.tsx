@@ -44,7 +44,7 @@ export default function BottomNav({ currentView, onNavigate, isLoggedIn = false,
   const activeItem = getActiveItem(pathname);
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 glass border-t border-white/10 shadow-[0_-8px_24px_rgba(0,0,0,0.45)] z-50 pb-safe md:py-0">
+    <nav data-app-nav="bottom" className="fixed bottom-0 left-0 right-0 glass border-t border-white/10 shadow-[0_-8px_24px_rgba(0,0,0,0.45)] z-50 pb-safe md:py-0">
       <div className="max-w-2xl mx-auto flex justify-around items-center px-2 py-1 md:py-2 min-h-[56px] md:min-h-0">
         {visibleNavItems.map((item) => {
           const active = activeItem === item.id;

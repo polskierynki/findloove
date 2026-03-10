@@ -675,7 +675,7 @@ export default function App() {
 
       {/* OLD Header removed - using NewHeader from layout.tsx */}
 
-      <main className="max-w-[2200px] mx-auto px-6 lg:px-12 pt-28">
+      <section className="max-w-[2200px] mx-auto px-6 lg:px-12 pt-28">
         {showPremiumView ? (
           <PremiumView
             isPremium={isPremium}
@@ -826,7 +826,7 @@ export default function App() {
             {view === 'cookies' && <CookiesView onBack={() => setView('home')} />}
           </>
         )}
-      </main>
+      </section>
       <Footer
         onNavigate={(v) => {
           setShowPremiumView(false);

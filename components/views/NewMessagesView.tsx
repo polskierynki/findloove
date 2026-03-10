@@ -1,7 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useRef } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { MagnifyingGlass, Prohibit, Trash, Flag, PaperPlaneRight, ArrowLeft } from '@phosphor-icons/react';
 import { supabase } from '@/lib/supabase';
 
@@ -100,8 +99,7 @@ interface ConversationProfile {
 }
 
 export default function NewMessagesView() {
-  const searchParams = useSearchParams();
-  const targetProfileId = searchParams.get('user');
+  const [targetProfileId, setTargetProfileId] = useState<string | null>(null);
   const [conversations, setConversations] = useState<ConversationProfile[]>([]);
   const [selectedProfile, setSelectedProfile] = useState<ConversationProfile | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -118,6 +116,22 @@ export default function NewMessagesView() {
   );
 
   const identityIdsCsv = useMemo(() => identityIds.join(','), [identityIds]);
+
+  // Read direct-chat target from URL without coupling hydration to search params.
+  useEffect(() => {
+    const readTargetFromLocation = () => {
+      const params = new URLSearchParams(window.location.search);
+      const rawTarget = params.get('user');
+      setTargetProfileId(rawTarget ? rawTarget.trim() : null);
+    };
+
+    readTargetFromLocation();
+    window.addEventListener('popstate', readTargetFromLocation);
+
+    return () => {
+      window.removeEventListener('popstate', readTargetFromLocation);
+    };
+  }, []);
 
   // Get current user
   useEffect(() => {
@@ -144,93 +158,158 @@ export default function NewMessagesView() {
     void getCurrentUser();
   }, []);
 
-  // Load conversations
-  useEffect(() => {
+  const loadConversations = useCallback(async () => {
     if (identityIds.length === 0) return;
 
-    const loadConversations = async () => {
-      try {
-        setChatError(null);
+    try {
+      setChatError(null);
 
-        // Get all unique conversation partners
-        const { data: sentMessages } = await supabase
-          .from('messages')
-          .select('to_profile_id, created_at, content')
-          .in('from_profile_id', identityIds)
-          .order('created_at', { ascending: false });
+      const { data: conversationMessages, error: conversationMessagesError } = await supabase
+        .from('messages')
+        .select('from_profile_id, to_profile_id, content, created_at')
+        .or(`from_profile_id.in.(${identityIdsCsv}),to_profile_id.in.(${identityIdsCsv})`)
+        .order('created_at', { ascending: false });
 
-        const { data: receivedMessages } = await supabase
-          .from('messages')
-          .select('from_profile_id, created_at, content')
-          .in('to_profile_id', identityIds)
-          .order('created_at', { ascending: false });
+      if (conversationMessagesError) {
+        throw conversationMessagesError;
+      }
 
-        // Get unique profile IDs
-        const profileIds = new Set<string>();
-        sentMessages?.forEach((msg) => {
-          if (msg.to_profile_id && !identityIds.includes(msg.to_profile_id)) {
-            profileIds.add(msg.to_profile_id);
-          }
-        });
-        receivedMessages?.forEach((msg) => {
-          if (msg.from_profile_id && !identityIds.includes(msg.from_profile_id)) {
-            profileIds.add(msg.from_profile_id);
-          }
-        });
+      const newestConversationByPartner = new Map<
+        string,
+        { lastMessage: string; lastMessageTime: string }
+      >();
 
-        if (profileIds.size === 0) {
-          setConversations([]);
-          return;
+      (conversationMessages || []).forEach((row) => {
+        const fromId = row.from_profile_id as string;
+        const toId = row.to_profile_id as string;
+        const fromIsMe = identityIds.includes(fromId);
+        const toIsMe = identityIds.includes(toId);
+
+        if (!fromIsMe && !toIsMe) return;
+
+        const partnerId = fromIsMe ? toId : fromId;
+        if (!partnerId || identityIds.includes(partnerId)) return;
+
+        if (!newestConversationByPartner.has(partnerId)) {
+          newestConversationByPartner.set(partnerId, {
+            lastMessage: (row.content as string) || '',
+            lastMessageTime: (row.created_at as string) || '',
+          });
+        }
+      });
+
+      if (newestConversationByPartner.size === 0) {
+        setConversations([]);
+        return;
+      }
+
+      const partnerIds = Array.from(newestConversationByPartner.keys());
+      let profileRows: Array<{ id: string; name?: string | null; image_url?: string | null; role?: string | null; email?: string | null }> = [];
+
+      const { data: profilesWithAdminData, error: profilesWithAdminDataError } = await supabase
+        .from('profiles')
+        .select('id, name, image_url, role, email')
+        .in('id', partnerIds);
+
+      if (profilesWithAdminDataError) {
+        console.error('Blad ladowania profili rozmowcow (pelne pola):', profilesWithAdminDataError.message);
+        const { data: fallbackProfiles, error: fallbackProfilesError } = await supabase
+          .from('profiles')
+          .select('id, name, image_url')
+          .in('id', partnerIds);
+
+        if (fallbackProfilesError) {
+          console.error('Blad ladowania profili rozmowcow (fallback):', fallbackProfilesError.message);
         }
 
-        // Get profile details
-        const { data: profiles } = await supabase
-          .from('profiles')
-          .select('id, name, image_url, role, email')
-          .in('id', Array.from(profileIds));
+        profileRows = (fallbackProfiles || []).map((profile) => ({
+          id: profile.id as string,
+          name: (profile as { name?: string | null }).name,
+          image_url: (profile as { image_url?: string | null }).image_url,
+          role: null,
+          email: null,
+        }));
+      } else {
+        profileRows = (profilesWithAdminData || []).map((profile) => ({
+          id: profile.id as string,
+          name: (profile as { name?: string | null }).name,
+          image_url: (profile as { image_url?: string | null }).image_url,
+          role: (profile as { role?: string | null }).role,
+          email: (profile as { email?: string | null }).email,
+        }));
+      }
 
-        const visibleProfiles = (profiles || []).filter(
-          (profile) => !isHiddenAdminProfile(profile as { role?: string | null; email?: string | null }),
-        );
+      const profileMap = new Map(profileRows.map((profile) => [profile.id, profile]));
 
-        // Build conversations with last message
-        const conversationsData: ConversationProfile[] = visibleProfiles.map(profile => {
-          const sentToProfile = sentMessages?.filter(m => m.to_profile_id === profile.id) || [];
-          const receivedFromProfile = receivedMessages?.filter(m => m.from_profile_id === profile.id) || [];
-          const allMessages = [...sentToProfile, ...receivedFromProfile].sort((a, b) => 
-            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-          );
+      const conversationsData: ConversationProfile[] = partnerIds
+        .flatMap((partnerId) => {
+          const preview = newestConversationByPartner.get(partnerId);
+          if (!preview) return [];
 
-          const lastMsg = allMessages[0];
-          
-          return {
-            id: profile.id,
-            name: profile.name || 'User',
-            image_url: profile.image_url || '',
-            lastMessage: lastMsg?.content || '',
-            lastMessageTime: lastMsg?.created_at || '',
-          };
-        });
+          const partnerProfile = profileMap.get(partnerId);
+          if (partnerProfile && isHiddenAdminProfile(partnerProfile)) {
+            return [];
+          }
 
-        // Sort by last message time
-        conversationsData.sort((a, b) => {
+          return [{
+            id: partnerId,
+            name: partnerProfile?.name || 'Uzytkownik',
+            image_url: partnerProfile?.image_url || '',
+            lastMessage: preview.lastMessage,
+            lastMessageTime: preview.lastMessageTime,
+          }];
+        })
+        .sort((a, b) => {
           const timeA = a.lastMessageTime ? new Date(a.lastMessageTime).getTime() : 0;
           const timeB = b.lastMessageTime ? new Date(b.lastMessageTime).getTime() : 0;
           return timeB - timeA;
         });
 
-        setConversations(conversationsData);
-      } catch (error) {
-        console.error('Error loading conversations:', error);
-        const message = (error as { message?: string } | null)?.message;
-        if (message) {
-          setChatError(`Brak dostepu do listy rozmow: ${message}`);
-        }
+      setConversations(conversationsData);
+      setSelectedProfile((currentSelectedProfile) => {
+        if (!currentSelectedProfile) return currentSelectedProfile;
+        return conversationsData.find((conversation) => conversation.id === currentSelectedProfile.id) || currentSelectedProfile;
+      });
+    } catch (error) {
+      console.error('Error loading conversations:', error);
+      const message = (error as { message?: string } | null)?.message;
+      if (message) {
+        setChatError(`Brak dostepu do listy rozmow: ${message}`);
       }
-    };
+    }
+  }, [identityIds, identityIdsCsv]);
 
+  // Load conversations
+  useEffect(() => {
     void loadConversations();
-  }, [identityIds]);
+  }, [loadConversations]);
+
+  // Keep left-side conversation previews up to date in real-time.
+  useEffect(() => {
+    if (identityIds.length === 0) return;
+
+    const conversationChannel = supabase
+      .channel(`messages-conversations-${identityIdsCsv || 'none'}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'messages',
+      }, (payload) => {
+        const nextMessage = payload.new as Message;
+        const touchesMyConversationList =
+          identityIds.includes(nextMessage.from_profile_id) ||
+          identityIds.includes(nextMessage.to_profile_id);
+
+        if (touchesMyConversationList) {
+          void loadConversations();
+        }
+      })
+      .subscribe();
+
+    return () => {
+      conversationChannel.unsubscribe();
+    };
+  }, [identityIds, identityIdsCsv, loadConversations]);
 
   // Open direct conversation when arriving from profile cards (`/messages?user=<id>`)
   useEffect(() => {
@@ -280,13 +359,17 @@ export default function NewMessagesView() {
       try {
         setChatError(null);
 
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from('messages')
           .select('*')
           .or(
             `and(from_profile_id.in.(${identityIdsCsv}),to_profile_id.eq.${selectedProfile.id}),and(from_profile_id.eq.${selectedProfile.id},to_profile_id.in.(${identityIdsCsv}))`,
           )
           .order('created_at', { ascending: true });
+
+        if (error) {
+          throw error;
+        }
 
         setMessages((data as Message[]) || []);
       } catch (error) {
@@ -316,13 +399,21 @@ export default function NewMessagesView() {
         if (isRelevant) {
           setMessages((prev) => [...prev, nextMessage]);
         }
+
+        const touchesMyConversationList =
+          identityIds.includes(nextMessage.from_profile_id) ||
+          identityIds.includes(nextMessage.to_profile_id);
+
+        if (touchesMyConversationList) {
+          void loadConversations();
+        }
       })
       .subscribe();
 
     return () => {
       subscription.unsubscribe();
     };
-  }, [identityIds, identityIdsCsv, selectedProfile]);
+  }, [identityIds, identityIdsCsv, loadConversations, selectedProfile]);
 
   // Scroll to bottom on new messages
   useEffect(() => {
@@ -356,6 +447,7 @@ export default function NewMessagesView() {
 
       setMessages(prev => [...prev, data as Message]);
       setMessageText('');
+      void loadConversations();
     } catch (error) {
       console.error('Error sending message:', error);
     }
@@ -616,7 +708,12 @@ export default function NewMessagesView() {
                     placeholder="Napisz wiadomość..."
                     value={messageText}
                     onChange={(e) => setMessageText(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        void sendMessage();
+                      }
+                    }}
                     className="flex-1 bg-transparent border-none text-white text-sm px-4 outline-none"
                   />
                   <button 

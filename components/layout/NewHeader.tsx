@@ -250,7 +250,7 @@ export default function NewHeader() {
       <div className="particles-container" id="particles"></div>
 
       {/* Fixed Top Header */}
-      <header className="fixed top-0 w-full h-20 glass-panel z-50 flex items-center justify-between px-4 lg:px-8 xl:px-16 transition-all duration-300 gap-4 border-b border-white/5">
+      <header id="main-header" className="fixed top-0 w-full h-20 glass-panel z-50 flex items-center justify-between px-4 lg:px-8 xl:px-16 transition-all duration-300 gap-4 border-b border-white/5">
         {/* Logo */}
         <div
           className="flex-shrink-0 flex items-center gap-2 cursor-pointer group z-10"
