@@ -123,12 +123,9 @@ export default function NewHomeView() {
                     </div>
                   </div>
 
-                  {/* Profile Info - Slides up on hover */}
-                  <div className="absolute bottom-0 left-0 w-full h-72 p-6 z-10 transform transition-transform duration-300 ease-out group-hover:translate-y-0 translate-y-48">
-                    {/* Gradient Background */}
-                    <div className="absolute inset-0 bottom-0 left-0 w-full h-full bg-gradient-to-t from-[#07050f] via-[#07050f]/80 to-transparent rounded-[2rem]"></div>
-                    
-                    <div className="card-meta flex flex-col gap-3 relative z-10 h-full justify-end">
+                  {/* Profile Info - Always visible, slides up on hover */}
+                  <div className="absolute bottom-0 left-0 w-full p-6 z-10 transform transition-transform duration-300 ease-out group-hover:-translate-y-12">
+                    <div className="card-meta flex flex-col gap-3 relative z-10">
                       <div>
                         <div className="flex items-center gap-2">
                           <h2 className="text-3xl font-medium text-white">
@@ -142,8 +139,8 @@ export default function NewHomeView() {
                         </div>
                       </div>
 
-                      {/* Action Buttons */}
-                      <div className="card-actions flex gap-3 relative z-30">
+                      {/* Action Buttons - Hidden by default, visible on hover */}
+                      <div className="card-actions flex gap-3 relative z-30 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
