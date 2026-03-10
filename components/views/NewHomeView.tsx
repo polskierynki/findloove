@@ -123,22 +123,27 @@ export default function NewHomeView() {
                     </div>
                   </div>
 
-                  {/* Profile Info */}
-                  <div className="absolute bottom-0 left-0 w-full p-6 z-10">
-                    <div className="card-meta flex flex-col gap-2">
-                      <div className="flex items-center gap-2">
-                        <h2 className="text-3xl font-medium text-white">
-                          {profile.name || 'User'},{' '}
-                          {typeof profile.age === 'number' ? `${profile.age} lat` : '? lat'}
-                        </h2>
-                      </div>
-                      <div className="flex items-center gap-1.5 text-cyan-300/70 text-sm font-light">
-                        <MapPin size={14} weight="fill" className="text-cyan-400" />
-                        <span>{profile.city || 'Bliżej nieokreślone'}</span>
+                  {/* Profile Info - Slides up on hover */}
+                  <div className="absolute bottom-0 left-0 w-full h-72 p-6 z-10 transform transition-transform duration-300 ease-out group-hover:translate-y-0 translate-y-48">
+                    {/* Gradient Background */}
+                    <div className="absolute inset-0 bottom-0 left-0 w-full h-full bg-gradient-to-t from-[#07050f] via-[#07050f]/80 to-transparent rounded-[2rem]"></div>
+                    
+                    <div className="card-meta flex flex-col gap-3 relative z-10 h-full justify-end">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h2 className="text-3xl font-medium text-white">
+                            {profile.name || 'User'},{' '}
+                            {typeof profile.age === 'number' ? `${profile.age} lat` : '? lat'}
+                          </h2>
+                        </div>
+                        <div className="flex items-center gap-1.5 text-cyan-300/70 text-sm font-light">
+                          <MapPin size={14} weight="fill" className="text-cyan-400" />
+                          <span>{profile.city || 'Bliżej nieokreślone'}</span>
+                        </div>
                       </div>
 
                       {/* Action Buttons */}
-                      <div className="card-actions flex gap-3 mt-3 relative z-30">
+                      <div className="card-actions flex gap-3 relative z-30">
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
