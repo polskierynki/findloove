@@ -1,15 +1,14 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { 
-  ArrowLeft, 
-  Heart, 
-  Gift, 
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  ArrowLeft,
+  Heart,
+  Gift,
   PaperPlaneTilt,
   ChatCircle,
   Sparkle,
   Images,
-  ChatText,
   MapPin,
   SealCheck,
   Briefcase,
@@ -18,7 +17,11 @@ import {
   Wine,
   PawPrint,
   GenderIntersex,
-  HeartStraight
+  HeartStraight,
+  Quotes,
+  X,
+  CaretLeft,
+  CaretRight,
 } from '@phosphor-icons/react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
@@ -26,23 +29,357 @@ import { Profile } from '@/lib/types';
 import { useLikes } from '@/lib/hooks/useLikes';
 import { ALL_INTERESTS } from './constants/profileFormOptions';
 
-interface Comment {
+type AppComment = {
   id: string;
   content: string;
   author_profile_id: string;
   author: { name: string; image: string; city: string };
   created_at: string;
-  like_count: number;
+};
+
+type AuthLikeUser = {
+  id: string;
+  email?: string | null;
+  user_metadata?: Record<string, unknown>;
+};
+
+function formatRelativeTime(timestamp: string): string {
+  const ts = Date.parse(timestamp);
+  if (Number.isNaN(ts)) return 'Przed chwila';
+
+  const diffMs = Date.now() - ts;
+  const diffMin = Math.floor(diffMs / 60000);
+  const diffHour = Math.floor(diffMs / 3600000);
+  const diffDay = Math.floor(diffMs / 86400000);
+
+  if (diffMin < 1) return 'Teraz';
+  if (diffMin < 60) return `${diffMin} min temu`;
+  if (diffHour < 24) return `${diffHour} godz. temu`;
+  if (diffDay === 1) return 'Wczoraj';
+  if (diffDay < 7) return `${diffDay} dni temu`;
+
+  return new Date(ts).toLocaleDateString('pl-PL', {
+    day: 'numeric',
+    month: 'short',
+  });
+}
+
+async function resolveProfileIdForAuthUser(user: AuthLikeUser): Promise<string | null> {
+  const normalizedEmail = user.email?.trim().toLowerCase() || null;
+
+  const { data: byId, error: byIdError } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('id', user.id)
+    .maybeSingle();
+
+  if (!byIdError && byId?.id) {
+    return byId.id as string;
+  }
+
+  if (normalizedEmail) {
+    const { data: byEmail, error: byEmailError } = await supabase
+      .from('profiles')
+      .select('id')
+      .ilike('email', normalizedEmail)
+      .maybeSingle();
+
+    if (!byEmailError && byEmail?.id) {
+      return byEmail.id as string;
+    }
+  }
+
+  const fallbackName =
+    (typeof user.user_metadata?.name === 'string' && user.user_metadata.name.trim()) ||
+    (normalizedEmail ? normalizedEmail.split('@')[0] : '') ||
+    'Uzytkownik';
+
+  const { data: created, error: createError } = await supabase
+    .from('profiles')
+    .upsert(
+      {
+        id: user.id,
+        email: normalizedEmail,
+        name: fallbackName,
+        age: 30,
+        city: 'Nieznane',
+        bio: '',
+        interests: [],
+        image_url: '',
+      },
+      { onConflict: 'id' },
+    )
+    .select('id')
+    .maybeSingle();
+
+  if (createError) {
+    console.error('Nie udalo sie utworzyc/finalizowac profilu dla komentarzy:', createError.message);
+    return null;
+  }
+
+  return (created?.id as string | undefined) || user.id;
 }
 
 export default function NewProfileDetailView({ profileId }: { profileId: string }) {
   const router = useRouter();
   const { likeProfile, unlikeProfile, hasLikedProfile } = useLikes();
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [comments, setComments] = useState<Comment[]>([]);
+  const [comments, setComments] = useState<AppComment[]>([]);
+  const [photoComments, setPhotoComments] = useState<AppComment[]>([]);
   const [loading, setLoading] = useState(true);
   const [commentText, setCommentText] = useState('');
+  const [photoCommentText, setPhotoCommentText] = useState('');
   const [isLiked, setIsLiked] = useState(false);
+  const [authorProfileId, setAuthorProfileId] = useState<string | null>(null);
+  const [isSubmittingComment, setIsSubmittingComment] = useState(false);
+  const [isSubmittingPhotoComment, setIsSubmittingPhotoComment] = useState(false);
+  const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
+  const [activePhotoIndex, setActivePhotoIndex] = useState(0);
+  const [photoCommentsLoading, setPhotoCommentsLoading] = useState(false);
+  const [photoCommentsTableAvailable, setPhotoCommentsTableAvailable] = useState(true);
+  const [commentsError, setCommentsError] = useState<string | null>(null);
+  const generalCommentInputRef = useRef<HTMLInputElement>(null);
+  const photoCommentInputRef = useRef<HTMLInputElement>(null);
+
+  const allPhotos = useMemo(() => {
+    if (!profile) return [];
+    const photos = [
+      profile.image_url,
+      ...(profile.photos || []),
+    ].filter((item): item is string => Boolean(item && item.trim()));
+
+    return Array.from(new Set(photos));
+  }, [profile]);
+
+  const loadGeneralComments = useCallback(async () => {
+    const { data: commentsData, error: commentsError } = await supabase
+      .from('profile_comments')
+      .select(`
+        id,
+        content,
+        author_profile_id,
+        created_at,
+        profiles!author_profile_id (name, image_url, city)
+      `)
+      .eq('profile_id', profileId)
+      .order('created_at', { ascending: false });
+
+    if (commentsError) {
+      console.error('Blad ladowania komentarzy profilu:', commentsError.message);
+      setComments([]);
+      return;
+    }
+
+    setComments(
+      (commentsData || []).map((entry: any) => ({
+        id: entry.id,
+        content: entry.content,
+        author_profile_id: entry.author_profile_id,
+        author: {
+          name: entry.profiles?.name || 'User',
+          image: entry.profiles?.image_url || '',
+          city: entry.profiles?.city || '',
+        },
+        created_at: entry.created_at,
+      })),
+    );
+  }, [profileId]);
+
+  const loadPhotoComments = useCallback(async (photoIndex: number) => {
+    setPhotoCommentsLoading(true);
+
+    try {
+      const { data, error } = await supabase
+        .from('profile_photo_comments')
+        .select('id, content, author_profile_id, created_at')
+        .eq('profile_id', profileId)
+        .eq('photo_index', photoIndex)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        const errorText = error.message.toLowerCase();
+        if (errorText.includes('profile_photo_comments')) {
+          setPhotoCommentsTableAvailable(false);
+          setPhotoComments([]);
+          return;
+        }
+        throw error;
+      }
+
+      setPhotoCommentsTableAvailable(true);
+
+      const rows = (data || []) as Array<{
+        id: string;
+        content: string;
+        author_profile_id: string;
+        created_at: string;
+      }>;
+
+      const authorIds = Array.from(new Set(rows.map((row) => row.author_profile_id).filter(Boolean)));
+      let authorMap = new Map<string, { name?: string | null; image_url?: string | null; city?: string | null }>();
+
+      if (authorIds.length > 0) {
+        const { data: authors, error: authorError } = await supabase
+          .from('profiles')
+          .select('id, name, image_url, city')
+          .in('id', authorIds);
+
+        if (authorError) {
+          console.error('Blad ladowania autorow komentarzy zdjec:', authorError.message);
+        } else {
+          authorMap = new Map(
+            (authors || []).map((author) => [
+              author.id as string,
+              {
+                name: (author as { name?: string | null }).name,
+                image_url: (author as { image_url?: string | null }).image_url,
+                city: (author as { city?: string | null }).city,
+              },
+            ]),
+          );
+        }
+      }
+
+      setPhotoComments(
+        rows.map((row) => {
+          const author = authorMap.get(row.author_profile_id);
+          return {
+            id: row.id,
+            content: row.content,
+            author_profile_id: row.author_profile_id,
+            author: {
+              name: author?.name || 'User',
+              image: author?.image_url || '',
+              city: author?.city || '',
+            },
+            created_at: row.created_at,
+          };
+        }),
+      );
+    } catch (error) {
+      console.error('Blad ladowania komentarzy do zdjecia:', error);
+      setPhotoComments([]);
+    } finally {
+      setPhotoCommentsLoading(false);
+    }
+  }, [profileId]);
+
+  const resolveCurrentAuthorProfileId = useCallback(async () => {
+    if (authorProfileId) return authorProfileId;
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
+
+    const resolved = await resolveProfileIdForAuthUser({
+      id: user.id,
+      email: user.email,
+      user_metadata: user.user_metadata,
+    });
+
+    if (resolved) {
+      setAuthorProfileId(resolved);
+    }
+
+    return resolved;
+  }, [authorProfileId]);
+
+  const handleAddGeneralComment = useCallback(async () => {
+    const content = commentText.trim();
+    if (!content || isSubmittingComment) return;
+
+    setCommentsError(null);
+    setIsSubmittingComment(true);
+
+    try {
+      const senderProfileId = await resolveCurrentAuthorProfileId();
+      if (!senderProfileId) {
+        setCommentsError('Zaloguj sie, aby dodawac komentarze.');
+        return;
+      }
+
+      const { error } = await supabase
+        .from('profile_comments')
+        .insert({
+          profile_id: profileId,
+          author_profile_id: senderProfileId,
+          content,
+        });
+
+      if (error) {
+        throw error;
+      }
+
+      setCommentText('');
+      await loadGeneralComments();
+    } catch (error) {
+      console.error('Blad dodawania komentarza ogolnego:', error);
+      setCommentsError('Nie udalo sie dodac komentarza. Sprobuj ponownie.');
+    } finally {
+      setIsSubmittingComment(false);
+    }
+  }, [commentText, isSubmittingComment, loadGeneralComments, profileId, resolveCurrentAuthorProfileId]);
+
+  const handleAddPhotoComment = useCallback(async () => {
+    const content = photoCommentText.trim();
+    if (!content || isSubmittingPhotoComment || !photoCommentsTableAvailable) return;
+
+    setCommentsError(null);
+    setIsSubmittingPhotoComment(true);
+
+    try {
+      const senderProfileId = await resolveCurrentAuthorProfileId();
+      if (!senderProfileId) {
+        setCommentsError('Zaloguj sie, aby dodawac komentarze do zdjec.');
+        return;
+      }
+
+      const { error } = await supabase
+        .from('profile_photo_comments')
+        .insert({
+          profile_id: profileId,
+          photo_index: activePhotoIndex,
+          author_profile_id: senderProfileId,
+          content,
+        });
+
+      if (error) {
+        throw error;
+      }
+
+      setPhotoCommentText('');
+      await loadPhotoComments(activePhotoIndex);
+      photoCommentInputRef.current?.focus();
+    } catch (error) {
+      console.error('Blad dodawania komentarza do zdjecia:', error);
+      setCommentsError('Nie udalo sie dodac komentarza do zdjecia.');
+    } finally {
+      setIsSubmittingPhotoComment(false);
+    }
+  }, [
+    activePhotoIndex,
+    isSubmittingPhotoComment,
+    loadPhotoComments,
+    photoCommentText,
+    photoCommentsTableAvailable,
+    profileId,
+    resolveCurrentAuthorProfileId,
+  ]);
+
+  const openPhotoCommentModal = useCallback((photoIndex: number) => {
+    setActivePhotoIndex(photoIndex);
+    setIsPhotoModalOpen(true);
+    setPhotoCommentText('');
+  }, []);
+
+  const goToPhoto = useCallback((direction: 'prev' | 'next') => {
+    if (allPhotos.length < 2) return;
+    setActivePhotoIndex((prev) => {
+      if (direction === 'prev') {
+        return (prev - 1 + allPhotos.length) % allPhotos.length;
+      }
+      return (prev + 1) % allPhotos.length;
+    });
+  }, [allPhotos.length]);
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -56,31 +393,7 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
         if (error) throw error;
         setProfile(data as Profile);
 
-        // Load comments
-        const { data: commentsData } = await supabase
-          .from('profile_comments')
-          .select(`
-            id,
-            content,
-            author_profile_id,
-            created_at,
-            profiles!author_profile_id (name, image_url, city)
-          `)
-          .eq('profile_id', profileId)
-          .order('created_at', { ascending: false });
-
-        setComments((commentsData || []).map((c: any) => ({
-          id: c.id,
-          content: c.content,
-          author_profile_id: c.author_profile_id,
-          author: {
-            name: c.profiles?.name || 'User',
-            image: c.profiles?.image_url || '',
-            city: c.profiles?.city || '',
-          },
-          created_at: c.created_at,
-          like_count: 2,
-        })));
+        await loadGeneralComments();
 
         const liked = await hasLikedProfile(profileId);
         setIsLiked(liked);
@@ -91,8 +404,18 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
       }
     };
 
-    loadProfile();
-  }, [profileId]);
+    void loadProfile();
+  }, [hasLikedProfile, loadGeneralComments, profileId]);
+
+  useEffect(() => {
+    if (!isPhotoModalOpen) return;
+    if (activePhotoIndex >= allPhotos.length && allPhotos.length > 0) {
+      setActivePhotoIndex(0);
+      return;
+    }
+
+    void loadPhotoComments(activePhotoIndex);
+  }, [activePhotoIndex, allPhotos.length, isPhotoModalOpen, loadPhotoComments]);
 
   if (loading) {
     return <div className="pt-28 text-center text-cyan-400">Ładowanie profilu...</div>;
@@ -166,11 +489,18 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
               <Images size={20} weight="duotone" className="text-cyan-400" /> Galeria
             </h3>
             <div className="grid grid-cols-3 gap-3">
-              {profile.photos?.slice(0, 6).map((photo, i) => (
-                <div key={i} className={`gallery-item aspect-square rounded-2xl cursor-pointer ${i === 0 ? 'col-span-2 row-span-2' : ''}`}>
+              {allPhotos.length > 0 ? allPhotos.slice(0, 6).map((photo, i) => (
+                <button
+                  key={`${photo}-${i}`}
+                  onClick={() => openPhotoCommentModal(i)}
+                  className={`gallery-item relative aspect-square rounded-2xl cursor-pointer overflow-hidden ${i === 0 ? 'col-span-2 row-span-2' : ''}`}
+                >
                   <img src={photo} alt={`Gallery ${i}`} className="w-full h-full object-cover" />
-                </div>
-              )) || (
+                  <span className="absolute right-2 bottom-2 w-7 h-7 rounded-full bg-black/50 border border-white/20 flex items-center justify-center text-cyan-300">
+                    <Quotes size={14} weight="fill" />
+                  </span>
+                </button>
+              )) : (
                 <>
                   {[...Array(6)].map((_, i) => (
                     <div key={i} className={`gallery-item aspect-square rounded-2xl bg-gradient-to-br from-fuchsia-500/10 to-cyan-500/10 ${i === 0 ? 'col-span-2 row-span-2' : ''}`} />
@@ -183,13 +513,21 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
           {/* Comments/Tablica */}
           <div className="glass rounded-[2rem] p-6 lg:p-8 flex flex-col relative overflow-hidden bg-[#0a0710]/80 max-h-[500px]">
             <div className="flex items-center justify-between mb-6 pb-5 border-b border-cyan-500/20 shrink-0">
-              <h3 className="text-base font-medium text-cyan-300/70 tracking-wider uppercase flex items-center gap-2">
-                <ChatCircle size={20} weight="duotone" className="text-cyan-400" /> Tablica <span className="bg-white/10 text-sm px-3 py-1 rounded-full ml-1 text-white">{comments.length}</span>
-              </h3>
+              <button
+                onClick={() => generalCommentInputRef.current?.focus()}
+                className="text-base font-medium text-cyan-300/70 tracking-wider uppercase flex items-center gap-2 hover:text-cyan-300 transition-colors"
+              >
+                <Quotes size={20} weight="fill" className="text-cyan-400" /> Tablica
+                <span className="bg-white/10 text-sm px-3 py-1 rounded-full ml-1 text-white">{comments.length}</span>
+              </button>
             </div>
 
             <div className="flex-1 overflow-y-auto custom-scrollbar pr-3 space-y-5">
-              {comments.map((comment) => (
+              {comments.length === 0 ? (
+                <div className="text-center text-sm text-cyan-400/70 pt-6">
+                  Brak komentarzy. Napisz pierwszy cytat na tablicy.
+                </div>
+              ) : comments.map((comment) => (
                 <div key={comment.id} className="flex gap-3">
                   <img
                     src={comment.author.image || 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&q=80'}
@@ -198,14 +536,8 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
                   />
                   <div className="flex-1">
                     <span className="text-sm font-medium text-white mr-2">{comment.author.name}</span>
-                    <span className="text-xs text-cyan-500/60">2 godz. temu</span>
+                    <span className="text-xs text-cyan-500/60">{formatRelativeTime(comment.created_at)}</span>
                     <p className="text-[14px] text-cyan-300/70 mt-1 font-light leading-snug">{comment.content}</p>
-                    <div className="mt-1.5 flex gap-4">
-                      <button className="text-xs text-cyan-500/60 font-medium hover:text-cyan-300 transition-colors">Odpowiedz</button>
-                      <button className="text-xs text-cyan-500/60 hover:text-red-400 transition-colors flex items-center gap-1">
-                        <Heart size={12} /> {comment.like_count}
-                      </button>
-                    </div>
                   </div>
                 </div>
               ))}
@@ -213,15 +545,29 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
 
             {/* Comment Input */}
             <div className="pt-5 mt-4 shrink-0 border-t border-cyan-500/20">
+              {commentsError && (
+                <p className="text-sm text-red-300 mb-3">{commentsError}</p>
+              )}
               <div className="relative group border-glow-cyan rounded-full transition-all">
                 <input
+                  ref={generalCommentInputRef}
                   type="text"
                   placeholder="Dodaj komentarz..."
                   value={commentText}
                   onChange={(e) => setCommentText(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      void handleAddGeneralComment();
+                    }
+                  }}
                   className="w-full bg-black/40 border border-cyan-500/20 rounded-full py-3.5 pl-6 pr-14 text-base text-white placeholder-cyan-400/40 outline-none backdrop-blur-md transition-all focus:bg-black/60 focus:border-cyan-500/50 shadow-[inset_0_0_10px_rgba(0,255,255,0.05)]"
                 />
-                <button className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-cyan-500/20 flex items-center justify-center text-cyan-400 hover:bg-cyan-500 hover:text-cyan-300 transition-all hover:shadow-[0_0_15px_rgba(0,255,255,0.6)]">
+                <button
+                  onClick={() => void handleAddGeneralComment()}
+                  disabled={isSubmittingComment || !commentText.trim()}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-cyan-500/20 flex items-center justify-center text-cyan-400 hover:bg-cyan-500 hover:text-cyan-300 transition-all hover:shadow-[0_0_15px_rgba(0,255,255,0.6)] disabled:opacity-40 disabled:cursor-not-allowed"
+                >
                   <PaperPlaneTilt size={18} weight="fill" />
                 </button>
               </div>
@@ -373,12 +719,15 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
               </span>
             </button>
 
-            <button className="cta-dock-btn flex flex-col items-center justify-center gap-1 p-2 group w-16">
+            <button
+              onClick={() => openPhotoCommentModal(0)}
+              className="cta-dock-btn flex flex-col items-center justify-center gap-1 p-2 group w-16"
+            >
               <div className="w-12 h-12 rounded-full bg-white/10 border border-cyan-500/20 flex items-center justify-center group-hover:bg-cyan-500/20 group-hover:border-cyan-500/50 transition-all shadow-inner">
-                <ChatText size={20} weight="fill" className="text-cyan-400 group-hover:text-cyan-400 drop-shadow-[0_0_8px_rgba(0,255,255,0)] group-hover:drop-shadow-[0_0_12px_rgba(0,255,255,0.8)] transition-all" />
+                <Quotes size={20} weight="fill" className="text-cyan-400 group-hover:text-cyan-300 drop-shadow-[0_0_8px_rgba(0,255,255,0)] group-hover:drop-shadow-[0_0_12px_rgba(0,255,255,0.8)] transition-all" />
               </div>
               <span className="text-[10px] font-medium text-cyan-400 group-hover:text-cyan-300 transition-colors uppercase tracking-wider mt-1">
-                Komentuj
+                Cytat foto
               </span>
             </button>
           </div>
@@ -442,6 +791,120 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
           </div>
         </section>
       </div>
+
+      {isPhotoModalOpen && (
+        <div
+          className="fixed inset-0 z-[120] bg-black/85 backdrop-blur-sm p-4 md:p-8"
+          onClick={() => setIsPhotoModalOpen(false)}
+        >
+          <div
+            className="max-w-6xl h-full mx-auto glass rounded-[2rem] border border-white/10 overflow-hidden grid grid-cols-1 lg:grid-cols-2"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="relative bg-black/40 flex items-center justify-center p-4 md:p-8">
+              <button
+                onClick={() => setIsPhotoModalOpen(false)}
+                className="absolute top-4 right-4 w-10 h-10 rounded-full bg-black/50 border border-white/15 flex items-center justify-center text-white hover:text-cyan-300 transition-colors"
+              >
+                <X size={18} weight="bold" />
+              </button>
+
+              {allPhotos.length > 1 && (
+                <>
+                  <button
+                    onClick={() => goToPhoto('prev')}
+                    className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/50 border border-white/15 flex items-center justify-center text-white hover:text-cyan-300 transition-colors"
+                  >
+                    <CaretLeft size={18} weight="bold" />
+                  </button>
+                  <button
+                    onClick={() => goToPhoto('next')}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/50 border border-white/15 flex items-center justify-center text-white hover:text-cyan-300 transition-colors"
+                  >
+                    <CaretRight size={18} weight="bold" />
+                  </button>
+                </>
+              )}
+
+              <img
+                src={allPhotos[activePhotoIndex] || profile.image_url || 'https://images.unsplash.com/photo-1515372039744-b8f02a3ae446?w=1400&q=80'}
+                alt={`${profile.name} - foto ${activePhotoIndex + 1}`}
+                className="max-h-full max-w-full object-contain rounded-2xl"
+              />
+
+              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-black/55 border border-white/15 text-xs text-white">
+                Zdjęcie {Math.min(activePhotoIndex + 1, Math.max(allPhotos.length, 1))} / {Math.max(allPhotos.length, 1)}
+              </div>
+            </div>
+
+            <div className="p-6 md:p-8 flex flex-col bg-[#0a0710]/90">
+              <h3 className="text-base font-medium text-cyan-300/80 tracking-wider uppercase flex items-center gap-2 pb-4 border-b border-cyan-500/20">
+                <Quotes size={20} weight="fill" className="text-cyan-400" /> Komentarze do zdjęcia
+              </h3>
+
+              <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-4 mt-5">
+                {photoCommentsLoading ? (
+                  <div className="text-sm text-cyan-300/70">Ładowanie komentarzy...</div>
+                ) : !photoCommentsTableAvailable ? (
+                  <div className="text-sm text-amber-300/80">
+                    Funkcja komentarzy zdjęć wymaga migracji SQL (`supabase/migration_photo_comments.sql`).
+                  </div>
+                ) : photoComments.length === 0 ? (
+                  <div className="text-sm text-cyan-300/70">Brak komentarzy do tego zdjęcia. Dodaj pierwszy cytat.</div>
+                ) : (
+                  photoComments.map((comment) => (
+                    <div key={comment.id} className="flex gap-3">
+                      <img
+                        src={comment.author.image || 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&q=80'}
+                        alt={comment.author.name}
+                        className="w-8 h-8 rounded-full object-cover shrink-0 border border-white/10"
+                      />
+                      <div className="min-w-0">
+                        <p className="text-sm text-white">
+                          <span className="font-medium">{comment.author.name}</span>
+                          <span className="text-cyan-500/60 text-xs ml-2">{formatRelativeTime(comment.created_at)}</span>
+                        </p>
+                        <p className="text-sm text-cyan-300/80 leading-relaxed">{comment.content}</p>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {commentsError && (
+                <p className="text-sm text-red-300 mt-3">{commentsError}</p>
+              )}
+
+              <div className="pt-4 mt-4 border-t border-cyan-500/20">
+                <div className="relative border-glow-cyan rounded-full transition-all">
+                  <input
+                    ref={photoCommentInputRef}
+                    type="text"
+                    placeholder="Dodaj komentarz do zdjęcia..."
+                    value={photoCommentText}
+                    onChange={(e) => setPhotoCommentText(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        void handleAddPhotoComment();
+                      }
+                    }}
+                    disabled={!photoCommentsTableAvailable}
+                    className="w-full bg-black/40 border border-cyan-500/20 rounded-full py-3 pl-5 pr-14 text-sm text-white placeholder-cyan-400/40 outline-none focus:border-cyan-500/50 transition-all disabled:opacity-50"
+                  />
+                  <button
+                    onClick={() => void handleAddPhotoComment()}
+                    disabled={isSubmittingPhotoComment || !photoCommentText.trim() || !photoCommentsTableAvailable}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-cyan-500/20 flex items-center justify-center text-cyan-300 hover:bg-cyan-500 hover:text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    <PaperPlaneTilt size={16} weight="fill" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
