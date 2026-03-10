@@ -1,6 +1,7 @@
 'use client';
 
-import { Crown, Heart, MessageCircle, RefreshCw, Sparkles } from 'lucide-react';
+import { Crown, Heart, RefreshCw, Sparkles } from 'lucide-react';
+import { ChatCircle } from '@phosphor-icons/react';
 import { Profile } from '@/lib/types';
 
 interface DiscoverViewProps {
@@ -100,7 +101,7 @@ export default function DiscoverView({
                 onClick={() => onOpenMessages(profile)}
                 className="glass border border-white/20 rounded-xl py-3 text-white font-medium flex items-center justify-center gap-2"
               >
-                <MessageCircle size={18} /> Napisz
+                <ChatCircle size={18} weight="fill" /> Napisz
               </button>
               <button
                 onClick={() => onViewProfile(profile)}

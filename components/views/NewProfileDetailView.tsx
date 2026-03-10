@@ -361,7 +361,7 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
             >
               <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-cyan-600 to-blue-600 p-[2px] shadow-[0_10px_30px_rgba(0,255,255,0.4)] group-hover:shadow-[0_10px_40px_rgba(0,255,255,0.6)] transition-all transform group-hover:-translate-y-2">
                 <div className="w-full h-full rounded-full bg-gradient-to-tr from-cyan-500 to-blue-500 flex items-center justify-center border-2 border-[#110a22]">
-                  <PaperPlaneTilt size={30} weight="fill" className="text-white drop-shadow-md group-hover:scale-110 transition-transform" />
+                  <ChatCircle size={30} weight="fill" className="text-white drop-shadow-md group-hover:scale-110 transition-transform" />
                 </div>
               </div>
               <span className="text-[11px] font-bold text-cyan-400 uppercase tracking-wider text-glow-cyan absolute -bottom-5 opacity-0 group-hover:opacity-100 transition-opacity">

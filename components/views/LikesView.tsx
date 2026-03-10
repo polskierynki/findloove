@@ -1,6 +1,7 @@
 'use client';
 
-import { Lock, LogIn, MessageCircle } from 'lucide-react';
+import { Lock, LogIn } from 'lucide-react';
+import { ChatCircle } from '@phosphor-icons/react';
 import { Profile } from '@/lib/types';
 
 interface LikesViewProps {
@@ -83,7 +84,7 @@ export default function LikesView({
                     onClick={() => onMessage(profile)}
                     className="w-full rounded-xl py-2.5 bg-gradient-to-r from-cyan-600 to-blue-600 text-white inline-flex items-center justify-center gap-2"
                   >
-                    <MessageCircle size={16} /> Napisz wiadomość
+                    <ChatCircle size={16} weight="fill" /> Napisz wiadomość
                   </button>
                 </div>
               )}
