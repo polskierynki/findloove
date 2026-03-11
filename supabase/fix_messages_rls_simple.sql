@@ -11,33 +11,9 @@
 --   nalezy do aktualnie zalogowanego usera:
 --   1) bezposrednio po auth.uid()
 --   2) fallback po email z JWT -> profiles.email
+--   3) fallback po auth.users.email -> profiles.email (gdy claim email nie jest w JWT)
 
 alter table public.messages enable row level security;
-
--- Helper: sprawdza, czy profile_id nalezy do aktualnego usera.
-drop function if exists public.is_current_user_profile(uuid);
-
-create function public.is_current_user_profile(target_profile_id uuid)
-returns boolean
-language sql
-stable
-security definer
-set search_path = public
-as $$
-  select
-    target_profile_id = auth.uid()
-    or (
-      nullif(auth.jwt() ->> 'email', '') is not null
-      and exists (
-        select 1
-        from public.profiles me
-        where me.id = target_profile_id
-          and lower(coalesce(me.email, '')) = lower(auth.jwt() ->> 'email')
-      )
-    );
-$$;
-
-grant execute on function public.is_current_user_profile(uuid) to authenticated;
 
 -- Usun wszystkie istniejace polityki na messages
 do $$
@@ -53,6 +29,41 @@ begin
     execute format('drop policy if exists %I on public.messages', p.policyname);
   end loop;
 end $$;
+
+-- Helper: sprawdza, czy profile_id nalezy do aktualnego usera.
+drop function if exists public.is_current_user_profile(uuid);
+
+create function public.is_current_user_profile(target_profile_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public, auth
+as $$
+  select
+    target_profile_id = auth.uid()
+    or (
+      nullif(auth.jwt() ->> 'email', '') is not null
+      and exists (
+        select 1
+        from public.profiles me
+        where me.id = target_profile_id
+          and lower(coalesce(me.email, '')) = lower(auth.jwt() ->> 'email')
+      )
+    )
+    or exists (
+      select 1
+      from public.profiles me
+      join auth.users au
+        on lower(coalesce(me.email, '')) = lower(coalesce(au.email, ''))
+      where me.id = target_profile_id
+        and au.id = auth.uid()
+        and me.email is not null
+        and au.email is not null
+    );
+$$;
+
+grant execute on function public.is_current_user_profile(uuid) to authenticated;
 
 -- SELECT: uzytkownik widzi wiadomosci, w ktorych jest nadawca lub odbiorcom
 create policy "messages_select"

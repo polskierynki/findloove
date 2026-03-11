@@ -481,30 +481,61 @@ export default function NewMessagesView() {
     setChatError(null);
 
     try {
-      const { data, error } = await supabase
-        .from('messages')
-        .insert({
-          from_profile_id: currentUserId,
-          to_profile_id: selectedProfile.id,
-          content: messageText.trim(),
-        })
-        .select()
-        .single();
+      const senderCandidates = Array.from(
+        new Set([currentUserId, authUserId].filter(Boolean)),
+      ) as string[];
 
-      if (error) {
-        const errorCode = (error as { code?: string }).code;
+      let successfulInsert: Message | null = null;
+      let successfulSenderId: string | null = null;
+      let lastError: { code?: string; message?: string } | null = null;
 
-        if (errorCode === '23503') {
-          setChatError('Nie mozna wyslac wiadomosci: konto nadawcy nie jest poprawnie powiazane z profilem. Odswiez strone.');
-        } else if (errorCode === '42501') {
-          setChatError('Brak uprawnien do wysylania wiadomosci (RLS). Uruchom migracje: supabase/fix_messages_rls_simple.sql.');
-        } else {
-          setChatError(`Nie udalo sie wyslac wiadomosci: ${error.message}`);
+      for (const senderId of senderCandidates) {
+        const { data, error } = await supabase
+          .from('messages')
+          .insert({
+            from_profile_id: senderId,
+            to_profile_id: selectedProfile.id,
+            content: messageText.trim(),
+          })
+          .select()
+          .single();
+
+        if (!error && data) {
+          successfulInsert = data as Message;
+          successfulSenderId = senderId;
+          break;
         }
-        throw error;
+
+        lastError = {
+          code: (error as { code?: string } | null)?.code,
+          message: (error as { message?: string } | null)?.message,
+        };
+
+        const shouldRetryWithNextSender =
+          (lastError.code === '23503' || lastError.code === '42501') &&
+          senderId !== senderCandidates[senderCandidates.length - 1];
+
+        if (!shouldRetryWithNextSender) {
+          break;
+        }
       }
 
-      setMessages(prev => [...prev, data as Message]);
+      if (!successfulInsert) {
+        if (lastError?.code === '23503') {
+          setChatError('Nie mozna wyslac wiadomosci: konto nadawcy nie jest poprawnie powiazane z profilem. Odswiez strone.');
+        } else if (lastError?.code === '42501') {
+          setChatError('Brak uprawnien do wysylania wiadomosci (RLS). Uruchom migracje: supabase/fix_messages_rls_simple.sql.');
+        } else {
+          setChatError(`Nie udalo sie wyslac wiadomosci: ${lastError?.message || 'Nieznany blad'}`);
+        }
+        throw new Error(lastError?.message || 'Insert wiadomosci zakonczony niepowodzeniem');
+      }
+
+      if (successfulSenderId && successfulSenderId !== currentUserId) {
+        setCurrentUserId(successfulSenderId);
+      }
+
+      setMessages(prev => [...prev, successfulInsert]);
       setMessageText('');
       void loadConversations();
     } catch (error) {
