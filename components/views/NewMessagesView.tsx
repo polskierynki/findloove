@@ -305,7 +305,7 @@ export default function NewMessagesView() {
       const code = (error as { code?: string } | null)?.code;
       const message = (error as { message?: string } | null)?.message;
       if (code === '42501') {
-        setChatError('Brak uprawnien do czatu (RLS). Uruchom migracje: supabase/fix_messages_rls_profile_mapping.sql.');
+        setChatError('Brak uprawnien do czatu (RLS). Uruchom migracje: supabase/fix_messages_rls_simple.sql.');
       } else if (message) {
         setChatError(`Brak dostepu do listy rozmow: ${message}`);
       }
@@ -429,7 +429,7 @@ export default function NewMessagesView() {
         const code = (error as { code?: string } | null)?.code;
         const message = (error as { message?: string } | null)?.message;
         if (code === '42501') {
-          setChatError('Brak uprawnien do wiadomosci (RLS). Uruchom migracje: supabase/fix_messages_rls_profile_mapping.sql.');
+          setChatError('Brak uprawnien do wiadomosci (RLS). Uruchom migracje: supabase/fix_messages_rls_simple.sql.');
         } else if (message) {
           setChatError(`Brak dostepu do wiadomosci: ${message}`);
         }
@@ -497,7 +497,7 @@ export default function NewMessagesView() {
         if (errorCode === '23503') {
           setChatError('Nie mozna wyslac wiadomosci: konto nadawcy nie jest poprawnie powiazane z profilem. Odswiez strone.');
         } else if (errorCode === '42501') {
-          setChatError('Brak uprawnien do wysylania wiadomosci (RLS). Uruchom migracje: supabase/fix_messages_rls_profile_mapping.sql.');
+          setChatError('Brak uprawnien do wysylania wiadomosci (RLS). Uruchom migracje: supabase/fix_messages_rls_simple.sql.');
         } else {
           setChatError(`Nie udalo sie wyslac wiadomosci: ${error.message}`);
         }

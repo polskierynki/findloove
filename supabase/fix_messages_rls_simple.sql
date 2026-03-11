@@ -1,13 +1,43 @@
 -- =============================================================
--- UPROSZCZONA POLITYKA RLS DLA TABELI MESSAGES
+-- LEKKA + KOMPATYBILNA POLITYKA RLS DLA TABELI MESSAGES
 -- =============================================================
--- Poprzednia polityka uzywala zlozonych subzapytan (EXISTS z email),
--- co moglo powodowac bledy lub brak dostepu do wiadomosci.
+-- Cel:
+-- - Zachowac prosta polityke, ale obsluzyc konta legacy,
+--   gdzie profiles.id != auth.uid().
+-- - Uniknac duplikowania rozbudowanych EXISTS w kazdej policy.
 --
--- Ta wersja uzywa prostego warunku: auth.uid() = from/to_profile_id
--- co dziala standardowo w Supabase (profiles.id = auth.uid()).
+-- Podejscie:
+-- - Tworzymy 1 helper function sprawdzajacy, czy podane profile_id
+--   nalezy do aktualnie zalogowanego usera:
+--   1) bezposrednio po auth.uid()
+--   2) fallback po email z JWT -> profiles.email
 
 alter table public.messages enable row level security;
+
+-- Helper: sprawdza, czy profile_id nalezy do aktualnego usera.
+drop function if exists public.is_current_user_profile(uuid);
+
+create function public.is_current_user_profile(target_profile_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select
+    target_profile_id = auth.uid()
+    or (
+      nullif(auth.jwt() ->> 'email', '') is not null
+      and exists (
+        select 1
+        from public.profiles me
+        where me.id = target_profile_id
+          and lower(coalesce(me.email, '')) = lower(auth.jwt() ->> 'email')
+      )
+    );
+$$;
+
+grant execute on function public.is_current_user_profile(uuid) to authenticated;
 
 -- Usun wszystkie istniejace polityki na messages
 do $$
@@ -30,8 +60,8 @@ create policy "messages_select"
   for select
   to authenticated
   using (
-    from_profile_id = auth.uid()
-    or to_profile_id = auth.uid()
+    public.is_current_user_profile(from_profile_id)
+    or public.is_current_user_profile(to_profile_id)
   );
 
 -- INSERT: uzytkownik moze wysylac tylko z wlasnego profilu
@@ -40,7 +70,7 @@ create policy "messages_insert"
   for insert
   to authenticated
   with check (
-    from_profile_id = auth.uid()
+    public.is_current_user_profile(from_profile_id)
   );
 
 -- DELETE: uzytkownik moze usuwac wiadomosci ze swoich rozmow
@@ -49,20 +79,8 @@ create policy "messages_delete"
   for delete
   to authenticated
   using (
-    from_profile_id = auth.uid()
-    or to_profile_id = auth.uid()
+    public.is_current_user_profile(from_profile_id)
+    or public.is_current_user_profile(to_profile_id)
   );
 
 grant select, insert, delete on public.messages to authenticated;
-
--- =============================================================
--- OPCJONALNIE: jesli profiles.id rozni sie od auth.uid()
--- (legacy dane), zaktualizuj profile.id aby odpowiadalo auth.uid()
--- Uruchom to tylko jesli wiadomosci dalej nie dzialaja:
---
--- update public.profiles p
--- set id = u.id
--- from auth.users u
--- where lower(p.email) = lower(u.email)
---   and p.id != u.id;
--- =============================================================
