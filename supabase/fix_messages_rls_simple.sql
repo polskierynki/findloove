@@ -155,7 +155,7 @@ stable
 security definer
 set search_path = public, auth
 as $$
-  select target_profile_id = any((select public.current_user_profile_ids()));
+  select target_profile_id = any(public.current_user_profile_ids());
 $$;
 
 grant execute on function public.is_current_user_profile(uuid) to authenticated;
@@ -166,8 +166,8 @@ create policy "messages_select"
   for select
   to authenticated
   using (
-    from_profile_id = any((select public.current_user_profile_ids()))
-    or to_profile_id = any((select public.current_user_profile_ids()))
+    from_profile_id = any(public.current_user_profile_ids())
+    or to_profile_id = any(public.current_user_profile_ids())
   );
 
 -- INSERT: user wysyla tylko z profilu, ktory nalezy do niego.
@@ -176,7 +176,7 @@ create policy "messages_insert"
   for insert
   to authenticated
   with check (
-    from_profile_id = any((select public.current_user_profile_ids()))
+    from_profile_id = any(public.current_user_profile_ids())
   );
 
 -- DELETE: user usuwa wiadomosci, w ktorych uczestniczy.
@@ -185,8 +185,8 @@ create policy "messages_delete"
   for delete
   to authenticated
   using (
-    from_profile_id = any((select public.current_user_profile_ids()))
-    or to_profile_id = any((select public.current_user_profile_ids()))
+    from_profile_id = any(public.current_user_profile_ids())
+    or to_profile_id = any(public.current_user_profile_ids())
   );
 
 -- Bezpieczna wysylka przez RPC: stabilniejsza od bezposredniego insertu,
