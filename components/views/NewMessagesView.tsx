@@ -4,6 +4,13 @@ import { useState, useEffect } from 'react';
 import TalkJSChat from '@/components/layout/TalkJSChat';
 import { supabase } from '@/lib/supabase';
 
+type TalkUser = {
+  id: string;
+  name: string;
+  email?: string | null;
+  photoUrl?: string | null;
+};
+
 async function resolveProfileIdForAuthUser(user: {
   id: string;
   email?: string | null;
@@ -68,9 +75,27 @@ async function resolveProfileIdForAuthUser(user: {
 }
 
 export default function NewMessagesView() {
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [currentUser, setCurrentUser] = useState<TalkUser | null>(null);
+  const [targetProfileId, setTargetProfileId] = useState<string | null>(null);
+  const [targetUser, setTargetUser] = useState<TalkUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Read direct-chat target from URL without coupling hydration to search params.
+  useEffect(() => {
+    const readTargetFromLocation = () => {
+      const params = new URLSearchParams(window.location.search);
+      const rawTarget = params.get('user');
+      setTargetProfileId(rawTarget ? rawTarget.trim() : null);
+    };
+
+    readTargetFromLocation();
+    window.addEventListener('popstate', readTargetFromLocation);
+
+    return () => {
+      window.removeEventListener('popstate', readTargetFromLocation);
+    };
+  }, []);
 
   // Get current user
   useEffect(() => {
@@ -91,7 +116,23 @@ export default function NewMessagesView() {
           return;
         }
 
-        setCurrentUserId(resolvedProfileId);
+        const { data: myProfile } = await supabase
+          .from('profiles')
+          .select('name, email, image_url')
+          .eq('id', resolvedProfileId)
+          .maybeSingle();
+
+        const fallbackName =
+          (typeof user.user_metadata?.name === 'string' && user.user_metadata.name.trim()) ||
+          (user.email ? user.email.split('@')[0] : '') ||
+          'Uzytkownik';
+
+        setCurrentUser({
+          id: resolvedProfileId,
+          name: (myProfile as { name?: string | null } | null)?.name || fallbackName,
+          email: (myProfile as { email?: string | null } | null)?.email || user.email || null,
+          photoUrl: (myProfile as { image_url?: string | null } | null)?.image_url || null,
+        });
         setLoading(false);
       } catch (err) {
         console.error('Error getting user:', err);
@@ -102,6 +143,41 @@ export default function NewMessagesView() {
 
     void getCurrentUser();
   }, []);
+
+  // Load target profile info for opening direct conversation in TalkJS.
+  useEffect(() => {
+    if (!targetProfileId || !currentUser || targetProfileId === currentUser.id) {
+      setTargetUser(null);
+      return;
+    }
+
+    const loadTargetUser = async () => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('id, name, email, image_url')
+        .eq('id', targetProfileId)
+        .maybeSingle();
+
+      if (!data) {
+        setTargetUser({
+          id: targetProfileId,
+          name: 'Uzytkownik',
+          email: null,
+          photoUrl: null,
+        });
+        return;
+      }
+
+      setTargetUser({
+        id: data.id as string,
+        name: (data as { name?: string | null }).name || 'Uzytkownik',
+        email: (data as { email?: string | null }).email || null,
+        photoUrl: (data as { image_url?: string | null }).image_url || null,
+      });
+    };
+
+    void loadTargetUser();
+  }, [currentUser, targetProfileId]);
 
   if (loading) {
     return (
@@ -114,7 +190,7 @@ export default function NewMessagesView() {
     );
   }
 
-  if (error || !currentUserId) {
+  if (error || !currentUser) {
     return (
       <div className="relative z-10 pt-24 pb-6 px-6 lg:px-12 max-w-[1800px] mx-auto">
         <div className="glass rounded-[2rem] p-12 text-center">
@@ -128,9 +204,8 @@ export default function NewMessagesView() {
     <div className="relative z-10 pt-24 pb-6 px-6 lg:px-12 max-w-[1800px] mx-auto">
       <div className="glass rounded-[2rem] w-full chat-height flex overflow-hidden border border-white/10 shadow-[0_0_40px_rgba(0,0,0,0.5)]">
         <TalkJSChat
-          currentUserId={currentUserId}
-          otherUserId=""
-          otherUserName=""
+          currentUser={currentUser}
+          targetUser={targetUser}
         />
       </div>
     </div>
