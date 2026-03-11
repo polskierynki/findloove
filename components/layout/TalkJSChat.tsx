@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from 'react';
 
 const TALKJS_APP_ID = 'tGMNi9UN';
+const TALKJS_THEME_NAME = process.env.NEXT_PUBLIC_TALKJS_THEME_NAME?.trim() || '';
+const TALKJS_ROLE_NAME = process.env.NEXT_PUBLIC_TALKJS_ROLE_NAME?.trim() || '';
 
 type TalkUser = {
   id: string;
@@ -16,14 +18,37 @@ interface TalkJSChatProps {
   targetUser?: TalkUser | null;
 }
 
+type TalkConversation = {
+  setParticipant: (user: unknown) => void;
+  setAttributes?: (attrs: Record<string, unknown>) => void;
+};
+
+function buildDemoThemeConfig(): Record<string, unknown> {
+  const theme: Record<string, unknown> = {
+    custom: {
+      brand: 'findloove-demo',
+      shellBg: '#0b071a',
+      panelBg: '#130b2a',
+      accentPrimary: '#00ffff',
+      accentSecondary: '#ff00ff',
+      textPrimary: '#f5f7ff',
+      textMuted: '#95a2c7',
+    },
+  };
+
+  if (TALKJS_THEME_NAME) {
+    theme.name = TALKJS_THEME_NAME;
+  }
+
+  return theme;
+}
+
 type TalkWindow = Window & {
   Talk?: {
     ready: Promise<void>;
     User: new (config: Record<string, unknown>) => unknown;
     Session: new (config: Record<string, unknown>) => {
-      getOrCreateConversation: (id: string) => {
-        setParticipant: (user: unknown) => void;
-      };
+      getOrCreateConversation: (id: string) => TalkConversation;
       createInbox: (config?: Record<string, unknown>) => {
         mount: (element: HTMLElement) => Promise<void> | void;
         destroy?: () => void;
@@ -92,6 +117,7 @@ export default function TalkJSChat({ currentUser, targetUser }: TalkJSChatProps)
           name: currentUser.name || 'Uzytkownik',
           email: currentUser.email || undefined,
           photoUrl: currentUser.photoUrl || undefined,
+          role: TALKJS_ROLE_NAME || undefined,
         });
 
         const session = new talk.Session({
@@ -99,6 +125,10 @@ export default function TalkJSChat({ currentUser, targetUser }: TalkJSChatProps)
           me,
         });
         sessionInstance = session;
+
+        const inboxConfig: Record<string, unknown> = {
+          theme: buildDemoThemeConfig(),
+        };
 
         let inbox;
 
@@ -108,6 +138,7 @@ export default function TalkJSChat({ currentUser, targetUser }: TalkJSChatProps)
             name: targetUser.name || 'Uzytkownik',
             email: targetUser.email || undefined,
             photoUrl: targetUser.photoUrl || undefined,
+            role: TALKJS_ROLE_NAME || undefined,
           });
 
           const conversationId = [currentUser.id, targetUser.id].sort().join('_');
@@ -115,10 +146,20 @@ export default function TalkJSChat({ currentUser, targetUser }: TalkJSChatProps)
           conversation.setParticipant(me);
           conversation.setParticipant(other);
 
-          inbox = session.createInbox({ selected: conversation });
+          // If dashboard theme reads conversation custom fields, this keeps style consistent.
+          conversation.setAttributes?.({
+            custom: {
+              themePreset: 'findloove-demo',
+              accent: 'neon-cyan-magenta',
+            },
+          });
+
+          inboxConfig.selected = conversation;
         } else {
-          inbox = session.createInbox();
+          // Inbox without preselected conversation still uses the same theme shell.
         }
+
+        inbox = session.createInbox(inboxConfig);
 
         inboxInstance = inbox;
         await inbox.mount(containerRef.current);
@@ -172,7 +213,7 @@ export default function TalkJSChat({ currentUser, targetUser }: TalkJSChatProps)
   }
 
   return (
-    <div className="relative flex-1 overflow-hidden bg-black/10 w-full">
+    <div className="relative flex-1 overflow-hidden w-full talkjs-shell talkjs-embed">
       {!ready && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/20">
           <div className="text-center">

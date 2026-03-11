@@ -271,10 +271,12 @@ export default function MessagesView({ selectedProfile, isLoggedIn = false, onLo
 
   return (
     <div className="relative z-10 pt-24 pb-6 px-6 lg:px-12 max-w-[1800px] mx-auto">
-      <div className="glass rounded-[2rem] w-full overflow-hidden border border-white/10 shadow-[0_0_40px_rgba(0,0,0,0.5)] min-h-[70vh] flex flex-col">
-        <div className="h-16 border-b border-white/5 bg-black/20 px-6 flex items-center justify-between">
-          <h2 className="text-lg md:text-xl text-white">Wiadomosci</h2>
-          <p className="text-xs md:text-sm text-cyan-300/80">
+      <div className="rounded-[2rem] w-full overflow-hidden border border-cyan-500/20 shadow-[0_0_45px_rgba(0,0,0,0.55),0_0_24px_rgba(0,255,255,0.08)] min-h-[70vh] flex flex-col bg-[linear-gradient(155deg,rgba(9,7,20,0.94)_0%,rgba(15,10,32,0.96)_55%,rgba(8,6,17,0.95)_100%)] backdrop-blur-2xl">
+        <div className="h-16 border-b border-cyan-500/15 bg-black/25 px-6 flex items-center justify-between">
+          <h2 className="text-lg md:text-xl font-medium bg-clip-text text-transparent bg-gradient-to-r from-cyan-300 to-fuchsia-300">
+            Wiadomosci
+          </h2>
+          <p className="text-xs md:text-sm text-cyan-200/80">
             {effectiveTargetUser ? `Rozmowa z: ${effectiveTargetUser.name}` : 'Wszystkie rozmowy'}
           </p>
         </div>
