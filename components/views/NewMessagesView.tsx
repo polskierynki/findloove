@@ -491,86 +491,76 @@ export default function NewMessagesView() {
     if (!trimmedMessage || !selectedProfile) return;
 
     setChatError(null);
+    console.log('📤 Sending message...');
+    console.log('  From (currentUserId):', currentUserId);
+    console.log('  From (authUserId):', authUserId);
+    console.log('  To:', selectedProfile.id);
+    console.log('  Content:', trimmedMessage.substring(0, 50) + '...');
 
     try {
       let successfulInsert: Message | null = null;
-      let successfulSenderId: string | null = null;
       let lastError: { code?: string; message?: string } | null = null;
 
-      // Preferred path: server-side safe insert (security definer RPC).
-      const { data: rpcData, error: rpcError } = await supabase.rpc('send_message_safe', {
-        p_to_profile_id: selectedProfile.id,
-        p_content: trimmedMessage,
-      });
+      // Try to send using currentUserId first (most likely to work)
+      const senderCandidates = Array.from(
+        new Set([currentUserId, authUserId].filter(Boolean)),
+      ) as string[];
 
-      const rpcMessage = (Array.isArray(rpcData) ? rpcData[0] : rpcData) as Message | undefined;
+      console.log('📤 Sender candidates:', senderCandidates);
 
-      if (!rpcError && rpcMessage?.id) {
-        successfulInsert = rpcMessage;
-        successfulSenderId = rpcMessage.from_profile_id;
-      } else {
-        lastError = {
-          code: (rpcError as { code?: string } | null)?.code,
-          message: (rpcError as { message?: string } | null)?.message,
-        };
+      for (const senderId of senderCandidates) {
+        console.log(`📤 Trying to send FROM profile: ${senderId}`);
 
-        // Compatibility fallback: try direct insert for both possible sender ids.
-        const senderCandidates = Array.from(
-          new Set([currentUserId, authUserId].filter(Boolean)),
-        ) as string[];
+        const { data, error } = await supabase
+          .from('messages')
+          .insert({
+            from_profile_id: senderId,
+            to_profile_id: selectedProfile.id,
+            content: trimmedMessage,
+          })
+          .select()
+          .single();
 
-        for (const senderId of senderCandidates) {
-          const { data, error } = await supabase
-            .from('messages')
-            .insert({
-              from_profile_id: senderId,
-              to_profile_id: selectedProfile.id,
-              content: trimmedMessage,
-            })
-            .select()
-            .single();
-
-          if (!error && data) {
-            successfulInsert = data as Message;
-            successfulSenderId = senderId;
-            break;
-          }
-
-          lastError = {
-            code: (error as { code?: string } | null)?.code,
-            message: (error as { message?: string } | null)?.message,
-          };
-
-          const shouldRetryWithNextSender =
-            (lastError.code === '23503' || lastError.code === '42501') &&
-            senderId !== senderCandidates[senderCandidates.length - 1];
-
-          if (!shouldRetryWithNextSender) {
-            break;
-          }
+        if (!error && data) {
+          console.log('✅ Message sent successfully!', data);
+          successfulInsert = data as Message;
+          break;
         }
+
+        const code = (error as { code?: string } | null)?.code;
+        const message = (error as { message?: string } | null)?.message;
+        
+        console.log(`❌ Failed with senderId=${senderId}`);
+        console.log(`   Code: ${code}`);
+        console.log(`   Message: ${message}`);
+
+        lastError = { code, message };
       }
 
       if (!successfulInsert) {
-        if (lastError?.code === '23503') {
-          setChatError('Nie mozna wyslac wiadomosci: konto nadawcy nie jest poprawnie powiazane z profilem. Odswiez strone.');
-        } else if (lastError?.code === '42501') {
-          setChatError('Brak uprawnien do wysylania wiadomosci (RLS). Uruchom migracje: supabase/fix_messages_rls_simple.sql.');
-        } else {
-          setChatError(`Nie udalo sie wyslac wiadomosci: ${lastError?.message || 'Nieznany blad'}`);
+        let errorMsg = 'Nie udało się wysłać wiadomości';
+        
+        if (lastError?.code === '42501') {
+          errorMsg = 'Brak uprawnień do wysyłania (RLS). Uruchom: supabase/messages_rls_ultra_simple.sql';
+        } else if (lastError?.code === '23503') {
+          errorMsg = 'Profil nadawcy nie istnieje';
+        } else if (lastError?.message) {
+          errorMsg = `Błąd: ${lastError.message}`;
         }
-        throw new Error(lastError?.message || 'Insert wiadomosci zakonczony niepowodzeniem');
+
+        console.error('❌ All send attempts failed:', lastError);
+        setChatError(errorMsg);
+        return;
       }
 
-      if (successfulSenderId && successfulSenderId !== currentUserId) {
-        setCurrentUserId(successfulSenderId);
-      }
-
+      // Update UI
       setMessages(prev => [...prev, successfulInsert]);
       setMessageText('');
+      console.log('📤 Reloading conversations...');
       void loadConversations();
     } catch (error) {
       console.error('Error sending message:', error);
+      setChatError(`Exception: ${(error as Error).message}`);
     }
   };
 

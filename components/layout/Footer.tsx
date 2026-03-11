@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { Mail } from 'lucide-react';
 import { ViewType } from '@/lib/types';
 import { useLegal } from '@/lib/context/LegalContext';
@@ -14,7 +15,11 @@ interface FooterProps {
 
 export default function Footer({ onNavigate }: FooterProps) {
   const { openTerms, openPrivacy, showTerms, showPrivacy, closeTerms, closePrivacy } = useLegal();
-  const year = new Date().getFullYear();
+  const [year, setYear] = useState<number>(() => new Date().getUTCFullYear());
+
+  useEffect(() => {
+    setYear(new Date().getUTCFullYear());
+  }, []);
 
   return (
     <footer className="mt-20 border-t border-cyan-500/20 bg-black/60 backdrop-blur-md">

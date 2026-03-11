@@ -10,38 +10,70 @@ interface GuestState {
 
 const MAX_CLICKS = 3;
 const STORAGE_KEY = 'guestState';
-const DEFAULT_START_TIME = Date.now();
+
+function createDefaultGuestState(): GuestState {
+  return {
+    clickCount: 0,
+    startTime: 0,
+    hasSeenModal: false,
+  };
+}
 
 export function useGuestRestrictions(isLoggedIn: boolean) {
-  const [state, setState] = useState<GuestState>(() => {
-    const defaults: GuestState = { clickCount: 0, startTime: DEFAULT_START_TIME, hasSeenModal: false };
-    if (typeof window === 'undefined') return defaults;
-
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (!saved) return defaults;
-
-    try {
-      const parsed = JSON.parse(saved) as Partial<GuestState>;
-      return {
-        clickCount: typeof parsed.clickCount === 'number' ? parsed.clickCount : 0,
-        startTime: typeof parsed.startTime === 'number' ? parsed.startTime : DEFAULT_START_TIME,
-        hasSeenModal: Boolean(parsed.hasSeenModal),
-      };
-    } catch (e) {
-      console.error('Failed to parse guest state', e);
-      return defaults;
-    }
-  });
+  const [state, setState] = useState<GuestState>(createDefaultGuestState);
+  const [isStorageReady, setIsStorageReady] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [showTimeoutModal, setShowTimeoutModal] = useState(false);
   const [showFeatureModal, setShowFeatureModal] = useState(false);
   const [featureName, setFeatureName] = useState('Ta funkcja');
 
+  // Load persisted guest state only after mount to keep SSR/client first render deterministic.
+  useEffect(() => {
+    if (isLoggedIn) {
+      setState(createDefaultGuestState());
+      setIsStorageReady(false);
+      return;
+    }
+
+    const fallbackStartTime = Date.now();
+    const saved = localStorage.getItem(STORAGE_KEY);
+
+    if (!saved) {
+      setState({
+        clickCount: 0,
+        startTime: fallbackStartTime,
+        hasSeenModal: false,
+      });
+      setIsStorageReady(true);
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(saved) as Partial<GuestState>;
+      setState({
+        clickCount: typeof parsed.clickCount === 'number' ? parsed.clickCount : 0,
+        startTime: typeof parsed.startTime === 'number' && parsed.startTime > 0
+          ? parsed.startTime
+          : fallbackStartTime,
+        hasSeenModal: Boolean(parsed.hasSeenModal),
+      });
+    } catch (e) {
+      console.error('Failed to parse guest state', e);
+      setState({
+        clickCount: 0,
+        startTime: fallbackStartTime,
+        hasSeenModal: false,
+      });
+    } finally {
+      setIsStorageReady(true);
+    }
+  }, [isLoggedIn]);
+
   // Save state to localStorage
   useEffect(() => {
-    if (isLoggedIn) return;
+    if (isLoggedIn || !isStorageReady) return;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  }, [state, isLoggedIn]);
+  }, [state, isLoggedIn, isStorageReady]);
 
   // Timeout modal intentionally disabled - only click/feature prompts remain.
 
@@ -49,7 +81,7 @@ export function useGuestRestrictions(isLoggedIn: boolean) {
     if (isLoggedIn) return;
 
     setState((prev) => {
-      const startedAt = prev.startTime || DEFAULT_START_TIME;
+      const startedAt = prev.startTime || Date.now();
 
       const newCount = prev.clickCount + 1;
       
