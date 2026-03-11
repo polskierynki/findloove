@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
+import { resolveProfileIdForAuthUser } from '@/lib/profileAuth';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 import { Bell, MessageCircle, Shield, Menu, X, Gift, Heart, BadgeCheck, LogIn, LogOut, UserPlus } from 'lucide-react';
 import { useNotifications } from '@/lib/hooks/useNotifications';
@@ -12,66 +13,6 @@ type HeaderProfile = {
   is_verified?: boolean | null;
   created_at?: string | null;
 };
-
-async function resolveProfileIdForAuthUser(user: {
-  id: string;
-  email?: string | null;
-  user_metadata?: Record<string, unknown>;
-}): Promise<string | null> {
-  const normalizedEmail = user.email?.trim().toLowerCase() || null;
-
-  const { data: byId, error: byIdError } = await supabase
-    .from('profiles')
-    .select('id')
-    .eq('id', user.id)
-    .maybeSingle();
-
-  if (!byIdError && byId?.id) {
-    return byId.id as string;
-  }
-
-  if (normalizedEmail) {
-    const { data: byEmail, error: byEmailError } = await supabase
-      .from('profiles')
-      .select('id')
-      .ilike('email', normalizedEmail)
-      .maybeSingle();
-
-    if (!byEmailError && byEmail?.id) {
-      return byEmail.id as string;
-    }
-  }
-
-  const fallbackName =
-    (typeof user.user_metadata?.name === 'string' && user.user_metadata.name.trim()) ||
-    (normalizedEmail ? normalizedEmail.split('@')[0] : '') ||
-    'Uzytkownik';
-
-  const { data: created, error: createError } = await supabase
-    .from('profiles')
-    .upsert(
-      {
-        id: user.id,
-        email: normalizedEmail,
-        name: fallbackName,
-        age: 30,
-        city: 'Nieznane',
-        bio: '',
-        interests: [],
-        image_url: '',
-      },
-      { onConflict: 'id' },
-    )
-    .select('id')
-    .maybeSingle();
-
-  if (createError) {
-    console.error('Nie udalo sie utworzyc/finalizowac profilu dla naglowka:', createError.message);
-    return null;
-  }
-
-  return (created?.id as string | undefined) || user.id;
-}
 
 function toTimestamp(value?: string | null): number {
   if (!value) return 0;

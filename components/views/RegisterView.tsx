@@ -176,6 +176,7 @@ export default function RegisterView({ onBack, onComplete }: RegisterViewProps) 
     if (uid && pendingRegistration) {
       const { error: profileError } = await supabase.from('profiles').upsert({
         id: uid,
+        auth_user_id: uid,
         name: pendingRegistration.name,
         age: pendingRegistration.age,
         city: pendingRegistration.city,

@@ -27,6 +27,7 @@ import {
 } from '@phosphor-icons/react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
+import { resolveProfileIdForAuthUser } from '@/lib/profileAuth';
 import { Profile } from '@/lib/types';
 import { useLikes } from '@/lib/hooks/useLikes';
 import { ALL_INTERESTS } from './constants/profileFormOptions';
@@ -64,62 +65,6 @@ function formatRelativeTime(timestamp: string): string {
     day: 'numeric',
     month: 'short',
   });
-}
-
-async function resolveProfileIdForAuthUser(user: AuthLikeUser): Promise<string | null> {
-  const normalizedEmail = user.email?.trim().toLowerCase() || null;
-
-  const { data: byId, error: byIdError } = await supabase
-    .from('profiles')
-    .select('id')
-    .eq('id', user.id)
-    .maybeSingle();
-
-  if (!byIdError && byId?.id) {
-    return byId.id as string;
-  }
-
-  if (normalizedEmail) {
-    const { data: byEmail, error: byEmailError } = await supabase
-      .from('profiles')
-      .select('id')
-      .ilike('email', normalizedEmail)
-      .maybeSingle();
-
-    if (!byEmailError && byEmail?.id) {
-      return byEmail.id as string;
-    }
-  }
-
-  const fallbackName =
-    (typeof user.user_metadata?.name === 'string' && user.user_metadata.name.trim()) ||
-    (normalizedEmail ? normalizedEmail.split('@')[0] : '') ||
-    'Uzytkownik';
-
-  const { data: created, error: createError } = await supabase
-    .from('profiles')
-    .upsert(
-      {
-        id: user.id,
-        email: normalizedEmail,
-        name: fallbackName,
-        age: 30,
-        city: 'Nieznane',
-        bio: '',
-        interests: [],
-        image_url: '',
-      },
-      { onConflict: 'id' },
-    )
-    .select('id')
-    .maybeSingle();
-
-  if (createError) {
-    console.error('Nie udalo sie utworzyc/finalizowac profilu dla komentarzy:', createError.message);
-    return null;
-  }
-
-  return (created?.id as string | undefined) || user.id;
 }
 
 export default function NewProfileDetailView({ profileId }: { profileId: string }) {

@@ -3,95 +3,7 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { MagnifyingGlass, Prohibit, Trash, Flag, PaperPlaneRight, ArrowLeft } from '@phosphor-icons/react';
 import { supabase } from '@/lib/supabase';
-
-const HIDDEN_ADMIN_EMAILS = new Set([
-  'lio1985lodz@gmail.com',
-]);
-
-function isHiddenAdminProfile(profile: { role?: string | null; email?: string | null }): boolean {
-  const normalizedRole = (profile.role || '').trim().toLowerCase();
-  const normalizedEmail = (profile.email || '').trim().toLowerCase();
-
-  return (
-    normalizedRole === 'admin' ||
-    normalizedRole === 'super_admin' ||
-    HIDDEN_ADMIN_EMAILS.has(normalizedEmail)
-  );
-}
-
-async function resolveProfileIdForAuthUser(user: {
-  id: string;
-  email?: string | null;
-  user_metadata?: Record<string, unknown>;
-}): Promise<string | null> {
-  const normalizedEmail = user.email?.trim().toLowerCase() || null;
-
-  // 1) Preferred mapping: profile row with the same id as auth user id.
-  const { data: byId, error: byIdError } = await supabase
-    .from('profiles')
-    .select('id')
-    .eq('id', user.id)
-    .maybeSingle();
-
-  if (!byIdError && byId?.id) {
-    return byId.id as string;
-  }
-
-  // 1b) Preferred mapping in normalized schema: profiles.auth_user_id = auth user id.
-  const { data: byAuthUserId, error: byAuthUserIdError } = await supabase
-    .from('profiles')
-    .select('id')
-    .eq('auth_user_id', user.id)
-    .maybeSingle();
-
-  if (!byAuthUserIdError && byAuthUserId?.id) {
-    return byAuthUserId.id as string;
-  }
-
-  // 2) Fallback mapping by email for legacy accounts migrated from older schema.
-  if (normalizedEmail) {
-    const { data: byEmail, error: byEmailError } = await supabase
-      .from('profiles')
-      .select('id')
-      .ilike('email', normalizedEmail)
-      .maybeSingle();
-
-    if (!byEmailError && byEmail?.id) {
-      return byEmail.id as string;
-    }
-  }
-
-  // 3) Last resort: create a minimal profile row so FK on messages can pass.
-  const fallbackName =
-    (typeof user.user_metadata?.name === 'string' && user.user_metadata.name.trim()) ||
-    (normalizedEmail ? normalizedEmail.split('@')[0] : '') ||
-    'Uzytkownik';
-
-  const { data: created, error: createError } = await supabase
-    .from('profiles')
-    .upsert(
-      {
-        id: user.id,
-        email: normalizedEmail,
-        name: fallbackName,
-        age: 30,
-        city: 'Nieznane',
-        bio: '',
-        interests: [],
-        image_url: '',
-      },
-      { onConflict: 'id' },
-    )
-    .select('id')
-    .maybeSingle();
-
-  if (createError) {
-    console.error('Nie udalo sie utworzyc/finalizowac profilu dla czatu:', createError.message);
-    return null;
-  }
-
-  return (created?.id as string | undefined) || user.id;
-}
+import { resolveProfileIdForAuthUser } from '@/lib/profileAuth';
 
 interface Message {
   id: string;
@@ -288,9 +200,6 @@ export default function NewMessagesView() {
           if (!preview) return [];
 
           const partnerProfile = profileMap.get(partnerId);
-          if (partnerProfile && isHiddenAdminProfile(partnerProfile)) {
-            return [];
-          }
 
           return [{
             id: partnerId,
@@ -316,7 +225,7 @@ export default function NewMessagesView() {
       const code = (error as { code?: string } | null)?.code;
       const message = (error as { message?: string } | null)?.message;
       if (code === '42501') {
-        setChatError('Brak uprawnien do czatu (RLS). Uruchom migracje: supabase/fix_messages_rls_simple.sql.');
+        setChatError('Brak uprawnien do czatu (RLS). Uruchom migracje: supabase/messages_rls_ultra_simple.sql.');
       } else if (message) {
         setChatError(`Brak dostepu do listy rozmow: ${message}`);
       }
@@ -375,7 +284,6 @@ export default function NewMessagesView() {
         .maybeSingle();
 
       if (error || !data) return;
-      if (isHiddenAdminProfile(data as { role?: string | null; email?: string | null })) return;
 
       const directConversation: ConversationProfile = {
         id: data.id as string,
@@ -440,7 +348,7 @@ export default function NewMessagesView() {
         const code = (error as { code?: string } | null)?.code;
         const message = (error as { message?: string } | null)?.message;
         if (code === '42501') {
-          setChatError('Brak uprawnien do wiadomosci (RLS). Uruchom migracje: supabase/fix_messages_rls_simple.sql.');
+          setChatError('Brak uprawnien do wiadomosci (RLS). Uruchom migracje: supabase/messages_rls_ultra_simple.sql.');
         } else if (message) {
           setChatError(`Brak dostepu do wiadomosci: ${message}`);
         }
@@ -506,9 +414,36 @@ export default function NewMessagesView() {
         new Set([currentUserId, authUserId].filter(Boolean)),
       ) as string[];
 
-      console.log('📤 Sender candidates:', senderCandidates);
+      const participantIds = Array.from(new Set([...senderCandidates, selectedProfile.id]));
+      const { data: participantProfiles, error: participantProfilesError } = await supabase
+        .from('profiles')
+        .select('id')
+        .in('id', participantIds);
 
-      for (const senderId of senderCandidates) {
+      if (participantProfilesError) {
+        console.warn('Nie udalo sie zweryfikowac profili przed wysylka:', participantProfilesError.message);
+      }
+
+      const existingProfileIds = new Set(
+        ((participantProfiles as Array<{ id: string }> | null) || []).map((profile) => profile.id),
+      );
+
+      if (!existingProfileIds.has(selectedProfile.id)) {
+        setChatError('Profil odbiorcy nie istnieje albo zostal usuniety. Otworz rozmowe ponownie.');
+        return;
+      }
+
+      const validSenderCandidates = senderCandidates.filter((senderId) => existingProfileIds.has(senderId));
+
+      if (validSenderCandidates.length === 0) {
+        setChatError('Profil nadawcy nie istnieje w tabeli profiles. Uruchom migracje: supabase/messages_rls_ultra_simple.sql.');
+        return;
+      }
+
+      console.log('📤 Sender candidates:', senderCandidates);
+      console.log('📤 Valid sender candidates:', validSenderCandidates);
+
+      for (const senderId of validSenderCandidates) {
         console.log(`📤 Trying to send FROM profile: ${senderId}`);
 
         const { data, error } = await supabase
@@ -543,7 +478,7 @@ export default function NewMessagesView() {
         if (lastError?.code === '42501') {
           errorMsg = 'Brak uprawnień do wysyłania (RLS). Uruchom: supabase/messages_rls_ultra_simple.sql';
         } else if (lastError?.code === '23503') {
-          errorMsg = 'Profil nadawcy nie istnieje';
+          errorMsg = 'Profil nadawcy lub odbiorcy nie istnieje w tabeli profiles.';
         } else if (lastError?.message) {
           errorMsg = `Błąd: ${lastError.message}`;
         }

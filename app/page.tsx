@@ -201,13 +201,33 @@ export default function App() {
 
         if (profileById) {
           profileBySession = profileById as SupabaseProfile;
-        } else if (session.user.email) {
+        } else {
+          const { data: profileByAuthUserId } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('auth_user_id', session.user.id)
+            .maybeSingle();
+
+          if (profileByAuthUserId) {
+            profileBySession = profileByAuthUserId as SupabaseProfile;
+          }
+        }
+
+        if (!profileBySession && session.user.email) {
           const { data: profileByEmail } = await supabase
             .from('profiles')
             .select('*')
             .eq('email', session.user.email)
             .maybeSingle();
+
           profileBySession = (profileByEmail as SupabaseProfile) || null;
+        }
+
+        if (profileBySession?.id) {
+          await supabase
+            .from('profiles')
+            .update({ auth_user_id: session.user.id })
+            .eq('id', profileBySession.id);
         }
 
         // Backward-compatible auth: if profile row is missing, create a minimal one.
@@ -229,6 +249,7 @@ export default function App() {
             .upsert(
               {
                 id: session.user.id,
+                auth_user_id: session.user.id,
                 email: fallbackEmail,
                 name: metadataName,
                 age: fallbackAge,
@@ -600,6 +621,19 @@ export default function App() {
 
         if (updatedById?.id) {
           targetProfileId = updatedById.id as string;
+        }
+      }
+
+      if (!targetProfileId && session?.user?.id) {
+        const { data: updatedByAuthUserId } = await supabase
+          .from('profiles')
+          .update(updatePayload)
+          .eq('auth_user_id', session.user.id)
+          .select('id')
+          .maybeSingle();
+
+        if (updatedByAuthUserId?.id) {
+          targetProfileId = updatedByAuthUserId.id as string;
         }
       }
 
