@@ -1,9 +1,9 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 
-export type NotificationKind = 'gift' | 'like' | 'poke' | 'verification' | 'comment';
+export type NotificationKind = 'gift' | 'like' | 'poke' | 'verification' | 'comment' | 'message';
 
 export type NotificationItem = {
   id: string;
@@ -18,6 +18,7 @@ export type NotificationItem = {
 
 type UseNotificationsOptions = {
   userId: string | null;
+  targetProfileIds?: string[];
   isAdmin?: boolean;
   profileIsVerified?: boolean;
   profileCreatedAt?: string | null;
@@ -57,6 +58,7 @@ export function formatNotificationTime(timestamp: string): string {
 
 export function useNotifications({
   userId,
+  targetProfileIds,
   isAdmin = false,
   profileIsVerified = false,
   profileCreatedAt = null,
@@ -65,8 +67,17 @@ export function useNotifications({
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(false);
 
+  const profileTargets = useMemo(() => {
+    const candidates = [
+      ...(targetProfileIds ?? []),
+      userId,
+    ].filter(Boolean) as string[];
+
+    return Array.from(new Set(candidates));
+  }, [targetProfileIds, userId]);
+
   const refresh = useCallback(async () => {
-    if (!userId) {
+    if (profileTargets.length === 0) {
       setNotifications([]);
       setLoading(false);
       return;
@@ -75,27 +86,32 @@ export function useNotifications({
     setLoading(true);
 
     try {
-      const [likesRes, interactionsRes, commentsRes] = await Promise.all([
+      const [likesRes, interactionsRes, commentsRes, messagesRes] = await Promise.all([
         supabase
           .from('likes')
           .select('id, from_profile_id, created_at')
-          .eq('to_profile_id', userId)
+          .in('to_profile_id', profileTargets)
           .order('created_at', { ascending: false })
           .limit(20),
         supabase
           .from('profile_interactions')
           .select('id, from_profile_id, kind, label, emoji, created_at')
-          .eq('to_profile_id', userId)
+          .in('to_profile_id', profileTargets)
           .in('kind', ['gift', 'poke'])
           .order('created_at', { ascending: false })
           .limit(20),
         supabase
           .from('profile_comments')
           .select('id, author_profile_id, content, created_at')
-          .eq('profile_id', userId)
-          .neq('author_profile_id', userId)
+          .in('profile_id', profileTargets)
           .order('created_at', { ascending: false })
           .limit(20),
+        supabase
+          .from('messages')
+          .select('id, from_profile_id, to_profile_id, content, created_at')
+          .in('to_profile_id', profileTargets)
+          .order('created_at', { ascending: false })
+          .limit(30),
       ]);
 
       if (likesRes.error) {
@@ -116,6 +132,13 @@ export function useNotifications({
         console.error('Blad ladowania komentarzy do powiadomien:', commentsRes.error.message);
       }
 
+      if (
+        messagesRes.error &&
+        !messagesRes.error.message.toLowerCase().includes('does not exist')
+      ) {
+        console.error('Blad ladowania wiadomosci do powiadomien:', messagesRes.error.message);
+      }
+
       type LikeRow = { id: string; from_profile_id: string; created_at: string };
       type InteractionRow = {
         id: string;
@@ -132,19 +155,33 @@ export function useNotifications({
         created_at: string;
       };
 
+      type MessageRow = {
+        id: string;
+        from_profile_id: string;
+        to_profile_id: string;
+        content: string;
+        created_at: string;
+      };
+
       const likes = (likesRes.data as LikeRow[] | null) ?? [];
       const interactions = interactionsRes.error
         ? []
         : ((interactionsRes.data as InteractionRow[] | null) ?? []);
       const comments = commentsRes.error
         ? []
-        : ((commentsRes.data as CommentRow[] | null) ?? []);
+        : (((commentsRes.data as CommentRow[] | null) ?? []).filter(
+            (row) => !profileTargets.includes(row.author_profile_id),
+          ));
+      const messages = messagesRes.error
+        ? []
+        : ((messagesRes.data as MessageRow[] | null) ?? []);
 
       const actorIds = Array.from(
         new Set([
           ...likes.map((row) => row.from_profile_id),
           ...interactions.map((row) => row.from_profile_id),
           ...comments.map((row) => row.author_profile_id),
+          ...messages.map((row) => row.from_profile_id),
         ]),
       );
 
@@ -239,6 +276,26 @@ export function useNotifications({
         });
       }
 
+      for (const incomingMessage of messages) {
+        const actor = actorMap.get(incomingMessage.from_profile_id);
+        const actorName = actor?.name || 'Ktos';
+        const normalizedContent = (incomingMessage.content || '').trim();
+        const snippet = normalizedContent.length > 80
+          ? `${normalizedContent.slice(0, 80)}...`
+          : normalizedContent;
+
+        nextNotifications.push({
+          id: `message-${incomingMessage.id}`,
+          kind: 'message',
+          actorName,
+          actorImageUrl: actor?.image_url || undefined,
+          actorProfileId: incomingMessage.from_profile_id,
+          message: `${actorName} wyslal(a) Ci wiadomosc: "${snippet || 'Nowa wiadomosc'}"`,
+          createdAt: incomingMessage.created_at,
+          href: `/messages?user=${encodeURIComponent(incomingMessage.from_profile_id)}`,
+        });
+      }
+
       if (profileIsVerified) {
         nextNotifications.push({
           id: `verification-${userId}`,
@@ -256,7 +313,7 @@ export function useNotifications({
     } finally {
       setLoading(false);
     }
-  }, [isAdmin, profileCreatedAt, profileIsVerified, userId]);
+  }, [isAdmin, profileCreatedAt, profileIsVerified, profileTargets, userId]);
 
   useEffect(() => {
     if (!autoLoad) return;

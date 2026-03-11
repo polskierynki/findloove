@@ -141,6 +141,34 @@ export default function BottomNav({ currentView, onNavigate, isLoggedIn = false,
 
     return () => window.clearInterval(interval);
   }, [loadUnreadMessagesCount, pathname]);
+
+  useEffect(() => {
+    if (!isLoggedIn || unreadTargetIds.length === 0) return;
+
+    const channel = supabase
+      .channel(`bottom-nav-message-notifications-${unreadTargetIds.join('_')}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+        },
+        (payload) => {
+          const nextMessage = payload.new as { to_profile_id?: string };
+          if (!nextMessage.to_profile_id || !unreadTargetIds.includes(nextMessage.to_profile_id)) return;
+
+          if (!pathname.startsWith('/messages')) {
+            void loadUnreadMessagesCount();
+          }
+        },
+      )
+      .subscribe();
+
+    return () => {
+      channel.unsubscribe();
+    };
+  }, [isLoggedIn, loadUnreadMessagesCount, pathname, unreadTargetIds]);
   
   const getActiveItem = (path: string) => {
     if (path === '/') return 'home';

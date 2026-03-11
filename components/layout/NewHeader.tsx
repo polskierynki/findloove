@@ -115,6 +115,7 @@ export default function NewHeader() {
     refresh: loadNotifications,
   } = useNotifications({
     userId: user?.id || null,
+    targetProfileIds: unreadTargetIds,
     isAdmin,
     profileIsVerified: Boolean(profile?.is_verified),
     profileCreatedAt: profile?.created_at ?? null,
@@ -213,6 +214,35 @@ export default function NewHeader() {
     }, 30000);
     return () => window.clearInterval(interval);
   }, [loadUnreadMessagesCount, unreadTargetIds, user]);
+
+  useEffect(() => {
+    if (!user || unreadTargetIds.length === 0) return;
+
+    const channel = supabase
+      .channel(`header-message-notifications-${unreadTargetIds.join('_')}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+        },
+        (payload) => {
+          const nextMessage = payload.new as { to_profile_id?: string };
+          if (!nextMessage.to_profile_id || !unreadTargetIds.includes(nextMessage.to_profile_id)) return;
+
+          if (!pathname.startsWith('/messages')) {
+            void loadUnreadMessagesCount();
+            void loadNotifications();
+          }
+        },
+      )
+      .subscribe();
+
+    return () => {
+      channel.unsubscribe();
+    };
+  }, [loadNotifications, loadUnreadMessagesCount, pathname, unreadTargetIds, user]);
 
   useEffect(() => {
     if (pathname.startsWith('/messages')) {
@@ -424,6 +454,12 @@ export default function NewHeader() {
                           )}
 
                           {notification.kind === 'poke' && (
+                            <div className="w-10 h-10 rounded-full bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center shrink-0 shadow-[0_0_10px_rgba(0,255,255,0.2)]">
+                              <MessageCircle size={20} className="text-cyan-300" />
+                            </div>
+                          )}
+
+                          {notification.kind === 'message' && (
                             <div className="w-10 h-10 rounded-full bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center shrink-0 shadow-[0_0_10px_rgba(0,255,255,0.2)]">
                               <MessageCircle size={20} className="text-cyan-300" />
                             </div>
