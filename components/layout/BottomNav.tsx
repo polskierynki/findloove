@@ -1,7 +1,9 @@
 'use client';
 
+import { useCallback, useEffect, useState } from 'react';
 import { Heart, Home, MessageCircle, HeartHandshake, User, Search } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabase';
 import { AppView, ViewType } from '@/lib/types';
 
 interface BottomNavProps {
@@ -20,6 +22,66 @@ const NAV_ITEMS: { id: ViewType | 'myprofile'; icon: React.ReactNode; label: str
   { id: 'myprofile', icon: <User size={22} />, label: 'Profil', path: '/myprofile' },
 ];
 
+async function resolveProfileIdForAuthUser(user: {
+  id: string;
+  email?: string | null;
+  user_metadata?: Record<string, unknown>;
+}): Promise<string | null> {
+  const normalizedEmail = user.email?.trim().toLowerCase() || null;
+
+  const { data: byId, error: byIdError } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('id', user.id)
+    .maybeSingle();
+
+  if (!byIdError && byId?.id) {
+    return byId.id as string;
+  }
+
+  if (normalizedEmail) {
+    const { data: byEmail, error: byEmailError } = await supabase
+      .from('profiles')
+      .select('id')
+      .ilike('email', normalizedEmail)
+      .maybeSingle();
+
+    if (!byEmailError && byEmail?.id) {
+      return byEmail.id as string;
+    }
+  }
+
+  const fallbackName =
+    (typeof user.user_metadata?.name === 'string' && user.user_metadata.name.trim()) ||
+    (normalizedEmail ? normalizedEmail.split('@')[0] : '') ||
+    'Uzytkownik';
+
+  const { data: created, error: createError } = await supabase
+    .from('profiles')
+    .upsert(
+      {
+        id: user.id,
+        email: normalizedEmail,
+        name: fallbackName,
+        age: 30,
+        city: 'Nieznane',
+        bio: '',
+        interests: [],
+        image_url: '',
+      },
+      { onConflict: 'id' },
+    )
+    .select('id')
+    .maybeSingle();
+
+  if (createError) {
+    console.error('Nie udalo sie utworzyc/finalizowac profilu dla dolnej nawigacji:', createError.message);
+    return null;
+  }
+
+  return (created?.id as string | undefined) || user.id;
+}
+
 export default function BottomNav({ currentView, onNavigate, isLoggedIn = false, isAdmin = false }: BottomNavProps) {
   const visibleNavItems = NAV_ITEMS.filter((item) => {
     if (!isLoggedIn && item.id === 'messages') return false;
@@ -29,6 +91,103 @@ export default function BottomNav({ currentView, onNavigate, isLoggedIn = false,
   
   const pathname = usePathname();
   const router = useRouter();
+  const [profileId, setProfileId] = useState<string | null>(null);
+  const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
+
+  const loadUnreadMessagesCount = useCallback(async () => {
+    if (!isLoggedIn || !profileId) {
+      setUnreadMessagesCount(0);
+      return;
+    }
+
+    try {
+      const stored = localStorage.getItem('messages_opened_at');
+      let query = supabase
+        .from('messages')
+        .select('*', { count: 'exact', head: true })
+        .eq('to_profile_id', profileId);
+
+      if (stored) {
+        const ts = parseInt(stored, 10);
+        if (!Number.isNaN(ts)) {
+          query = query.gt('created_at', new Date(ts).toISOString());
+        }
+      }
+
+      const { count } = await query;
+      setUnreadMessagesCount(count ?? 0);
+    } catch {
+      // ignore transient network issues
+    }
+  }, [isLoggedIn, profileId]);
+
+  useEffect(() => {
+    let active = true;
+
+    const syncProfileId = async () => {
+      if (!isLoggedIn) {
+        if (!active) return;
+        setProfileId(null);
+        setUnreadMessagesCount(0);
+        return;
+      }
+
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!active) return;
+      if (!user) {
+        setProfileId(null);
+        setUnreadMessagesCount(0);
+        return;
+      }
+
+      const resolvedProfileId = await resolveProfileIdForAuthUser(user);
+      if (!active) return;
+      setProfileId(resolvedProfileId);
+    };
+
+    void syncProfileId();
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+      const sessionUser = session?.user ?? null;
+
+      if (!sessionUser) {
+        setProfileId(null);
+        setUnreadMessagesCount(0);
+        return;
+      }
+
+      void (async () => {
+        const resolvedProfileId = await resolveProfileIdForAuthUser(sessionUser);
+        setProfileId(resolvedProfileId);
+      })();
+    });
+
+    return () => {
+      active = false;
+      authListener.subscription.unsubscribe();
+    };
+  }, [isLoggedIn]);
+
+  useEffect(() => {
+    if (pathname.startsWith('/messages')) {
+      localStorage.setItem('messages_opened_at', String(Date.now()));
+      setUnreadMessagesCount(0);
+      return;
+    }
+
+    void loadUnreadMessagesCount();
+
+    const interval = window.setInterval(() => {
+      if (!document.hidden) {
+        void loadUnreadMessagesCount();
+      }
+    }, 30000);
+
+    return () => window.clearInterval(interval);
+  }, [loadUnreadMessagesCount, pathname]);
   
   const getActiveItem = (path: string) => {
     if (path === '/') return 'home';
@@ -87,6 +246,11 @@ export default function BottomNav({ currentView, onNavigate, isLoggedIn = false,
                 }`}
               >
                 {item.icon}
+                {item.id === 'messages' && unreadMessagesCount > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-cyan-400 px-1 text-[10px] font-bold text-black shadow-[0_0_10px_rgba(34,211,238,0.6)] border border-[#110a22]">
+                    {unreadMessagesCount > 99 ? '99+' : unreadMessagesCount}
+                  </span>
+                )}
                 {isProfileTab && isLoggedIn && (
                   <span className="absolute -top-1.5 -right-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-fuchsia-500 px-1 text-[10px] font-bold text-white shadow-[0_0_10px_rgba(255,0,255,0.5)]">
                     i

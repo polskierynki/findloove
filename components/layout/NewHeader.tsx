@@ -13,6 +13,66 @@ type HeaderProfile = {
   created_at?: string | null;
 };
 
+async function resolveProfileIdForAuthUser(user: {
+  id: string;
+  email?: string | null;
+  user_metadata?: Record<string, unknown>;
+}): Promise<string | null> {
+  const normalizedEmail = user.email?.trim().toLowerCase() || null;
+
+  const { data: byId, error: byIdError } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('id', user.id)
+    .maybeSingle();
+
+  if (!byIdError && byId?.id) {
+    return byId.id as string;
+  }
+
+  if (normalizedEmail) {
+    const { data: byEmail, error: byEmailError } = await supabase
+      .from('profiles')
+      .select('id')
+      .ilike('email', normalizedEmail)
+      .maybeSingle();
+
+    if (!byEmailError && byEmail?.id) {
+      return byEmail.id as string;
+    }
+  }
+
+  const fallbackName =
+    (typeof user.user_metadata?.name === 'string' && user.user_metadata.name.trim()) ||
+    (normalizedEmail ? normalizedEmail.split('@')[0] : '') ||
+    'Uzytkownik';
+
+  const { data: created, error: createError } = await supabase
+    .from('profiles')
+    .upsert(
+      {
+        id: user.id,
+        email: normalizedEmail,
+        name: fallbackName,
+        age: 30,
+        city: 'Nieznane',
+        bio: '',
+        interests: [],
+        image_url: '',
+      },
+      { onConflict: 'id' },
+    )
+    .select('id')
+    .maybeSingle();
+
+  if (createError) {
+    console.error('Nie udalo sie utworzyc/finalizowac profilu dla naglowka:', createError.message);
+    return null;
+  }
+
+  return (created?.id as string | undefined) || user.id;
+}
+
 function toTimestamp(value?: string | null): number {
   if (!value) return 0;
   const ts = Date.parse(value);
@@ -45,6 +105,7 @@ export default function NewHeader() {
   const router = useRouter();
   const pathname = usePathname();
   const [user, setUser] = useState<SupabaseUser | null>(null);
+  const [profileId, setProfileId] = useState<string | null>(null);
   const [profile, setProfile] = useState<HeaderProfile | null>(null);
   const [lastReadAt, setLastReadAt] = useState<number>(0);
   const [unreadMessagesCount, setUnreadMessagesCount] = useState<number>(0);
@@ -63,18 +124,18 @@ export default function NewHeader() {
   
   const activeNav = getActiveNav(pathname);
 
-  const loadProfile = useCallback(async (userId: string) => {
+  const loadProfile = useCallback(async (resolvedProfileId: string) => {
     const { data } = await supabase
       .from('profiles')
       .select('role, is_verified, created_at')
-      .eq('id', userId)
+      .eq('id', resolvedProfileId)
       .maybeSingle();
 
     setProfile((data as HeaderProfile | null) ?? null);
   }, []);
 
   const loadUnreadMessagesCount = useCallback(async () => {
-    if (!user) {
+    if (!user || !profileId) {
       setUnreadMessagesCount(0);
       return;
     }
@@ -83,7 +144,7 @@ export default function NewHeader() {
       let query = supabase
         .from('messages')
         .select('*', { count: 'exact', head: true })
-        .eq('to_profile_id', user.id);
+        .eq('to_profile_id', profileId);
       if (stored) {
         const ts = parseInt(stored, 10);
         if (!isNaN(ts)) {
@@ -95,7 +156,7 @@ export default function NewHeader() {
     } catch {
       // ignore network errors
     }
-  }, [user]);
+  }, [profileId, user]);
 
   const isAdmin =
     user?.email?.trim().toLowerCase() === adminEmail ||
@@ -127,8 +188,15 @@ export default function NewHeader() {
       setUser(sessionUser);
 
       if (sessionUser) {
-        await loadProfile(sessionUser.id);
+        const resolvedProfileId = await resolveProfileIdForAuthUser(sessionUser);
+        setProfileId(resolvedProfileId);
+        if (resolvedProfileId) {
+          await loadProfile(resolvedProfileId);
+        } else {
+          setProfile(null);
+        }
       } else {
+        setProfileId(null);
         setProfile(null);
       }
     };
@@ -140,8 +208,17 @@ export default function NewHeader() {
       setUser(sessionUser);
 
       if (sessionUser) {
-        void loadProfile(sessionUser.id);
+        void (async () => {
+          const resolvedProfileId = await resolveProfileIdForAuthUser(sessionUser);
+          setProfileId(resolvedProfileId);
+          if (resolvedProfileId) {
+            await loadProfile(resolvedProfileId);
+          } else {
+            setProfile(null);
+          }
+        })();
       } else {
+        setProfileId(null);
         setProfile(null);
       }
     });
@@ -180,7 +257,7 @@ export default function NewHeader() {
   }, [loadNotifications, notificationsOpen, user]);
 
   useEffect(() => {
-    if (!user) {
+    if (!user || !profileId) {
       setUnreadMessagesCount(0);
       return;
     }
@@ -189,7 +266,7 @@ export default function NewHeader() {
       if (!document.hidden) void loadUnreadMessagesCount();
     }, 30000);
     return () => window.clearInterval(interval);
-  }, [user, loadUnreadMessagesCount]);
+  }, [profileId, user, loadUnreadMessagesCount]);
 
   useEffect(() => {
     if (pathname.startsWith('/messages')) {
