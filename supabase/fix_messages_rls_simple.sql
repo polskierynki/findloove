@@ -7,13 +7,92 @@
 -- - Uniknac duplikowania rozbudowanych EXISTS w kazdej policy.
 --
 -- Podejscie:
+-- - Dodajemy `profiles.auth_user_id` (powiazanie do auth.users.id)
+--   + trigger do utrzymania mapowania.
 -- - Tworzymy 1 helper function sprawdzajacy, czy podane profile_id
 --   nalezy do aktualnie zalogowanego usera:
 --   1) bezposrednio po auth.uid()
---   2) fallback po email z JWT -> profiles.email
---   3) fallback po auth.users.email -> profiles.email (gdy claim email nie jest w JWT)
+--   2) po profiles.auth_user_id = auth.uid()
+--   3) fallback po email (JWT/auth.users) dla starych danych
 
 alter table public.messages enable row level security;
+
+-- Trwale mapowanie profilu na auth.users.
+alter table public.profiles
+  add column if not exists auth_user_id uuid;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'profiles_auth_user_id_fkey'
+      and conrelid = 'public.profiles'::regclass
+  ) then
+    alter table public.profiles
+      add constraint profiles_auth_user_id_fkey
+      foreign key (auth_user_id)
+      references auth.users(id)
+      on delete set null;
+  end if;
+end $$;
+
+create index if not exists idx_profiles_auth_user_id
+  on public.profiles(auth_user_id);
+
+create or replace function public.sync_profile_auth_user_id()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, auth
+as $$
+begin
+  if new.auth_user_id is not null then
+    return new;
+  end if;
+
+  if exists (select 1 from auth.users u where u.id = new.id) then
+    new.auth_user_id := new.id;
+    return new;
+  end if;
+
+  if nullif(trim(coalesce(new.email, '')), '') is not null then
+    select u.id
+      into new.auth_user_id
+    from auth.users u
+    where lower(coalesce(u.email, '')) = lower(coalesce(new.email, ''))
+    limit 1;
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_sync_profile_auth_user_id on public.profiles;
+
+create trigger trg_sync_profile_auth_user_id
+before insert or update of id, email, auth_user_id
+on public.profiles
+for each row
+execute function public.sync_profile_auth_user_id();
+
+-- Backfill dla juz istniejacych profili.
+update public.profiles p
+set auth_user_id = p.id
+where p.auth_user_id is null
+  and exists (
+    select 1
+    from auth.users u
+    where u.id = p.id
+  );
+
+update public.profiles p
+set auth_user_id = u.id
+from auth.users u
+where p.auth_user_id is null
+  and p.email is not null
+  and u.email is not null
+  and lower(p.email) = lower(u.email);
 
 -- Usun wszystkie istniejace polityki na messages
 do $$
@@ -42,6 +121,12 @@ set search_path = public, auth
 as $$
   select
     target_profile_id = auth.uid()
+    or exists (
+      select 1
+      from public.profiles me
+      where me.id = target_profile_id
+        and me.auth_user_id = auth.uid()
+    )
     or (
       nullif(auth.jwt() ->> 'email', '') is not null
       and exists (
