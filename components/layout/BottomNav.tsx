@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Heart, Home, MessageCircle, HeartHandshake, User, Search } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
@@ -91,11 +91,17 @@ export default function BottomNav({ currentView, onNavigate, isLoggedIn = false,
   
   const pathname = usePathname();
   const router = useRouter();
+  const [authUserId, setAuthUserId] = useState<string | null>(null);
   const [profileId, setProfileId] = useState<string | null>(null);
   const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
 
+  const unreadTargetIds = useMemo(
+    () => Array.from(new Set([authUserId, profileId].filter(Boolean))) as string[],
+    [authUserId, profileId],
+  );
+
   const loadUnreadMessagesCount = useCallback(async () => {
-    if (!isLoggedIn || !profileId) {
+    if (!isLoggedIn || unreadTargetIds.length === 0) {
       setUnreadMessagesCount(0);
       return;
     }
@@ -105,7 +111,7 @@ export default function BottomNav({ currentView, onNavigate, isLoggedIn = false,
       let query = supabase
         .from('messages')
         .select('*', { count: 'exact', head: true })
-        .eq('to_profile_id', profileId);
+        .in('to_profile_id', unreadTargetIds);
 
       if (stored) {
         const ts = parseInt(stored, 10);
@@ -119,7 +125,7 @@ export default function BottomNav({ currentView, onNavigate, isLoggedIn = false,
     } catch {
       // ignore transient network issues
     }
-  }, [isLoggedIn, profileId]);
+  }, [isLoggedIn, unreadTargetIds]);
 
   useEffect(() => {
     let active = true;
@@ -127,6 +133,7 @@ export default function BottomNav({ currentView, onNavigate, isLoggedIn = false,
     const syncProfileId = async () => {
       if (!isLoggedIn) {
         if (!active) return;
+        setAuthUserId(null);
         setProfileId(null);
         setUnreadMessagesCount(0);
         return;
@@ -138,10 +145,13 @@ export default function BottomNav({ currentView, onNavigate, isLoggedIn = false,
 
       if (!active) return;
       if (!user) {
+        setAuthUserId(null);
         setProfileId(null);
         setUnreadMessagesCount(0);
         return;
       }
+
+      setAuthUserId(user.id);
 
       const resolvedProfileId = await resolveProfileIdForAuthUser(user);
       if (!active) return;
@@ -154,12 +164,14 @@ export default function BottomNav({ currentView, onNavigate, isLoggedIn = false,
       const sessionUser = session?.user ?? null;
 
       if (!sessionUser) {
+        setAuthUserId(null);
         setProfileId(null);
         setUnreadMessagesCount(0);
         return;
       }
 
       void (async () => {
+        setAuthUserId(sessionUser.id);
         const resolvedProfileId = await resolveProfileIdForAuthUser(sessionUser);
         setProfileId(resolvedProfileId);
       })();

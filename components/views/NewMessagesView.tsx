@@ -98,6 +98,14 @@ interface ConversationProfile {
   lastMessageTime?: string;
 }
 
+function mergeMessagesUnique(rows: Message[]): Message[] {
+  const merged = new Map<string, Message>();
+  rows.forEach((row) => {
+    merged.set(row.id, row);
+  });
+  return Array.from(merged.values());
+}
+
 export default function NewMessagesView() {
   const [targetProfileId, setTargetProfileId] = useState<string | null>(null);
   const [conversations, setConversations] = useState<ConversationProfile[]>([]);
@@ -115,7 +123,10 @@ export default function NewMessagesView() {
     [authUserId, currentUserId],
   );
 
-  const identityIdsCsv = useMemo(() => identityIds.join(','), [identityIds]);
+  const identityChannelKey = useMemo(
+    () => (identityIds.length > 0 ? identityIds.join('_') : 'none'),
+    [identityIds],
+  );
 
   // Read direct-chat target from URL without coupling hydration to search params.
   useEffect(() => {
@@ -164,15 +175,34 @@ export default function NewMessagesView() {
     try {
       setChatError(null);
 
-      const { data: conversationMessages, error: conversationMessagesError } = await supabase
-        .from('messages')
-        .select('from_profile_id, to_profile_id, content, created_at')
-        .or(`from_profile_id.in.(${identityIdsCsv}),to_profile_id.in.(${identityIdsCsv})`)
-        .order('created_at', { ascending: false });
+      const [fromMessagesResult, toMessagesResult] = await Promise.all([
+        supabase
+          .from('messages')
+          .select('id, from_profile_id, to_profile_id, content, created_at')
+          .in('from_profile_id', identityIds)
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('messages')
+          .select('id, from_profile_id, to_profile_id, content, created_at')
+          .in('to_profile_id', identityIds)
+          .order('created_at', { ascending: false }),
+      ]);
 
-      if (conversationMessagesError) {
-        throw conversationMessagesError;
+      if (fromMessagesResult.error) {
+        throw fromMessagesResult.error;
       }
+      if (toMessagesResult.error) {
+        throw toMessagesResult.error;
+      }
+
+      const conversationMessages = mergeMessagesUnique([
+        ...((fromMessagesResult.data as Message[]) || []),
+        ...((toMessagesResult.data as Message[]) || []),
+      ]).sort((a, b) => {
+        const timeA = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const timeB = b.created_at ? new Date(b.created_at).getTime() : 0;
+        return timeB - timeA;
+      });
 
       const newestConversationByPartner = new Map<
         string,
@@ -272,12 +302,15 @@ export default function NewMessagesView() {
       });
     } catch (error) {
       console.error('Error loading conversations:', error);
+      const code = (error as { code?: string } | null)?.code;
       const message = (error as { message?: string } | null)?.message;
-      if (message) {
+      if (code === '42501') {
+        setChatError('Brak uprawnien do czatu (RLS). Uruchom migracje: supabase/fix_messages_rls_profile_mapping.sql.');
+      } else if (message) {
         setChatError(`Brak dostepu do listy rozmow: ${message}`);
       }
     }
-  }, [identityIds, identityIdsCsv]);
+  }, [identityIds]);
 
   // Load conversations
   useEffect(() => {
@@ -289,7 +322,7 @@ export default function NewMessagesView() {
     if (identityIds.length === 0) return;
 
     const conversationChannel = supabase
-      .channel(`messages-conversations-${identityIdsCsv || 'none'}`)
+      .channel(`messages-conversations-${identityChannelKey}`)
       .on('postgres_changes', {
         event: 'INSERT',
         schema: 'public',
@@ -309,7 +342,7 @@ export default function NewMessagesView() {
     return () => {
       conversationChannel.unsubscribe();
     };
-  }, [identityIds, identityIdsCsv, loadConversations]);
+  }, [identityChannelKey, identityIds, loadConversations]);
 
   // Open direct conversation when arriving from profile cards (`/messages?user=<id>`)
   useEffect(() => {
@@ -359,23 +392,45 @@ export default function NewMessagesView() {
       try {
         setChatError(null);
 
-        const { data, error } = await supabase
-          .from('messages')
-          .select('*')
-          .or(
-            `and(from_profile_id.in.(${identityIdsCsv}),to_profile_id.eq.${selectedProfile.id}),and(from_profile_id.eq.${selectedProfile.id},to_profile_id.in.(${identityIdsCsv}))`,
-          )
-          .order('created_at', { ascending: true });
+        const [outgoingResult, incomingResult] = await Promise.all([
+          supabase
+            .from('messages')
+            .select('*')
+            .in('from_profile_id', identityIds)
+            .eq('to_profile_id', selectedProfile.id)
+            .order('created_at', { ascending: true }),
+          supabase
+            .from('messages')
+            .select('*')
+            .eq('from_profile_id', selectedProfile.id)
+            .in('to_profile_id', identityIds)
+            .order('created_at', { ascending: true }),
+        ]);
 
-        if (error) {
-          throw error;
+        if (outgoingResult.error) {
+          throw outgoingResult.error;
+        }
+        if (incomingResult.error) {
+          throw incomingResult.error;
         }
 
-        setMessages((data as Message[]) || []);
+        const mergedMessages = mergeMessagesUnique([
+          ...((outgoingResult.data as Message[]) || []),
+          ...((incomingResult.data as Message[]) || []),
+        ]).sort((a, b) => {
+          const timeA = a.created_at ? new Date(a.created_at).getTime() : 0;
+          const timeB = b.created_at ? new Date(b.created_at).getTime() : 0;
+          return timeA - timeB;
+        });
+
+        setMessages(mergedMessages);
       } catch (error) {
         console.error('Error loading messages:', error);
+        const code = (error as { code?: string } | null)?.code;
         const message = (error as { message?: string } | null)?.message;
-        if (message) {
+        if (code === '42501') {
+          setChatError('Brak uprawnien do wiadomosci (RLS). Uruchom migracje: supabase/fix_messages_rls_profile_mapping.sql.');
+        } else if (message) {
           setChatError(`Brak dostepu do wiadomosci: ${message}`);
         }
       }
@@ -397,7 +452,7 @@ export default function NewMessagesView() {
           (nextMessage.to_profile_id === selectedProfile.id && identityIds.includes(nextMessage.from_profile_id));
 
         if (isRelevant) {
-          setMessages((prev) => [...prev, nextMessage]);
+          setMessages((prev) => (prev.some((msg) => msg.id === nextMessage.id) ? prev : [...prev, nextMessage]));
         }
 
         const touchesMyConversationList =
@@ -413,7 +468,7 @@ export default function NewMessagesView() {
     return () => {
       subscription.unsubscribe();
     };
-  }, [identityIds, identityIdsCsv, loadConversations, selectedProfile]);
+  }, [identityIds, loadConversations, selectedProfile]);
 
   // Scroll to bottom on new messages
   useEffect(() => {
@@ -437,8 +492,12 @@ export default function NewMessagesView() {
         .single();
 
       if (error) {
-        if ((error as { code?: string }).code === '23503') {
+        const errorCode = (error as { code?: string }).code;
+
+        if (errorCode === '23503') {
           setChatError('Nie mozna wyslac wiadomosci: konto nadawcy nie jest poprawnie powiazane z profilem. Odswiez strone.');
+        } else if (errorCode === '42501') {
+          setChatError('Brak uprawnien do wysylania wiadomosci (RLS). Uruchom migracje: supabase/fix_messages_rls_profile_mapping.sql.');
         } else {
           setChatError(`Nie udalo sie wyslac wiadomosci: ${error.message}`);
         }
@@ -482,12 +541,25 @@ export default function NewMessagesView() {
     if (!confirmed) return;
 
     try {
-      await supabase
-        .from('messages')
-        .delete()
-        .or(
-          `and(from_profile_id.in.(${identityIdsCsv}),to_profile_id.eq.${selectedProfile.id}),and(from_profile_id.eq.${selectedProfile.id},to_profile_id.in.(${identityIdsCsv}))`,
-        );
+      const [deleteOutgoingResult, deleteIncomingResult] = await Promise.all([
+        supabase
+          .from('messages')
+          .delete()
+          .in('from_profile_id', identityIds)
+          .eq('to_profile_id', selectedProfile.id),
+        supabase
+          .from('messages')
+          .delete()
+          .eq('from_profile_id', selectedProfile.id)
+          .in('to_profile_id', identityIds),
+      ]);
+
+      if (deleteOutgoingResult.error) {
+        throw deleteOutgoingResult.error;
+      }
+      if (deleteIncomingResult.error) {
+        throw deleteIncomingResult.error;
+      }
 
       setMessages([]);
       alert('Wiadomości zostały usunięte');

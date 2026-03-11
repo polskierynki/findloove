@@ -111,6 +111,11 @@ export default function NewHeader() {
   const [unreadMessagesCount, setUnreadMessagesCount] = useState<number>(0);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const unreadTargetIds = useMemo(
+    () => Array.from(new Set([user?.id, profileId].filter(Boolean))) as string[],
+    [profileId, user?.id],
+  );
   
   // Determine active nav item based on current pathname
   const getActiveNav = (path: string) => {
@@ -135,7 +140,7 @@ export default function NewHeader() {
   }, []);
 
   const loadUnreadMessagesCount = useCallback(async () => {
-    if (!user || !profileId) {
+    if (!user || unreadTargetIds.length === 0) {
       setUnreadMessagesCount(0);
       return;
     }
@@ -144,7 +149,7 @@ export default function NewHeader() {
       let query = supabase
         .from('messages')
         .select('*', { count: 'exact', head: true })
-        .eq('to_profile_id', profileId);
+        .in('to_profile_id', unreadTargetIds);
       if (stored) {
         const ts = parseInt(stored, 10);
         if (!isNaN(ts)) {
@@ -156,7 +161,7 @@ export default function NewHeader() {
     } catch {
       // ignore network errors
     }
-  }, [profileId, user]);
+  }, [unreadTargetIds, user]);
 
   const isAdmin =
     user?.email?.trim().toLowerCase() === adminEmail ||
@@ -257,7 +262,7 @@ export default function NewHeader() {
   }, [loadNotifications, notificationsOpen, user]);
 
   useEffect(() => {
-    if (!user || !profileId) {
+    if (!user || unreadTargetIds.length === 0) {
       setUnreadMessagesCount(0);
       return;
     }
@@ -266,7 +271,7 @@ export default function NewHeader() {
       if (!document.hidden) void loadUnreadMessagesCount();
     }, 30000);
     return () => window.clearInterval(interval);
-  }, [profileId, user, loadUnreadMessagesCount]);
+  }, [loadUnreadMessagesCount, unreadTargetIds, user]);
 
   useEffect(() => {
     if (pathname.startsWith('/messages')) {
@@ -323,9 +328,6 @@ export default function NewHeader() {
 
   return (
     <>
-      {/* Floating Particles Background */}
-      <div className="particles-container" id="particles"></div>
-
       {/* Fixed Top Header */}
       <header id="main-header" className="fixed top-0 w-full h-20 glass-panel z-50 flex items-center justify-between px-4 lg:px-8 xl:px-16 transition-all duration-300 gap-4 border-b border-white/5">
         {/* Logo */}
@@ -678,32 +680,6 @@ export default function NewHeader() {
         </div>
       )}
 
-      <style jsx>{`
-        @keyframes floatUp {
-          0% { transform: translateY(0) scale(1); opacity: 0; }
-          20% { opacity: 0.6; }
-          80% { opacity: 0.4; }
-          100% { transform: translateY(-100vh) scale(1.5); opacity: 0; }
-        }
-      `}</style>
-      <script>{`
-        document.addEventListener("DOMContentLoaded", () => {
-          const container = document.getElementById('particles');
-          if (!container) return;
-          const colors = ['rgba(255, 0, 255, 0.4)', 'rgba(0, 255, 255, 0.4)', 'rgba(255, 215, 0, 0.2)'];
-          for (let i = 0; i < 35; i++) {
-            let p = document.createElement('div');
-            p.className = 'particle';
-            p.style.width = p.style.height = Math.random() * 3 + 1 + 'px';
-            p.style.left = Math.random() * 100 + 'vw';
-            p.style.animationDuration = Math.random() * 15 + 10 + 's';
-            p.style.animationDelay = Math.random() * 10 + 's';
-            p.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
-            p.style.boxShadow = '0 0 ' + (Math.random() * 10 + 2) + 'px ' + p.style.backgroundColor;
-            container.appendChild(p);
-          }
-        });
-      `}</script>
     </>
   );
 }
