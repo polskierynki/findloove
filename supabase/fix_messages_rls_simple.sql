@@ -17,6 +17,12 @@
 
 alter table public.messages enable row level security;
 
+create index if not exists messages_from_profile_created_idx
+  on public.messages(from_profile_id, created_at desc);
+
+create index if not exists messages_to_profile_created_idx
+  on public.messages(to_profile_id, created_at desc);
+
 -- Trwale mapowanie profilu na auth.users.
 alter table public.profiles
   add column if not exists auth_user_id uuid;
@@ -109,7 +115,37 @@ begin
   end loop;
 end $$;
 
--- Helper: sprawdza, czy profile_id nalezy do aktualnego usera.
+-- Helper #1: zwraca wszystkie profile_id przypiete do biezacego auth.uid().
+create or replace function public.current_user_profile_ids()
+returns uuid[]
+language sql
+stable
+security definer
+set search_path = public, auth
+as $$
+  select coalesce(array_agg(distinct matched.id), '{}'::uuid[])
+  from (
+    select p.id
+    from public.profiles p
+    where p.id = auth.uid()
+      or p.auth_user_id = auth.uid()
+      or (
+        nullif(auth.jwt() ->> 'email', '') is not null
+        and lower(coalesce(p.email, '')) = lower(auth.jwt() ->> 'email')
+      )
+      or exists (
+        select 1
+        from auth.users au
+        where au.id = auth.uid()
+          and au.email is not null
+          and lower(coalesce(p.email, '')) = lower(coalesce(au.email, ''))
+      )
+  ) as matched;
+$$;
+
+grant execute on function public.current_user_profile_ids() to authenticated;
+
+-- Helper #2: sprawdza, czy profile_id nalezy do aktualnego usera.
 drop function if exists public.is_current_user_profile(uuid);
 
 create function public.is_current_user_profile(target_profile_id uuid)
@@ -119,64 +155,107 @@ stable
 security definer
 set search_path = public, auth
 as $$
-  select
-    target_profile_id = auth.uid()
-    or exists (
-      select 1
-      from public.profiles me
-      where me.id = target_profile_id
-        and me.auth_user_id = auth.uid()
-    )
-    or (
-      nullif(auth.jwt() ->> 'email', '') is not null
-      and exists (
-        select 1
-        from public.profiles me
-        where me.id = target_profile_id
-          and lower(coalesce(me.email, '')) = lower(auth.jwt() ->> 'email')
-      )
-    )
-    or exists (
-      select 1
-      from public.profiles me
-      join auth.users au
-        on lower(coalesce(me.email, '')) = lower(coalesce(au.email, ''))
-      where me.id = target_profile_id
-        and au.id = auth.uid()
-        and me.email is not null
-        and au.email is not null
-    );
+  select target_profile_id = any((select public.current_user_profile_ids()));
 $$;
 
 grant execute on function public.is_current_user_profile(uuid) to authenticated;
 
--- SELECT: uzytkownik widzi wiadomosci, w ktorych jest nadawca lub odbiorcom
+-- SELECT: uzytkownik widzi wiadomosci, w ktorych jest nadawca lub odbiorca
 create policy "messages_select"
   on public.messages
   for select
   to authenticated
   using (
-    public.is_current_user_profile(from_profile_id)
-    or public.is_current_user_profile(to_profile_id)
+    from_profile_id = any((select public.current_user_profile_ids()))
+    or to_profile_id = any((select public.current_user_profile_ids()))
   );
 
--- INSERT: uzytkownik moze wysylac tylko z wlasnego profilu
+-- INSERT: user wysyla tylko z profilu, ktory nalezy do niego.
 create policy "messages_insert"
   on public.messages
   for insert
   to authenticated
   with check (
-    public.is_current_user_profile(from_profile_id)
+    from_profile_id = any((select public.current_user_profile_ids()))
   );
 
--- DELETE: uzytkownik moze usuwac wiadomosci ze swoich rozmow
+-- DELETE: user usuwa wiadomosci, w ktorych uczestniczy.
 create policy "messages_delete"
   on public.messages
   for delete
   to authenticated
   using (
-    public.is_current_user_profile(from_profile_id)
-    or public.is_current_user_profile(to_profile_id)
+    from_profile_id = any((select public.current_user_profile_ids()))
+    or to_profile_id = any((select public.current_user_profile_ids()))
   );
+
+-- Bezpieczna wysylka przez RPC: stabilniejsza od bezposredniego insertu,
+-- bo server-side wybiera sender profile zgodny z auth.uid().
+create or replace function public.send_message_safe(
+  p_to_profile_id uuid,
+  p_content text
+)
+returns public.messages
+language plpgsql
+security definer
+set search_path = public, auth
+as $$
+declare
+  v_profile_ids uuid[];
+  v_sender_profile_id uuid;
+  v_message public.messages;
+begin
+  if auth.uid() is null then
+    raise exception 'Brak autoryzacji.' using errcode = '42501';
+  end if;
+
+  if p_to_profile_id is null then
+    raise exception 'Brak odbiorcy wiadomosci.' using errcode = '22023';
+  end if;
+
+  if nullif(trim(coalesce(p_content, '')), '') is null then
+    raise exception 'Pusta wiadomosc.' using errcode = '22023';
+  end if;
+
+  select public.current_user_profile_ids() into v_profile_ids;
+
+  if array_length(v_profile_ids, 1) is null then
+    raise exception 'Brak profilu przypietego do konta.' using errcode = '42501';
+  end if;
+
+  select p.id
+  into v_sender_profile_id
+  from public.profiles p
+  where p.id = any(v_profile_ids)
+  order by
+    case
+      when p.auth_user_id = auth.uid() then 0
+      when p.id = auth.uid() then 1
+      else 2
+    end,
+    p.created_at asc
+  limit 1;
+
+  if v_sender_profile_id is null then
+    raise exception 'Brak poprawnego profilu nadawcy.' using errcode = '42501';
+  end if;
+
+  if not exists (
+    select 1
+    from public.profiles p
+    where p.id = p_to_profile_id
+  ) then
+    raise exception 'Profil odbiorcy nie istnieje.' using errcode = '23503';
+  end if;
+
+  insert into public.messages (from_profile_id, to_profile_id, content)
+  values (v_sender_profile_id, p_to_profile_id, trim(p_content))
+  returning * into v_message;
+
+  return v_message;
+end;
+$$;
+
+grant execute on function public.send_message_safe(uuid, text) to authenticated;
 
 grant select, insert, delete on public.messages to authenticated;

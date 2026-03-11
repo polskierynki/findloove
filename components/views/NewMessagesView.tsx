@@ -37,6 +37,17 @@ async function resolveProfileIdForAuthUser(user: {
     return byId.id as string;
   }
 
+  // 1b) Preferred mapping in normalized schema: profiles.auth_user_id = auth user id.
+  const { data: byAuthUserId, error: byAuthUserIdError } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('auth_user_id', user.id)
+    .maybeSingle();
+
+  if (!byAuthUserIdError && byAuthUserId?.id) {
+    return byAuthUserId.id as string;
+  }
+
   // 2) Fallback mapping by email for legacy accounts migrated from older schema.
   if (normalizedEmail) {
     const { data: byEmail, error: byEmailError } = await supabase
@@ -476,47 +487,67 @@ export default function NewMessagesView() {
   }, [messages]);
 
   const sendMessage = async () => {
-    if (!messageText.trim() || !selectedProfile || !currentUserId) return;
+    const trimmedMessage = messageText.trim();
+    if (!trimmedMessage || !selectedProfile) return;
 
     setChatError(null);
 
     try {
-      const senderCandidates = Array.from(
-        new Set([currentUserId, authUserId].filter(Boolean)),
-      ) as string[];
-
       let successfulInsert: Message | null = null;
       let successfulSenderId: string | null = null;
       let lastError: { code?: string; message?: string } | null = null;
 
-      for (const senderId of senderCandidates) {
-        const { data, error } = await supabase
-          .from('messages')
-          .insert({
-            from_profile_id: senderId,
-            to_profile_id: selectedProfile.id,
-            content: messageText.trim(),
-          })
-          .select()
-          .single();
+      // Preferred path: server-side safe insert (security definer RPC).
+      const { data: rpcData, error: rpcError } = await supabase.rpc('send_message_safe', {
+        p_to_profile_id: selectedProfile.id,
+        p_content: trimmedMessage,
+      });
 
-        if (!error && data) {
-          successfulInsert = data as Message;
-          successfulSenderId = senderId;
-          break;
-        }
+      const rpcMessage = (Array.isArray(rpcData) ? rpcData[0] : rpcData) as Message | undefined;
 
+      if (!rpcError && rpcMessage?.id) {
+        successfulInsert = rpcMessage;
+        successfulSenderId = rpcMessage.from_profile_id;
+      } else {
         lastError = {
-          code: (error as { code?: string } | null)?.code,
-          message: (error as { message?: string } | null)?.message,
+          code: (rpcError as { code?: string } | null)?.code,
+          message: (rpcError as { message?: string } | null)?.message,
         };
 
-        const shouldRetryWithNextSender =
-          (lastError.code === '23503' || lastError.code === '42501') &&
-          senderId !== senderCandidates[senderCandidates.length - 1];
+        // Compatibility fallback: try direct insert for both possible sender ids.
+        const senderCandidates = Array.from(
+          new Set([currentUserId, authUserId].filter(Boolean)),
+        ) as string[];
 
-        if (!shouldRetryWithNextSender) {
-          break;
+        for (const senderId of senderCandidates) {
+          const { data, error } = await supabase
+            .from('messages')
+            .insert({
+              from_profile_id: senderId,
+              to_profile_id: selectedProfile.id,
+              content: trimmedMessage,
+            })
+            .select()
+            .single();
+
+          if (!error && data) {
+            successfulInsert = data as Message;
+            successfulSenderId = senderId;
+            break;
+          }
+
+          lastError = {
+            code: (error as { code?: string } | null)?.code,
+            message: (error as { message?: string } | null)?.message,
+          };
+
+          const shouldRetryWithNextSender =
+            (lastError.code === '23503' || lastError.code === '42501') &&
+            senderId !== senderCandidates[senderCandidates.length - 1];
+
+          if (!shouldRetryWithNextSender) {
+            break;
+          }
         }
       }
 
