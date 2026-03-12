@@ -1,32 +1,13 @@
 -- ════════════════════════════════════════════════════════════════
--- FIX: RLS policies for comment_reports — poluzowanie zasad
+-- FIX: comment_reports table + RLS policies
 -- Uruchom w: Supabase > SQL Editor
 -- ════════════════════════════════════════════════════════════════
 
--- Usuń starą, zbyt restrykcyjną polisę INSERT
-drop policy if exists "Auth users can insert comment_reports" on public.comment_reports;
+-- 1. Upewnij się że tabela profiles ma kolumnę strikes
+alter table public.profiles
+  add column if not exists strikes integer not null default 0;
 
--- Nowa polisa INSERT — pozwala każdemu (w tym anonimowemu) wstawiać zgłoszenia
--- W portalach randkowych zgłaszanie treści powinno działać zawsze
-create policy "Anyone can insert comment_reports"
-  on public.comment_reports
-  for insert
-  with check (true);
-
--- Upewnij się że polisy select i update też istnieją (idempotent)
-drop policy if exists "Anyone can read comment_reports" on public.comment_reports;
-create policy "Anyone can read comment_reports"
-  on public.comment_reports
-  for select
-  using (true);
-
-drop policy if exists "Anyone can update comment_reports" on public.comment_reports;
-create policy "Anyone can update comment_reports"
-  on public.comment_reports
-  for update
-  using (true);
-
--- Upewnij się że tabela comment_reports istnieje (bezpieczny re-run)
+-- 2. Utwórz tabelę (jeśli nie istnieje) — NAJPIERW tabela, potem polisy
 create table if not exists public.comment_reports (
   id                uuid        primary key default gen_random_uuid(),
   comment_id        uuid,
@@ -41,8 +22,36 @@ create table if not exists public.comment_reports (
   created_at        timestamptz default now()
 );
 
+-- 3. Włącz RLS
 alter table public.comment_reports enable row level security;
 
--- Upewnij się że tabela profiles ma kolumnę strikes
-alter table public.profiles
-  add column if not exists strikes integer not null default 0;
+-- 4. Usuń stare polisy (jeśli istnieją) i utwórz nowe
+drop policy if exists "Auth users can insert comment_reports" on public.comment_reports;
+drop policy if exists "Anyone can insert comment_reports"     on public.comment_reports;
+drop policy if exists "Anyone can read comment_reports"       on public.comment_reports;
+drop policy if exists "Anyone can update comment_reports"     on public.comment_reports;
+
+-- INSERT — każdy może zgłosić komentarz (anon też)
+create policy "Anyone can insert comment_reports"
+  on public.comment_reports
+  for insert
+  with check (true);
+
+-- SELECT — odczyt otwarty (admin widzi wszystkie)
+create policy "Anyone can read comment_reports"
+  on public.comment_reports
+  for select
+  using (true);
+
+-- UPDATE — admin może zmieniać status (resolved/dismissed)
+create policy "Anyone can update comment_reports"
+  on public.comment_reports
+  for update
+  using (true);
+
+-- 5. Indeksy pomocnicze
+create index if not exists idx_comment_reports_status
+  on public.comment_reports(status);
+
+create index if not exists idx_comment_reports_author
+  on public.comment_reports(comment_author_id);
