@@ -24,6 +24,7 @@ import {
   CaretLeft,
   CaretRight,
   Smiley,
+  Flag,
 } from '@phosphor-icons/react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
@@ -33,6 +34,7 @@ import { useLikes } from '@/lib/hooks/useLikes';
 import { ALL_INTERESTS } from './constants/profileFormOptions';
 import EmojiPopover from '@/components/ui/EmojiPopover';
 import HoverHintIconButton from '@/components/ui/HoverHintIconButton';
+import ReportCommentModal from '@/components/ui/ReportCommentModal';
 
 type AppComment = {
   id: string;
@@ -90,6 +92,12 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
   const [commentsError, setCommentsError] = useState<string | null>(null);
   const [showGeneralCommentEmojiPicker, setShowGeneralCommentEmojiPicker] = useState(false);
   const [showPhotoCommentEmojiPicker, setShowPhotoCommentEmojiPicker] = useState(false);
+  const [reportModal, setReportModal] = useState<{
+    commentId: string;
+    type: 'wall' | 'photo';
+    content: string;
+    authorId: string;
+  } | null>(null);
   const generalCommentInputRef = useRef<HTMLInputElement>(null);
   const photoCommentInputRef = useRef<HTMLInputElement>(null);
   const generalCommentEmojiButtonRef = useRef<HTMLButtonElement>(null);
@@ -485,6 +493,7 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
   }
 
   return (
+    <>
     <div className="relative z-10 pt-28 pb-16 px-6 lg:px-12 max-w-[2200px] mx-auto">
       {/* SVG Gradient Definition for Circular Progress */}
       <svg width="0" height="0" className="hidden">
@@ -607,6 +616,15 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
                           <div className="flex items-center gap-2 mb-1">
                             <span className="text-sm font-semibold text-white leading-none">{comment.author.name}</span>
                             <span className="text-[11px] text-cyan-500/55 leading-none">{formatRelativeTime(comment.created_at)}</span>
+                            {comment.author_profile_id !== authorProfileId && (
+                              <button
+                                onClick={() => setReportModal({ commentId: comment.id, type: 'wall', content: comment.content, authorId: comment.author_profile_id })}
+                                className="ml-auto text-white/20 hover:text-red-400 transition-colors p-0.5 rounded"
+                                title="Zgłoś komentarz"
+                              >
+                                <Flag size={11} weight="regular" />
+                              </button>
+                            )}
                           </div>
                           <p className="text-[13.5px] text-cyan-200/65 font-light leading-snug">{comment.content}</p>
                         </div>
@@ -956,11 +974,20 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
                         alt={comment.author.name}
                         className="w-8 h-8 rounded-full object-cover shrink-0 border border-white/10"
                       />
-                      <div className="min-w-0">
-                        <p className="text-sm text-white">
-                          <span className="font-medium">{comment.author.name}</span>
-                          <span className="text-cyan-500/60 text-xs ml-2">{formatRelativeTime(comment.created_at)}</span>
-                        </p>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-white">{comment.author.name}</span>
+                          <span className="text-cyan-500/60 text-xs">{formatRelativeTime(comment.created_at)}</span>
+                          {comment.author_profile_id !== authorProfileId && (
+                            <button
+                              onClick={() => setReportModal({ commentId: comment.id, type: 'photo', content: comment.content, authorId: comment.author_profile_id })}
+                              className="ml-auto text-white/20 hover:text-red-400 transition-colors p-0.5 rounded"
+                              title="Zgłoś komentarz"
+                            >
+                              <Flag size={11} weight="regular" />
+                            </button>
+                          )}
+                        </div>
                         <p className="text-sm text-cyan-300/80 leading-relaxed">{comment.content}</p>
                       </div>
                     </div>
@@ -1028,5 +1055,19 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
         document.body,
       )}
     </div>
+
+    {/* Report Comment Modal */}
+    {reportModal && (
+      <ReportCommentModal
+        open={true}
+        onClose={() => setReportModal(null)}
+        commentId={reportModal.commentId}
+        commentType={reportModal.type}
+        commentContent={reportModal.content}
+        commentAuthorId={reportModal.authorId}
+        reporterProfileId={authorProfileId}
+      />
+    )}
+    </>
   );
 }

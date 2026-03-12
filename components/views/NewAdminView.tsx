@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Users, Activity, AlertTriangle, TrendingUp, MessageCircle, Eye, Ban, Check, X } from 'lucide-react';
+import { Users, Activity, AlertTriangle, TrendingUp, MessageCircle, Eye, Ban, Check, X, Flag, Trash2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
 interface User {
@@ -11,21 +11,31 @@ interface User {
   created_at: string;
   status: string;
   city: string;
+  strikes: number;
   isBanned: boolean;
 }
 
-interface Report {
+interface CommentReport {
   id: string;
-  reporter_name: string;
-  reported_user_name: string;
-  reported_user_id: string;
+  comment_id: string | null;
+  photo_comment_id: string | null;
+  comment_type: 'wall' | 'photo';
+  comment_content: string;
+  comment_author_id: string;
+  reporter_id: string;
   reason: string;
+  status: 'pending' | 'resolved' | 'dismissed';
   created_at: string;
+  reporter_name: string;
+  reporter_image: string;
+  author_name: string;
+  author_image: string;
+  author_strikes: number;
 }
 
 export default function NewAdminView() {
   const [users, setUsers] = useState<User[]>([]);
-  const [reports, setReports] = useState<Report[]>([]);
+  const [reports, setReports] = useState<CommentReport[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Stats
@@ -45,41 +55,79 @@ export default function NewAdminView() {
       // Fetch users
       const { data: usersData } = await supabase
         .from('profiles')
-        .select('id, name, image_url, created_at, status, city')
+        .select('id, name, image_url, created_at, status, city, strikes')
         .order('created_at', { ascending: false })
         .limit(20);
 
       const mappedUsers: User[] = (usersData || []).map((u) => ({
-        ...u,
+        id: u.id,
+        name: u.name,
+        image_url: u.image_url,
+        created_at: u.created_at,
+        status: u.status,
+        city: u.city,
+        strikes: u.strikes ?? 0,
         isBanned: u.status === 'banned',
       }));
 
       setUsers(mappedUsers);
 
-      // Fetch reports (mock for demo)
-      setReports([
-        {
-          id: '1',
-          reporter_name: 'Anna K.',
-          reported_user_name: 'Jan N.',
-          reported_user_id: '123',
-          reason: 'Nieodpowiednie treści',
-          created_at: new Date().toISOString(),
-        },
-        {
-          id: '2',
-          reporter_name: 'Michał P.',
-          reported_user_name: 'Kasia M.',
-          reported_user_id: '456',
-          reason: 'Spam',
-          created_at: new Date().toISOString(),
-        },
-      ]);
+      // Fetch real comment reports (pending only)
+      const { data: reportsData } = await supabase
+        .from('comment_reports')
+        .select('*')
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false })
+        .limit(50);
 
-      // Calculate stats
+      const rawReports = reportsData || [];
+
+      // Collect unique profile ids to fetch names/images
+      const profileIds = Array.from(
+        new Set([
+          ...rawReports.map((r: any) => r.reporter_id),
+          ...rawReports.map((r: any) => r.comment_author_id),
+        ].filter(Boolean))
+      );
+
+      let profileMap = new Map<string, { name: string; image_url: string; strikes: number }>();
+      if (profileIds.length > 0) {
+        const { data: profilesData } = await supabase
+          .from('profiles')
+          .select('id, name, image_url, strikes')
+          .in('id', profileIds);
+        profileMap = new Map(
+          (profilesData || []).map((p: any) => [p.id, { name: p.name, image_url: p.image_url, strikes: p.strikes ?? 0 }])
+        );
+      }
+
+      const mappedReports: CommentReport[] = rawReports.map((r: any) => {
+        const reporter = profileMap.get(r.reporter_id);
+        const author = profileMap.get(r.comment_author_id);
+        return {
+          id: r.id,
+          comment_id: r.comment_id,
+          photo_comment_id: r.photo_comment_id,
+          comment_type: r.comment_type,
+          comment_content: r.comment_content,
+          comment_author_id: r.comment_author_id,
+          reporter_id: r.reporter_id,
+          reason: r.reason,
+          status: r.status,
+          created_at: r.created_at,
+          reporter_name: reporter?.name || 'Nieznany',
+          reporter_image: reporter?.image_url || '',
+          author_name: author?.name || 'Nieznany',
+          author_image: author?.image_url || '',
+          author_strikes: author?.strikes ?? 0,
+        };
+      });
+
+      setReports(mappedReports);
+
       const totalUsers = usersData?.length || 0;
-      const activeNow = Math.floor(totalUsers * 0.15); // Mock
-      const newReports = 2;
+      const activeNow = Math.floor(totalUsers * 0.15);
+      const newReports = mappedReports.length;
       const revenue24h = 12450;
 
       setStats({ totalUsers, activeNow, newReports, revenue24h });
@@ -112,13 +160,13 @@ export default function NewAdminView() {
     try {
       const { error } = await supabase
         .from('profiles')
-        .update({ status: 'active' })
+        .update({ status: 'active', strikes: 0 })
         .eq('id', userId);
 
       if (error) throw error;
 
       setUsers((prev) =>
-        prev.map((u) => (u.id === userId ? { ...u, isBanned: false, status: 'active' } : u))
+        prev.map((u) => (u.id === userId ? { ...u, isBanned: false, status: 'active', strikes: 0 } : u))
       );
     } catch (err) {
       console.error('Error unbanning user:', err);
@@ -126,16 +174,64 @@ export default function NewAdminView() {
     }
   };
 
-  const handleResolveReport = (reportId: string, shouldBan: boolean) => {
-    const report = reports.find((r) => r.id === reportId);
-    if (!report) return;
+  // Usuń komentarz + daj strike autorowi (autoban przy 3 strikach)
+  const handleStrikeAndDelete = async (report: CommentReport) => {
+    try {
+      // 1. Usuń komentarz
+      if (report.comment_type === 'wall' && report.comment_id) {
+        await supabase.from('profile_comments').delete().eq('id', report.comment_id);
+      } else if (report.comment_type === 'photo' && report.photo_comment_id) {
+        await supabase.from('profile_photo_comments').delete().eq('id', report.photo_comment_id);
+      }
 
-    if (shouldBan) {
-      handleBanUser(report.reported_user_id);
+      // 2. Inkrement strikes
+      const newStrikes = report.author_strikes + 1;
+      const shouldBan = newStrikes >= 3;
+
+      await supabase
+        .from('profiles')
+        .update({ strikes: newStrikes, ...(shouldBan ? { status: 'banned' } : {}) })
+        .eq('id', report.comment_author_id);
+
+      // 3. Oznacz zgłoszenie jako rozwiązane
+      await supabase
+        .from('comment_reports')
+        .update({ status: 'resolved' })
+        .eq('id', report.id);
+
+      // 4. Aktualizuj UI
+      setReports((prev) => prev.filter((r) => r.id !== report.id));
+      setStats((prev) => ({ ...prev, newReports: prev.newReports - 1 }));
+
+      if (shouldBan) {
+        setUsers((prev) =>
+          prev.map((u) =>
+            u.id === report.comment_author_id
+              ? { ...u, isBanned: true, status: 'banned', strikes: newStrikes }
+              : u
+          )
+        );
+        alert(`Użytkownik "${report.author_name}" otrzymał 3. strike i został permanentnie zbanowany.`);
+      }
+    } catch (err) {
+      console.error('Error striking user:', err);
+      alert('Błąd przy nadawaniu strike');
     }
+  };
 
-    setReports((prev) => prev.filter((r) => r.id !== reportId));
-    setStats((prev) => ({ ...prev, newReports: prev.newReports - 1 }));
+  // Odrzuć zgłoszenie bez konsekwencji
+  const handleDismissReport = async (reportId: string) => {
+    try {
+      await supabase
+        .from('comment_reports')
+        .update({ status: 'dismissed' })
+        .eq('id', reportId);
+
+      setReports((prev) => prev.filter((r) => r.id !== reportId));
+      setStats((prev) => ({ ...prev, newReports: prev.newReports - 1 }));
+    } catch (err) {
+      console.error('Error dismissing report:', err);
+    }
   };
 
   if (loading) {
@@ -201,6 +297,7 @@ export default function NewAdminView() {
                 <tr className="border-b border-white/10">
                   <th className="text-left text-sm text-cyan-400 font-medium pb-3 px-2">Użytkownik</th>
                   <th className="text-left text-sm text-cyan-400 font-medium pb-3 px-2">Status</th>
+                  <th className="text-left text-sm text-cyan-400 font-medium pb-3 px-2">Strajki</th>
                   <th className="text-left text-sm text-cyan-400 font-medium pb-3 px-2">Data Reg.</th>
                   <th className="text-right text-sm text-cyan-400 font-medium pb-3 px-2">Akcje</th>
                 </tr>
@@ -219,7 +316,7 @@ export default function NewAdminView() {
                         />
                         <div>
                           <p className={`text-white text-sm font-medium ${user.isBanned ? 'line-through opacity-60' : ''}`}>
-                            {user.name || 'Bez nazwы'}
+                            {user.name || 'Bez nazwy'}
                           </p>
                           <p className="text-xs text-cyan-400/60">{user.city || 'Brak'}</p>
                         </div>
@@ -235,6 +332,11 @@ export default function NewAdminView() {
                           Aktywny
                         </span>
                       )}
+                    </td>
+                    <td className="py-3 px-2">
+                      <span className={`text-sm font-semibold ${user.strikes >= 3 ? 'text-red-400' : user.strikes >= 2 ? 'text-orange-400' : user.strikes >= 1 ? 'text-yellow-400' : 'text-white/40'}`}>
+                        {user.strikes} / 3
+                      </span>
                     </td>
                     <td className="py-3 px-2">
                       <p className="text-xs text-cyan-400/60">
@@ -277,38 +379,66 @@ export default function NewAdminView() {
         <div className="glass rounded-2xl p-6">
           <h2 className="text-2xl font-light text-white mb-6 flex items-center gap-2">
             <AlertTriangle size={20} className="text-red-400" />
-            Zgłoszenia
+            Zgłoszenia komentarzy
           </h2>
 
-          <div className="space-y-4">
+          <div className="space-y-4 max-h-[600px] overflow-y-auto pr-1">
             {reports.length > 0 ? (
               reports.map((report) => (
                 <div
                   key={report.id}
-                  className="glass rounded-xl p-4 border border-red-500/20 hover:border-red-500/40 transition-colors"
+                  className="glass rounded-xl p-4 border border-red-500/20 hover:border-red-500/35 transition-colors"
                 >
-                  <div className="mb-3">
-                    <p className="text-xs text-cyan-400/60 mb-1">
-                      Zgłaszający: <span className="text-white">{report.reporter_name}</span>
-                    </p>
-                    <p className="text-sm text-white font-medium">
-                      Zgłoszony: {report.reported_user_name}
-                    </p>
-                    <p className="text-xs text-red-400 mt-1">{report.reason}</p>
+                  {/* Type badge */}
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className={`text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full ${report.comment_type === 'wall' ? 'bg-cyan-500/15 text-cyan-400 border border-cyan-500/25' : 'bg-purple-500/15 text-purple-400 border border-purple-500/25'}`}>
+                      {report.comment_type === 'wall' ? 'Tablica' : 'Zdjęcie'}
+                    </span>
+                    <span className="text-[10px] text-white/30 ml-auto">
+                      {new Date(report.created_at).toLocaleString('pl-PL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                    </span>
                   </div>
+
+                  {/* Comment content */}
+                  <div className="bg-white/[0.03] border border-white/[0.06] rounded-lg px-3 py-2 mb-3">
+                    <p className="text-xs text-white/60 italic line-clamp-2">„{report.comment_content}"</p>
+                  </div>
+
+                  {/* Author */}
+                  <div className="flex items-center gap-2 mb-1">
+                    <img
+                      src={report.author_image || 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=50&q=60'}
+                      alt={report.author_name}
+                      className="w-5 h-5 rounded-full object-cover border border-white/10"
+                    />
+                    <span className="text-xs text-white/80 font-medium">{report.author_name}</span>
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full ml-auto ${report.author_strikes >= 2 ? 'bg-red-500/20 text-red-400' : report.author_strikes >= 1 ? 'bg-orange-500/20 text-orange-400' : 'bg-white/5 text-white/30'}`}>
+                      {report.author_strikes} / 3 strajków
+                    </span>
+                  </div>
+
+                  {/* Reason */}
+                  <p className="text-xs text-red-400/80 mb-1">
+                    <span className="text-white/30">Powód:</span> {report.reason}
+                  </p>
+                  <p className="text-[10px] text-white/30 mb-3">
+                    Zgłoszone przez: {report.reporter_name}
+                  </p>
+
+                  {/* Actions */}
                   <div className="flex gap-2">
                     <button
-                      onClick={() => handleResolveReport(report.id, true)}
-                      className="flex-1 bg-red-500/20 hover:bg-red-500/30 border border-red-500/40 text-red-400 text-xs py-2 rounded-lg transition-colors flex items-center justify-center gap-1"
+                      onClick={() => void handleStrikeAndDelete(report)}
+                      className="flex-1 bg-red-500/20 hover:bg-red-500/35 border border-red-500/40 text-red-400 text-xs py-2 rounded-lg transition-colors flex items-center justify-center gap-1.5"
                     >
-                      <Ban size={14} />
-                      Zbanuj
+                      <Trash2 size={13} />
+                      Usuń + Strike
                     </button>
                     <button
-                      onClick={() => handleResolveReport(report.id, false)}
-                      className="flex-1 bg-white/10 hover:bg-white/20 border border-white/20 text-white text-xs py-2 rounded-lg transition-colors flex items-center justify-center gap-1"
+                      onClick={() => void handleDismissReport(report.id)}
+                      className="flex-1 bg-white/5 hover:bg-white/10 border border-white/15 text-white/60 text-xs py-2 rounded-lg transition-colors flex items-center justify-center gap-1.5"
                     >
-                      <X size={14} />
+                      <X size={13} />
                       Odrzuć
                     </button>
                   </div>
@@ -316,7 +446,7 @@ export default function NewAdminView() {
               ))
             ) : (
               <div className="text-center text-cyan-400/50 py-12">
-                <AlertTriangle size={32} className="mx-auto mb-2 opacity-30" />
+                <Flag size={32} className="mx-auto mb-2 opacity-30" />
                 <p className="text-sm">Brak zgłoszeń</p>
               </div>
             )}
