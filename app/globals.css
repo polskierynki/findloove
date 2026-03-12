@@ -401,6 +401,43 @@ body.photo-modal-open nav[data-app-nav='bottom'] {
   transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
+@keyframes emoji-popover-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.emoji-popover-panel {
+  animation: emoji-popover-in 170ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.emoji-popover-panel .EmojiPickerReact {
+  --epr-bg-color: rgba(13, 9, 25, 0.98);
+  --epr-category-label-bg-color: rgba(18, 12, 33, 0.98);
+  --epr-category-label-text-color: #9ee7ff;
+  --epr-search-input-bg-color: rgba(255, 255, 255, 0.06);
+  --epr-search-input-border-color: rgba(0, 255, 255, 0.3);
+  --epr-search-input-text-color: #f1f5f9;
+  --epr-picker-border-color: rgba(0, 255, 255, 0.25);
+  --epr-hover-bg-color: rgba(0, 255, 255, 0.12);
+  --epr-focus-bg-color: rgba(255, 0, 255, 0.16);
+  --epr-text-color: #f8fafc;
+  --epr-highlight-color: #22d3ee;
+  --epr-preview-bg-color: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(0, 255, 255, 0.22);
+  border-radius: 14px;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.04), 0 0 26px rgba(0, 255, 255, 0.15), 0 0 28px rgba(255, 0, 255, 0.12);
+}
+
+.emoji-popover-panel .epr-search-container input {
+  font-family: 'Outfit', sans-serif;
+}
+
 /* Safe areas for mobile devices with notches */
 @supports (padding-bottom: env(safe-area-inset-bottom)) {
   .pb-safe {

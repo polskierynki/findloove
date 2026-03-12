@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { MagnifyingGlass, Prohibit, Trash, Flag, PaperPlaneRight, ArrowLeft } from '@phosphor-icons/react';
+import { MagnifyingGlass, Prohibit, Trash, Flag, PaperPlaneRight, ArrowLeft, Smiley } from '@phosphor-icons/react';
 import { supabase } from '@/lib/supabase';
 import { resolveProfileIdForAuthUser } from '@/lib/profileAuth';
+import EmojiPopover from '@/components/ui/EmojiPopover';
 
 interface Message {
   id: string;
@@ -39,8 +40,11 @@ export default function NewMessagesView() {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [chatError, setChatError] = useState<string | null>(null);
+  const [showMessageEmojiPicker, setShowMessageEmojiPicker] = useState(false);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messageInputRef = useRef<HTMLInputElement>(null);
+  const messageEmojiButtonRef = useRef<HTMLButtonElement>(null);
 
   const identityIds = useMemo(
     () => Array.from(new Set([authUserId, currentUserId].filter(Boolean))) as string[],
@@ -499,6 +503,7 @@ export default function NewMessagesView() {
       // Update UI
       setMessages(prev => [...prev, successfulInsert]);
       setMessageText('');
+      setShowMessageEmojiPicker(false);
       console.log('📤 Reloading conversations...');
       void loadConversations();
     } catch (error) {
@@ -506,6 +511,30 @@ export default function NewMessagesView() {
       setChatError(`Exception: ${(error as Error).message}`);
     }
   };
+
+  const insertEmojiToMessage = useCallback((emoji: string) => {
+    const input = messageInputRef.current;
+
+    if (!input) {
+      setMessageText((prev) => `${prev}${emoji}`);
+      return;
+    }
+
+    const selectionStart = input.selectionStart ?? input.value.length;
+    const selectionEnd = input.selectionEnd ?? input.value.length;
+
+    setMessageText((prev) => {
+      const safeStart = Math.min(selectionStart, prev.length);
+      const safeEnd = Math.min(selectionEnd, prev.length);
+      return `${prev.slice(0, safeStart)}${emoji}${prev.slice(safeEnd)}`;
+    });
+
+    window.requestAnimationFrame(() => {
+      const caretPosition = selectionStart + emoji.length;
+      input.focus();
+      input.setSelectionRange(caretPosition, caretPosition);
+    });
+  }, []);
 
   const handleBlockUser = async () => {
     if (!selectedProfile || !currentUserId) return;
@@ -771,6 +800,7 @@ export default function NewMessagesView() {
                 )}
                 <div className="relative flex items-center bg-black/40 border border-cyan-500/20 rounded-full px-2 py-2 border-glow-magenta transition-all focus-within:bg-black/60">
                   <input
+                    ref={messageInputRef}
                     type="text"
                     placeholder="Napisz wiadomość..."
                     value={messageText}
@@ -783,6 +813,15 @@ export default function NewMessagesView() {
                     }}
                     className="flex-1 bg-transparent border-none text-white text-sm px-4 outline-none"
                   />
+                  <button
+                    ref={messageEmojiButtonRef}
+                    type="button"
+                    onClick={() => setShowMessageEmojiPicker((prev) => !prev)}
+                    className="w-10 h-10 rounded-full border border-cyan-500/25 bg-cyan-500/10 flex items-center justify-center text-cyan-300 hover:bg-cyan-500/20 hover:border-cyan-400/40 transition-all mr-1"
+                    title="Emoji"
+                  >
+                    <Smiley size={18} weight="bold" />
+                  </button>
                   <button 
                     onClick={sendMessage}
                     disabled={!messageText.trim() || !currentUserId}
@@ -791,6 +830,13 @@ export default function NewMessagesView() {
                     <PaperPlaneRight size={18} weight="fill" />
                   </button>
                 </div>
+                <EmojiPopover
+                  open={showMessageEmojiPicker}
+                  anchorRef={messageEmojiButtonRef}
+                  onClose={() => setShowMessageEmojiPicker(false)}
+                  onSelect={insertEmojiToMessage}
+                  searchPlaceholder="Szukaj emoji do wiadomosci"
+                />
               </div>
             </>
           ) : (

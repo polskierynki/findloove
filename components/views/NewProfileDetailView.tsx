@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import EmojiPicker from 'emoji-picker-react';
 import {
   ArrowLeft,
   Heart,
@@ -31,6 +30,7 @@ import { resolveProfileIdForAuthUser } from '@/lib/profileAuth';
 import { Profile } from '@/lib/types';
 import { useLikes } from '@/lib/hooks/useLikes';
 import { ALL_INTERESTS } from './constants/profileFormOptions';
+import EmojiPopover from '@/components/ui/EmojiPopover';
 
 type AppComment = {
   id: string;
@@ -90,6 +90,8 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
   const [showPhotoCommentEmojiPicker, setShowPhotoCommentEmojiPicker] = useState(false);
   const generalCommentInputRef = useRef<HTMLInputElement>(null);
   const photoCommentInputRef = useRef<HTMLInputElement>(null);
+  const generalCommentEmojiButtonRef = useRef<HTMLButtonElement>(null);
+  const photoCommentEmojiButtonRef = useRef<HTMLButtonElement>(null);
 
   const allPhotos = useMemo(() => {
     if (!profile) return [];
@@ -270,6 +272,7 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
       }
 
       setCommentText('');
+      setShowGeneralCommentEmojiPicker(false);
       await loadGeneralComments();
     } catch (error) {
       console.error('Blad dodawania komentarza ogolnego:', error);
@@ -311,6 +314,7 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
       }
 
       setPhotoCommentText('');
+      setShowPhotoCommentEmojiPicker(false);
       await loadPhotoComments(activePhotoIndex);
       photoCommentInputRef.current?.focus();
     } catch (error) {
@@ -333,15 +337,67 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
     resolveCurrentAuthorProfileId,
   ]);
 
+  const insertEmojiToGeneralComment = useCallback((emoji: string) => {
+    const input = generalCommentInputRef.current;
+
+    if (!input) {
+      setCommentText((prev) => `${prev}${emoji}`);
+      return;
+    }
+
+    const selectionStart = input.selectionStart ?? input.value.length;
+    const selectionEnd = input.selectionEnd ?? input.value.length;
+
+    setCommentText((prev) => {
+      const safeStart = Math.min(selectionStart, prev.length);
+      const safeEnd = Math.min(selectionEnd, prev.length);
+      return `${prev.slice(0, safeStart)}${emoji}${prev.slice(safeEnd)}`;
+    });
+
+    window.requestAnimationFrame(() => {
+      const caretPosition = selectionStart + emoji.length;
+      input.focus();
+      input.setSelectionRange(caretPosition, caretPosition);
+    });
+  }, []);
+
+  const insertEmojiToPhotoComment = useCallback((emoji: string) => {
+    const input = photoCommentInputRef.current;
+
+    if (!input) {
+      setPhotoCommentText((prev) => `${prev}${emoji}`);
+      return;
+    }
+
+    const selectionStart = input.selectionStart ?? input.value.length;
+    const selectionEnd = input.selectionEnd ?? input.value.length;
+
+    setPhotoCommentText((prev) => {
+      const safeStart = Math.min(selectionStart, prev.length);
+      const safeEnd = Math.min(selectionEnd, prev.length);
+      return `${prev.slice(0, safeStart)}${emoji}${prev.slice(safeEnd)}`;
+    });
+
+    window.requestAnimationFrame(() => {
+      const caretPosition = selectionStart + emoji.length;
+      input.focus();
+      input.setSelectionRange(caretPosition, caretPosition);
+    });
+  }, []);
+
   const openPhotoCommentModal = useCallback((photoIndex: number) => {
     setActivePhotoIndex(photoIndex);
     setIsPhotoModalOpen(true);
     setPhotoCommentText('');
     setCommentsError(null);
+    setShowGeneralCommentEmojiPicker(false);
+    setShowPhotoCommentEmojiPicker(false);
   }, []);
 
   const closePhotoCommentModal = useCallback(() => {
     setIsPhotoModalOpen(false);
+    setShowGeneralCommentEmojiPicker(false);
+    setShowPhotoCommentEmojiPicker(false);
   }, []);
 
   const goToPhoto = useCallback((direction: 'prev' | 'next') => {
@@ -565,7 +621,12 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
                   className="w-full bg-black/40 border border-cyan-500/20 rounded-full py-3.5 pl-6 pr-24 text-base text-white placeholder-cyan-400/40 outline-none backdrop-blur-md transition-all focus:bg-black/60 focus:border-cyan-500/50 shadow-[inset_0_0_10px_rgba(0,255,255,0.05)]"
                 />
                 <button
-                  onClick={() => setShowGeneralCommentEmojiPicker(!showGeneralCommentEmojiPicker)}
+                  ref={generalCommentEmojiButtonRef}
+                  type="button"
+                  onClick={() => {
+                    setShowPhotoCommentEmojiPicker(false);
+                    setShowGeneralCommentEmojiPicker((prev) => !prev);
+                  }}
                   className="absolute right-14 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-cyan-500/10 flex items-center justify-center text-cyan-400 hover:bg-cyan-500/20 transition-all"
                   title="Dodaj emoji"
                 >
@@ -579,25 +640,13 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
                   <PaperPlaneTilt size={18} weight="fill" />
                 </button>
               </div>
-              {showGeneralCommentEmojiPicker && isClient && createPortal(
-                <div className="fixed inset-0 z-[199]" onClick={() => setShowGeneralCommentEmojiPicker(false)}>
-                  <div
-                    className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-black/95 backdrop-blur-md border border-white/10 rounded-xl shadow-[0_0_40px_rgba(0,255,255,0.3)] flex justify-center p-4"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <EmojiPicker
-                      onEmojiClick={(e) => {
-                        setCommentText((prev) => prev + e.emoji);
-                        generalCommentInputRef.current?.focus();
-                        setShowGeneralCommentEmojiPicker(false);
-                      }}
-                      height={300}
-                      width={280}
-                    />
-                  </div>
-                </div>,
-                document.body,
-              )}
+              <EmojiPopover
+                open={showGeneralCommentEmojiPicker}
+                anchorRef={generalCommentEmojiButtonRef}
+                onClose={() => setShowGeneralCommentEmojiPicker(false)}
+                onSelect={insertEmojiToGeneralComment}
+                searchPlaceholder="Szukaj emoji do komentarza"
+              />
             </div>
           </div>
         </aside>
@@ -922,7 +971,12 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
                     className="w-full bg-black/40 border border-cyan-500/20 rounded-full py-3 pl-5 pr-20 text-sm text-white placeholder-cyan-400/40 outline-none focus:border-cyan-500/50 transition-all disabled:opacity-50"
                   />
                   <button
-                    onClick={() => setShowPhotoCommentEmojiPicker(!showPhotoCommentEmojiPicker)}
+                    ref={photoCommentEmojiButtonRef}
+                    type="button"
+                    onClick={() => {
+                      setShowGeneralCommentEmojiPicker(false);
+                      setShowPhotoCommentEmojiPicker((prev) => !prev);
+                    }}
                     disabled={!photoCommentsTableAvailable}
                     className="absolute right-10 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-cyan-500/10 flex items-center justify-center text-sm hover:bg-cyan-500/20 transition-all disabled:opacity-50"
                     title="Dodaj emoji"
@@ -937,25 +991,13 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
                     <PaperPlaneTilt size={16} weight="fill" />
                   </button>
                 </div>
-                {showPhotoCommentEmojiPicker && isClient && createPortal(
-                  <div className="fixed inset-0 z-[199]" onClick={() => setShowPhotoCommentEmojiPicker(false)}>
-                    <div
-                      className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-black/95 backdrop-blur-md border border-white/10 rounded-xl shadow-[0_0_40px_rgba(0,255,255,0.3)] flex justify-center p-4"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <EmojiPicker
-                        onEmojiClick={(e) => {
-                          setPhotoCommentText((prev) => prev + e.emoji);
-                          photoCommentInputRef.current?.focus();
-                          setShowPhotoCommentEmojiPicker(false);
-                        }}
-                        height={300}
-                        width={280}
-                      />
-                    </div>
-                  </div>,
-                  document.body,
-                )}
+                <EmojiPopover
+                  open={showPhotoCommentEmojiPicker}
+                  anchorRef={photoCommentEmojiButtonRef}
+                  onClose={() => setShowPhotoCommentEmojiPicker(false)}
+                  onSelect={insertEmojiToPhotoComment}
+                  searchPlaceholder="Szukaj emoji do komentarza zdjęcia"
+                />
               </div>
             </div>
           </div>
