@@ -581,25 +581,40 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto custom-scrollbar pr-3 space-y-5">
+            <div className="flex-1 overflow-y-auto custom-scrollbar pr-3">
               {comments.length === 0 ? (
                 <div className="text-center text-sm text-cyan-400/70 pt-6">
                   Brak komentarzy. Napisz pierwszy cytat na tablicy.
                 </div>
-              ) : comments.map((comment) => (
-                <div key={comment.id} className="flex gap-3">
-                  <img
-                    src={comment.author.image || 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&q=80'}
-                    alt={comment.author.name}
-                    className="w-8 h-8 rounded-full object-cover shrink-0 border border-white/10"
-                  />
-                  <div className="flex-1">
-                    <span className="text-sm font-medium text-white mr-2">{comment.author.name}</span>
-                    <span className="text-xs text-cyan-500/60">{formatRelativeTime(comment.created_at)}</span>
-                    <p className="text-[14px] text-cyan-300/70 mt-1 font-light leading-snug">{comment.content}</p>
-                  </div>
+              ) : (
+                <div className="relative">
+                  {/* Vertical timeline line */}
+                  <div className="absolute left-[5px] top-3 bottom-3 w-px bg-gradient-to-b from-cyan-400/60 via-cyan-500/25 to-transparent pointer-events-none" />
+                  {comments.map((comment) => (
+                    <div key={comment.id} className="relative flex gap-4 pb-5 last:pb-0">
+                      {/* Timeline dot */}
+                      <div className="shrink-0 mt-2 z-10">
+                        <div className="w-[11px] h-[11px] rounded-full bg-cyan-400 shadow-[0_0_8px_2px_rgba(0,255,255,0.55)] ring-2 ring-[#0a0710]" />
+                      </div>
+                      {/* Avatar + content */}
+                      <div className="flex gap-3 flex-1">
+                        <img
+                          src={comment.author.image || 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&q=80'}
+                          alt={comment.author.name}
+                          className="w-8 h-8 rounded-full object-cover shrink-0 border border-cyan-500/20 shadow-[0_0_6px_rgba(0,255,255,0.15)]"
+                        />
+                        <div className="flex-1 bg-white/[0.04] backdrop-blur-sm rounded-2xl rounded-tl-none px-4 py-2.5 border border-white/[0.07]">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-sm font-semibold text-white leading-none">{comment.author.name}</span>
+                            <span className="text-[11px] text-cyan-500/55 leading-none">{formatRelativeTime(comment.created_at)}</span>
+                          </div>
+                          <p className="text-[13.5px] text-cyan-200/65 font-light leading-snug">{comment.content}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              )}
             </div>
 
             {/* Comment Input */}
