@@ -83,8 +83,7 @@ export default function NewNotificationsView({ isAdmin: isAdminFromApp = false }
         poke: 0,
         verification: 0,
         comment: 0,
-        message: 0,
-      } as Record<'gift' | 'like' | 'poke' | 'verification' | 'comment' | 'message', number>,
+      } as Record<'gift' | 'like' | 'poke' | 'verification' | 'comment', number>,
     );
   }, [notifications]);
 
@@ -124,7 +123,7 @@ export default function NewNotificationsView({ isAdmin: isAdminFromApp = false }
             <h1 className="text-4xl md:text-5xl font-light text-white flex items-center gap-3">
               <Bell size={34} className="text-fuchsia-400" /> Centrum powiadomień
             </h1>
-            <p className="text-cyan-300/70 mt-2">W jednym miejscu zobaczysz wiadomosci, polubienia, prezenty, zaczepienia, komentarze i status weryfikacji.</p>
+            <p className="text-cyan-300/70 mt-2">W jednym miejscu zobaczysz polubienia, prezenty, zaczepienia, komentarze i status weryfikacji.</p>
           </div>
         </div>
 
@@ -136,11 +135,7 @@ export default function NewNotificationsView({ isAdmin: isAdminFromApp = false }
         </button>
       </div>
 
-      <section className="grid grid-cols-2 lg:grid-cols-6 gap-4">
-        <div className="glass rounded-2xl p-4 border border-cyan-500/20">
-          <div className="text-xs uppercase tracking-wider text-cyan-300/70">Wiadomości</div>
-          <div className="text-3xl text-white mt-2">{counters.message}</div>
-        </div>
+      <section className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         <div className="glass rounded-2xl p-4 border border-red-500/20">
           <div className="text-xs uppercase tracking-wider text-red-300/70">Polubienia</div>
           <div className="text-3xl text-white mt-2">{counters.like}</div>
@@ -203,12 +198,6 @@ export default function NewNotificationsView({ isAdmin: isAdminFromApp = false }
                   )}
 
                   {notification.kind === 'poke' && (
-                    <div className="w-11 h-11 rounded-full bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center shrink-0 shadow-[0_0_10px_rgba(0,255,255,0.2)]">
-                      <MessageCircle size={20} className="text-cyan-300" />
-                    </div>
-                  )}
-
-                  {notification.kind === 'message' && (
                     <div className="w-11 h-11 rounded-full bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center shrink-0 shadow-[0_0_10px_rgba(0,255,255,0.2)]">
                       <MessageCircle size={20} className="text-cyan-300" />
                     </div>

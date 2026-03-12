@@ -233,7 +233,6 @@ export default function NewHeader() {
 
           if (!pathname.startsWith('/messages')) {
             void loadUnreadMessagesCount();
-            void loadNotifications();
           }
         },
       )
@@ -242,7 +241,7 @@ export default function NewHeader() {
     return () => {
       channel.unsubscribe();
     };
-  }, [loadNotifications, loadUnreadMessagesCount, pathname, unreadTargetIds, user]);
+  }, [loadUnreadMessagesCount, pathname, unreadTargetIds, user]);
 
   useEffect(() => {
     if (pathname.startsWith('/messages')) {
@@ -372,22 +371,29 @@ export default function NewHeader() {
           )}
 
           {/* Messages */}
-          <button
-            onClick={() => router.push('/messages')}
-            className="relative text-cyan-400 hover:text-cyan-300 transition-all hover:scale-110 duration-300 w-10 h-10 flex items-center justify-center rounded-full hover:shadow-[0_0_15px_rgba(0,255,255,0.6)]"
-          >
-            <MessageCircle size={26} />
-            {unreadMessagesCount > 0 && (
-              <span className="absolute top-1 right-0 min-w-[18px] h-[18px] px-1 bg-cyan-500 rounded-full text-[10px] font-bold flex items-center justify-center shadow-[0_0_8px_rgba(0,255,255,0.8)] text-black border-2 border-[#110a22]">
-                {unreadMessagesCount > 99 ? '99+' : unreadMessagesCount}
-              </span>
-            )}
-          </button>
+          <div className="relative group">
+            <button
+              onClick={() => router.push('/messages')}
+              title="Wiadomości"
+              className="relative text-cyan-400 hover:text-cyan-300 transition-all hover:scale-110 duration-300 w-10 h-10 flex items-center justify-center rounded-full hover:shadow-[0_0_15px_rgba(0,255,255,0.6)]"
+            >
+              <MessageCircle size={26} />
+              {unreadMessagesCount > 0 && (
+                <span className="absolute top-1 right-0 min-w-[18px] h-[18px] px-1 bg-cyan-500 rounded-full text-[10px] font-bold flex items-center justify-center shadow-[0_0_8px_rgba(0,255,255,0.8)] text-black border-2 border-[#110a22]">
+                  {unreadMessagesCount > 99 ? '99+' : unreadMessagesCount}
+                </span>
+              )}
+            </button>
+            <span className="pointer-events-none absolute top-full left-1/2 mt-2 -translate-x-1/2 translate-y-1 rounded-full bg-black/85 border border-cyan-500/30 px-3 py-1 text-xs text-cyan-100 whitespace-nowrap opacity-0 transition-all duration-200 group-hover:opacity-100 group-hover:translate-y-0 hidden lg:block">
+              Wiadomości
+            </span>
+          </div>
 
           {/* Notifications */}
-          <div className="relative" id="notification-wrapper">
+          <div className="relative group" id="notification-wrapper">
             <button
               onClick={toggleNotifications}
+              title="Powiadomienia"
               className="relative text-cyan-400 hover:text-cyan-300 transition-all hover:scale-110 duration-300 w-10 h-10 flex items-center justify-center rounded-full hover:shadow-[0_0_15px_rgba(0,255,255,0.6)]"
               id="bell-btn"
             >
@@ -396,8 +402,11 @@ export default function NewHeader() {
                 <span className="absolute top-2 right-1.5 w-2.5 h-2.5 bg-fuchsia-500 rounded-full shadow-[0_0_8px_rgba(255,0,255,0.8)] border-2 border-[#110a22]"></span>
               )}
             </button>
+            <span className="pointer-events-none absolute top-full left-1/2 mt-2 -translate-x-1/2 translate-y-1 rounded-full bg-black/85 border border-fuchsia-500/30 px-3 py-1 text-xs text-fuchsia-100 whitespace-nowrap opacity-0 transition-all duration-200 group-hover:opacity-100 group-hover:translate-y-0 hidden lg:block">
+              Powiadomienia
+            </span>
 
-            {/* Notification Dropdown - Enhanced with 4 notification types */}
+            {/* Notification Dropdown */}
             {notificationsOpen && (
               <div className="absolute top-full right-0 mt-4 w-80 sm:w-96 glass-modal rounded-[2rem] border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.8)] flex flex-col overflow-hidden z-[100] transform opacity-100 scale-100 transition-all duration-300 origin-top-right">
                 {/* Header */}
@@ -454,12 +463,6 @@ export default function NewHeader() {
                           )}
 
                           {notification.kind === 'poke' && (
-                            <div className="w-10 h-10 rounded-full bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center shrink-0 shadow-[0_0_10px_rgba(0,255,255,0.2)]">
-                              <MessageCircle size={20} className="text-cyan-300" />
-                            </div>
-                          )}
-
-                          {notification.kind === 'message' && (
                             <div className="w-10 h-10 rounded-full bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center shrink-0 shadow-[0_0_10px_rgba(0,255,255,0.2)]">
                               <MessageCircle size={20} className="text-cyan-300" />
                             </div>
