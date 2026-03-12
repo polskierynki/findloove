@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Heart, ChatCircle, Sparkle, MapPin } from '@phosphor-icons/react';
 import { supabase } from '@/lib/supabase';
-import { Profile } from '@/lib/types';
+import { resolveProfileIdForAuthUser } from '@/lib/profileAuth';
+import { Profile, SupabaseProfile, filterNonAdminProfiles, getLookingFor, mapSupabaseProfile } from '@/lib/types';
 import { LOOKING_FOR_OPTIONS } from './constants/profileFormOptions';
 import { useLikes } from '@/lib/hooks/useLikes';
 
@@ -23,58 +24,212 @@ function isHiddenAdminProfile(profile: { role?: string | null; email?: string | 
   );
 }
 
+type DiscoveryMode = 'recommended' | 'nearby' | 'active';
+
+type RankedProfile = {
+  profile: Profile;
+  recommendedScore: number;
+  matchScore: number;
+  sharedInterests: number;
+  isNearby: boolean;
+  activityTs: number;
+};
+
+function normalizeText(value?: string | null): string {
+  return (value || '').trim().toLowerCase();
+}
+
+function toTimestamp(value?: string | null): number {
+  if (!value) return 0;
+  const ts = Date.parse(value);
+  return Number.isNaN(ts) ? 0 : ts;
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
+}
+
+function getProfileLookingFor(profile: Profile): string | null {
+  const explicit = normalizeText(profile.details?.looking_for);
+  if (explicit) return explicit;
+
+  const inferred = getLookingFor(profile.status || '');
+  return inferred ? normalizeText(inferred) : null;
+}
+
+function isAgeWithinRange(age: number, min?: number, max?: number): boolean {
+  if (typeof min === 'number' && age < min) return false;
+  if (typeof max === 'number' && age > max) return false;
+  return true;
+}
+
+function getActivityBonus(activityTs: number): number {
+  if (!activityTs) return 0;
+  const hoursAgo = (Date.now() - activityTs) / 3600000;
+  if (hoursAgo <= 2) return 12;
+  if (hoursAgo <= 24) return 8;
+  if (hoursAgo <= 72) return 5;
+  if (hoursAgo <= 168) return 2;
+  return 0;
+}
+
+function rankProfile(currentProfile: Profile | null, candidate: Profile): RankedProfile {
+  const activityTs = toTimestamp(candidate.lastActive || candidate.createdAt);
+
+  if (!currentProfile) {
+    const baseScore = getActivityBonus(activityTs) + (candidate.isVerified ? 4 : 0);
+    const matchScore = clamp(60 + baseScore, 55, 90);
+
+    return {
+      profile: candidate,
+      recommendedScore: baseScore,
+      matchScore,
+      sharedInterests: 0,
+      isNearby: false,
+      activityTs,
+    };
+  }
+
+  const myInterests = new Set((currentProfile.interests || []).map((interest) => normalizeText(interest)));
+  const candidateInterests = (candidate.interests || []).map((interest) => normalizeText(interest));
+  const sharedInterests = candidateInterests.filter((interest) => myInterests.has(interest)).length;
+
+  const isNearby = normalizeText(currentProfile.city) !== ''
+    && normalizeText(candidate.city) === normalizeText(currentProfile.city);
+
+  const myLookingFor = getProfileLookingFor(currentProfile);
+  const candidateLookingFor = getProfileLookingFor(candidate);
+  const lookingForMatch = Boolean(myLookingFor && candidateLookingFor && myLookingFor === candidateLookingFor);
+
+  const ageCompatibility = isAgeWithinRange(candidate.age, currentProfile.seeking_age_min, currentProfile.seeking_age_max)
+    && isAgeWithinRange(currentProfile.age, candidate.seeking_age_min, candidate.seeking_age_max);
+
+  const genderCompatibility =
+    (!currentProfile.seeking_gender || !candidate.gender || currentProfile.seeking_gender === candidate.gender)
+    && (!candidate.seeking_gender || !currentProfile.gender || candidate.seeking_gender === currentProfile.gender);
+
+  const activityBonus = getActivityBonus(activityTs);
+
+  const recommendedScore =
+    sharedInterests * 18
+    + (isNearby ? 14 : 0)
+    + (lookingForMatch ? 16 : 0)
+    + (ageCompatibility ? 10 : 0)
+    + (genderCompatibility ? 6 : -8)
+    + (candidate.isVerified ? 4 : 0)
+    + activityBonus;
+
+  const matchScore = clamp(
+    50
+      + sharedInterests * 11
+      + (isNearby ? 8 : 0)
+      + (lookingForMatch ? 9 : 0)
+      + (ageCompatibility ? 6 : 0)
+      + Math.min(10, activityBonus)
+      + (genderCompatibility ? 4 : -6),
+    52,
+    99,
+  );
+
+  return {
+    profile: candidate,
+    recommendedScore,
+    matchScore,
+    sharedInterests,
+    isNearby,
+    activityTs,
+  };
+}
+
 export default function NewHomeView() {
   const router = useRouter();
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [likedProfiles, setLikedProfiles] = useState<Set<string>>(new Set());
+  const [discoveryMode, setDiscoveryMode] = useState<DiscoveryMode>('recommended');
   const [loading, setLoading] = useState(true);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [currentProfileId, setCurrentProfileId] = useState<string | null>(null);
+  const [currentProfile, setCurrentProfile] = useState<Profile | null>(null);
   const { likeProfile, unlikeProfile, getLikedProfileIds } = useLikes();
 
-  // Get current user ID
   useEffect(() => {
-    const getCurrentUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      setCurrentUserId(user?.id || null);
-    };
-    getCurrentUser();
-  }, []);
+    let active = true;
 
-  useEffect(() => {
     const loadProfiles = async () => {
-      try {
-        let query = supabase
-          .from('profiles')
-          .select('*')
-          .limit(20)
-          .order('created_at', { ascending: false });
+      setLoading(true);
 
-        // Exclude current user's profile
-        if (currentUserId) {
-          query = query.neq('id', currentUserId);
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+
+        let resolvedProfileId: string | null = null;
+        let meProfile: Profile | null = null;
+
+        if (user) {
+          resolvedProfileId = await resolveProfileIdForAuthUser({
+            id: user.id,
+            email: user.email,
+            user_metadata: user.user_metadata,
+          });
+
+          if (resolvedProfileId) {
+            const { data: myProfileData } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', resolvedProfileId)
+              .maybeSingle();
+
+            if (myProfileData) {
+              meProfile = mapSupabaseProfile(myProfileData as SupabaseProfile);
+            }
+          }
         }
 
-        const { data, error } = await query;
+        if (!active) return;
+
+        setCurrentProfileId(resolvedProfileId);
+        setCurrentProfile(meProfile);
+
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .limit(80)
+          .order('created_at', { ascending: false });
+
+        if (!active) return;
 
         if (error) throw error;
 
-        const visibleProfiles = ((data as Array<Profile & { role?: string | null; email?: string | null }>) || [])
-          .filter((profile) => !isHiddenAdminProfile(profile));
+        const mappedProfiles = ((data as SupabaseProfile[] | null) || []).map(mapSupabaseProfile);
+        const filteredProfiles = filterNonAdminProfiles(mappedProfiles)
+          .filter((profile) => !isHiddenAdminProfile(profile))
+          .filter((profile) => !resolvedProfileId || profile.id !== resolvedProfileId);
 
-        setProfiles(visibleProfiles as Profile[]);
+        setProfiles(filteredProfiles);
       } catch (error) {
         console.error('Error loading profiles:', error);
+        if (active) {
+          setProfiles([]);
+          setCurrentProfileId(null);
+          setCurrentProfile(null);
+        }
       } finally {
-        setLoading(false);
+        if (active) {
+          setLoading(false);
+        }
       }
     };
 
-    loadProfiles();
-  }, [currentUserId]);
+    void loadProfiles();
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     const loadLikedProfiles = async () => {
-      if (!currentUserId) {
+      if (!currentProfileId) {
         setLikedProfiles(new Set());
         return;
       }
@@ -84,7 +239,50 @@ export default function NewHomeView() {
     };
 
     void loadLikedProfiles();
-  }, [currentUserId, getLikedProfileIds]);
+  }, [currentProfileId, getLikedProfileIds]);
+
+  const rankedProfiles = useMemo(() => {
+    return profiles.map((profile) => rankProfile(currentProfile, profile));
+  }, [currentProfile, profiles]);
+
+  const recommendedProfiles = useMemo(() => {
+    return [...rankedProfiles].sort(
+      (a, b) => b.recommendedScore - a.recommendedScore || b.activityTs - a.activityTs,
+    );
+  }, [rankedProfiles]);
+
+  const nearbyProfiles = useMemo(() => {
+    return recommendedProfiles.filter((item) => item.isNearby);
+  }, [recommendedProfiles]);
+
+  const activeProfiles = useMemo(() => {
+    return [...rankedProfiles].sort(
+      (a, b) => b.activityTs - a.activityTs || b.recommendedScore - a.recommendedScore,
+    );
+  }, [rankedProfiles]);
+
+  const displayProfiles = useMemo(() => {
+    if (discoveryMode === 'nearby') return nearbyProfiles;
+    if (discoveryMode === 'active') return activeProfiles;
+    return recommendedProfiles;
+  }, [activeProfiles, discoveryMode, nearbyProfiles, recommendedProfiles]);
+
+  const nearbyCityLabel = currentProfile?.city || 'Twoje miasto';
+
+  const subtitle = useMemo(() => {
+    if (discoveryMode === 'nearby') {
+      if (!currentProfile?.city) {
+        return 'Uzupelnij miasto w profilu, aby zobaczyc osoby najblizej Ciebie.';
+      }
+      return `Pokazujemy osoby z miasta: ${nearbyCityLabel}.`;
+    }
+
+    if (discoveryMode === 'active') {
+      return `Najswiezsze profile i osoby aktywne ostatnio (${displayProfiles.length} wynikow).`;
+    }
+
+    return `Dopasowalismy ${displayProfiles.length} osob na podstawie zainteresowan, celu relacji i aktywnosci.`;
+  }, [currentProfile?.city, discoveryMode, displayProfiles.length, nearbyCityLabel]);
 
   const toggleLike = async (profileId: string) => {
     const wasLiked = likedProfiles.has(profileId);
@@ -128,17 +326,38 @@ export default function NewHomeView() {
             Odkrywaj <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 to-fuchsia-400 font-medium">nowe znajomości</span>
           </h1>
           <p className="text-cyan-400/70 font-light text-lg">
-            Znaleźliśmy {profiles.length} osób w Twojej okolicy, które pasują do Twoich preferencji.
+            {subtitle}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <button className="px-5 py-2.5 rounded-full glass border-cyan-500/30 bg-cyan-500/10 text-sm font-medium transition-all shadow-[inset_0_0_15px_rgba(0,255,255,0.1)] text-cyan-300 hover:bg-cyan-500/20">
+          <button
+            onClick={() => setDiscoveryMode('recommended')}
+            className={`px-5 py-2.5 rounded-full glass text-sm transition-all ${
+              discoveryMode === 'recommended'
+                ? 'border-cyan-500/30 bg-cyan-500/10 font-medium text-cyan-300 shadow-[inset_0_0_15px_rgba(0,255,255,0.1)]'
+                : 'border-cyan-500/30 font-light text-cyan-300/70 hover:bg-cyan-500/10 hover:border-cyan-500/50'
+            }`}
+          >
             <Sparkle className="inline-block mr-1.5 text-cyan-400" size={16} weight="fill" /> Rekomendowani
           </button>
-          <button className="px-5 py-2.5 rounded-full glass border-cyan-500/30 text-sm font-light text-cyan-300/70 transition-all hover:bg-cyan-500/10 hover:border-cyan-500/50">
-            W pobliżu
+          <button
+            onClick={() => setDiscoveryMode('nearby')}
+            className={`px-5 py-2.5 rounded-full glass text-sm transition-all ${
+              discoveryMode === 'nearby'
+                ? 'border-cyan-500/30 bg-cyan-500/10 font-medium text-cyan-300 shadow-[inset_0_0_15px_rgba(0,255,255,0.1)]'
+                : 'border-cyan-500/30 font-light text-cyan-300/70 hover:bg-cyan-500/10 hover:border-cyan-500/50'
+            }`}
+          >
+            W pobliżu {currentProfile?.city ? `(${nearbyCityLabel})` : ''}
           </button>
-          <button className="px-5 py-2.5 rounded-full glass border-cyan-500/30 text-sm font-light text-cyan-300/70 transition-all hover:bg-cyan-500/10 hover:border-cyan-500/50">
+          <button
+            onClick={() => setDiscoveryMode('active')}
+            className={`px-5 py-2.5 rounded-full glass text-sm transition-all ${
+              discoveryMode === 'active'
+                ? 'border-cyan-500/30 bg-cyan-500/10 font-medium text-cyan-300 shadow-[inset_0_0_15px_rgba(0,255,255,0.1)]'
+                : 'border-cyan-500/30 font-light text-cyan-300/70 hover:bg-cyan-500/10 hover:border-cyan-500/50'
+            }`}
+          >
             Aktywni
           </button>
         </div>
@@ -148,10 +367,20 @@ export default function NewHomeView() {
       <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6 lg:gap-8 mt-8">
         {loading ? (
           <div className="col-span-full text-center text-cyan-400">Ładowanie profili...</div>
+        ) : discoveryMode === 'nearby' && !currentProfile?.city ? (
+          <div className="col-span-full text-center text-cyan-300/80 glass rounded-2xl border border-cyan-500/20 p-10">
+            Uzupełnij miasto w profilu, aby lista „W pobliżu” działała precyzyjnie.
+          </div>
+        ) : displayProfiles.length === 0 ? (
+          <div className="col-span-full text-center text-cyan-300/80 glass rounded-2xl border border-cyan-500/20 p-10">
+            Brak wyników dla tej kategorii. Spróbuj innego filtru.
+          </div>
         ) : (
-          profiles.slice(0, 12).map((profile, idx) => {
+          displayProfiles.slice(0, 12).map((item, idx) => {
+            const profile = item.profile;
             const isLiked = likedProfiles.has(profile.id);
-            const matchScore = [98, 95, 87, 92, 88, 91][idx % 6];
+            const matchScore = item.matchScore;
+            const isRecentlyActive = item.activityTs > 0 && Date.now() - item.activityTs <= 24 * 3600000;
 
             return (
               <div
@@ -190,7 +419,12 @@ export default function NewHomeView() {
                           </span>
                         </div>
                       )}
-                      {idx === 0 && (
+                      {item.sharedInterests > 0 && (
+                        <div className="bg-black/40 backdrop-blur-md px-2.5 py-1 rounded-full border border-cyan-500/30 text-[10px] font-semibold text-cyan-200 shadow-[0_0_8px_rgba(34,211,238,0.25)]">
+                          Wspólne: {item.sharedInterests}
+                        </div>
+                      )}
+                      {isRecentlyActive && (
                         <div className="w-3 h-3 bg-green-400 rounded-full shadow-[0_0_10px_rgba(74,222,128,0.8)] border-2 border-black"></div>
                       )}
                     </div>

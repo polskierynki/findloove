@@ -1,13 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import { Mail } from 'lucide-react';
 import { ViewType } from '@/lib/types';
 import { useLegal } from '@/lib/context/LegalContext';
 import LegalModal from '@/components/layout/LegalModal';
 import { TERMS_OF_SERVICE } from '@/lib/legal/termsOfService';
 import { PRIVACY_POLICY } from '@/lib/legal/privacyPolicy';
-import BrandWordmark from './BrandWordmark';
 
 interface FooterProps {
   onNavigate?: (view: ViewType | 'myprofile') => void;
@@ -15,22 +13,20 @@ interface FooterProps {
 
 export default function Footer({ onNavigate }: FooterProps) {
   const { openTerms, openPrivacy, showTerms, showPrivacy, closeTerms, closePrivacy } = useLegal();
-  const [year, setYear] = useState<number>(() => new Date().getUTCFullYear());
-
-  useEffect(() => {
-    setYear(new Date().getUTCFullYear());
-  }, []);
+  const year = new Date().getUTCFullYear();
 
   return (
     <footer className="mt-20 border-t border-cyan-500/20 bg-black/60 backdrop-blur-md">
       <div className="max-w-[2200px] mx-auto px-6 lg:px-12 py-10">
         <div className="grid md:grid-cols-3 gap-8 mb-8">
           <div>
-            <div className="mb-4 text-white">
-              <BrandWordmark 
-                className="text-2xl md:text-3xl font-semibold tracking-wide" 
-                accentClassName="text-cyan-400"
-              />
+            <div
+              className="mb-4 text-white inline-flex items-center gap-2 cursor-pointer group"
+              onClick={() => onNavigate?.('home')}
+            >
+              <span className="text-xl md:text-2xl lg:text-3xl font-semibold tracking-wide bg-clip-text text-transparent bg-gradient-to-r from-fuchsia-400 to-cyan-400 group-hover:text-glow-magenta transition-all duration-300">
+                findloove.pl
+              </span>
             </div>
             <p className="text-sm text-white/70 font-light leading-relaxed">Społeczność findloove.pl łączy ludzi szukających realnych relacji.</p>
           </div>

@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="48" y1="48" x2="464" y2="464" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#161028" />
+      <stop offset="1" stop-color="#070512" />
+    </linearGradient>
+    <radialGradient id="orbCyan" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(366 156) rotate(132.187) scale(212.665)">
+      <stop stop-color="#22d3ee" stop-opacity="0.35" />
+      <stop offset="1" stop-color="#22d3ee" stop-opacity="0" />
+    </radialGradient>
+    <radialGradient id="orbMagenta" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(162 344) rotate(-42.334) scale(222.081)">
+      <stop stop-color="#e879f9" stop-opacity="0.35" />
+      <stop offset="1" stop-color="#e879f9" stop-opacity="0" />
+    </radialGradient>
+    <linearGradient id="infinityStroke" x1="120" y1="176" x2="392" y2="336" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#f472b6" />
+      <stop offset="1" stop-color="#22d3ee" />
+    </linearGradient>
+    <filter id="softGlow" x="74" y="146" width="364" height="220" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="9" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+    <filter id="heartGlow" x="214" y="212" width="84" height="84" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="3" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+
+  <rect x="32" y="32" width="448" height="448" rx="116" fill="url(#bg)" />
+  <rect x="32.75" y="32.75" width="446.5" height="446.5" rx="115.25" stroke="#38bdf8" stroke-opacity="0.25" stroke-width="1.5" />
+
+  <circle cx="366" cy="156" r="176" fill="url(#orbCyan)" />
+  <circle cx="162" cy="344" r="176" fill="url(#orbMagenta)" />
+
+  <g filter="url(#softGlow)">
+    <path
+      d="M132 256C132 200 184 198 224 238L256 270L288 238C328 198 380 200 380 256C380 312 328 314 288 274L256 242L224 274C184 314 132 312 132 256Z"
+      stroke="url(#infinityStroke)"
+      stroke-width="34"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    />
+  </g>
+
+  <g filter="url(#heartGlow)">
+    <path
+      d="M256 285L252.78 282.02C235.2 265.93 224 255.49 224 242.76C224 232.32 232.2 224 242.4 224C248.16 224 253.68 226.77 257 231.14C260.32 226.77 265.84 224 271.6 224C281.8 224 290 232.32 290 242.76C290 255.49 278.8 265.93 261.22 282.02L258 285H256Z"
+      fill="#fb7185"
+    />
+  </g>
+</svg>

@@ -75,6 +75,7 @@ export interface Profile {
 // Surowy format z Supabase
 export interface SupabaseProfile {
   id: string;
+  email?: string | null;
   name: string;
   age: number;
   city: string;
@@ -165,6 +166,7 @@ export function mapSupabaseProfile(p: SupabaseProfile): Profile {
     interests: p.interests ?? [],
     status: p.status,
     image_url: safeImageUrl,
+    email: p.email ?? undefined,
     isVerified: p.is_verified,
     verificationPending: p.verification_pending,
     gender: p.gender,
@@ -183,6 +185,10 @@ export function mapSupabaseProfile(p: SupabaseProfile): Profile {
       zodiac: p.zodiac,
       smoking: p.smoking,
       children: p.children,
+      drinking: p.drinking,
+      pets: p.pets,
+      sexual_orientation: p.sexual_orientation,
+      looking_for: p.looking_for,
     },
   };
 }
