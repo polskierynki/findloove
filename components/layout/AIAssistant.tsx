@@ -2,9 +2,10 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useChat } from 'ai/react';
-import { createPortal } from 'react-dom';
-import EmojiPicker from 'emoji-picker-react';
-import { X, Send } from 'lucide-react';
+import { X } from 'lucide-react';
+import { Smiley, PaperPlaneRight } from '@phosphor-icons/react';
+import EmojiPopover from '@/components/ui/EmojiPopover';
+import HoverHintIconButton from '@/components/ui/HoverHintIconButton';
 
 interface AIAssistantProps {
   isOpen: boolean;
@@ -14,12 +15,8 @@ interface AIAssistantProps {
 export default function AIAssistant({ isOpen, onClose }: AIAssistantProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-  const [isClient, setIsClient] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
+  const emojiButtonRef = useRef<HTMLButtonElement>(null);
 
   const { messages, input, handleInputChange, handleSubmit, isLoading, setMessages } = useChat({
     api: '/api/chat',
@@ -43,6 +40,26 @@ export default function AIAssistant({ isOpen, onClose }: AIAssistantProps) {
     'Jak rozpoznać oszusta?',
     'Jak działają Szybkie Randki?',
   ];
+
+  const insertEmoji = (emoji: string) => {
+    const inputEl = inputRef.current;
+    if (!inputEl) {
+      handleInputChange({ target: { value: input + emoji } } as React.ChangeEvent<HTMLInputElement>);
+      return;
+    }
+
+    const selectionStart = inputEl.selectionStart ?? input.length;
+    const selectionEnd = inputEl.selectionEnd ?? input.length;
+
+    const nextValue = `${input.slice(0, selectionStart)}${emoji}${input.slice(selectionEnd)}`;
+    handleInputChange({ target: { value: nextValue } } as React.ChangeEvent<HTMLInputElement>);
+
+    window.requestAnimationFrame(() => {
+      const nextCaret = selectionStart + emoji.length;
+      inputEl.focus();
+      inputEl.setSelectionRange(nextCaret, nextCaret);
+    });
+  };
 
   if (!isOpen) return null;
 
@@ -134,7 +151,10 @@ export default function AIAssistant({ isOpen, onClose }: AIAssistantProps) {
       <div className="border-t border-slate-100 bg-white p-3 shrink-0">
         <form
           id="serduszko-form"
-          onSubmit={handleSubmit}
+          onSubmit={(event) => {
+            setShowEmojiPicker(false);
+            handleSubmit(event);
+          }}
           className="flex gap-2 items-center"
         >
           <input
@@ -144,43 +164,31 @@ export default function AIAssistant({ isOpen, onClose }: AIAssistantProps) {
             placeholder="Napisz do Pana Serduszko..."
             className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-rose-200 transition-all"
           />
-          <button
-            type="button"
-            onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-            className="bg-rose-100 text-rose-600 p-2.5 rounded-xl hover:bg-rose-200 transition-all"
-            title="Dodaj emoji"
-          >
-            😀
-          </button>
-          <button
+          <HoverHintIconButton
+            ref={emojiButtonRef}
+            onClick={() => setShowEmojiPicker((prev) => !prev)}
+            tooltip="Wstaw emoji"
+            regularIcon={<Smiley size={16} weight="regular" />}
+            filledIcon={<Smiley size={16} weight="fill" />}
+            variant="rose"
+          />
+          <HoverHintIconButton
             type="submit"
             disabled={!input.trim() || isLoading}
-            className="bg-rose-500 text-white p-2.5 rounded-xl hover:bg-rose-600 disabled:opacity-40 transition-all"
-          >
-            <Send size={16} />
-          </button>
+            tooltip="Wyślij wiadomość"
+            regularIcon={<PaperPlaneRight size={16} weight="regular" />}
+            filledIcon={<PaperPlaneRight size={16} weight="fill" />}
+            variant="rose"
+          />
         </form>
-        {showEmojiPicker && isClient && createPortal(
-          <div className="fixed inset-0 z-[199]" onClick={() => setShowEmojiPicker(false)}>
-            <div
-              className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white border border-slate-200 rounded-xl shadow-xl flex justify-center p-4"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <EmojiPicker
-                onEmojiClick={(e) => {
-                  handleInputChange({
-                    target: { value: input + e.emoji },
-                  } as React.ChangeEvent<HTMLInputElement>);
-                  inputRef.current?.focus();
-                  setShowEmojiPicker(false);
-                }}
-                height={300}
-                width={280}
-              />
-            </div>
-          </div>,
-          document.body,
-        )}
+        <EmojiPopover
+          open={showEmojiPicker}
+          anchorRef={emojiButtonRef}
+          onClose={() => setShowEmojiPicker(false)}
+          onSelect={insertEmoji}
+          searchPlaceholder="Szukaj emoji"
+          zIndex={230}
+        />
       </div>
     </div>
   );

@@ -23,6 +23,7 @@ import {
   X,
   CaretLeft,
   CaretRight,
+  Smiley,
 } from '@phosphor-icons/react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
@@ -31,6 +32,7 @@ import { Profile } from '@/lib/types';
 import { useLikes } from '@/lib/hooks/useLikes';
 import { ALL_INTERESTS } from './constants/profileFormOptions';
 import EmojiPopover from '@/components/ui/EmojiPopover';
+import HoverHintIconButton from '@/components/ui/HoverHintIconButton';
 
 type AppComment = {
   id: string;
@@ -620,25 +622,27 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
                   }}
                   className="w-full bg-black/40 border border-cyan-500/20 rounded-full py-3.5 pl-6 pr-24 text-base text-white placeholder-cyan-400/40 outline-none backdrop-blur-md transition-all focus:bg-black/60 focus:border-cyan-500/50 shadow-[inset_0_0_10px_rgba(0,255,255,0.05)]"
                 />
-                <button
+                <HoverHintIconButton
                   ref={generalCommentEmojiButtonRef}
-                  type="button"
                   onClick={() => {
                     setShowPhotoCommentEmojiPicker(false);
                     setShowGeneralCommentEmojiPicker((prev) => !prev);
                   }}
-                  className="absolute right-14 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-cyan-500/10 flex items-center justify-center text-cyan-400 hover:bg-cyan-500/20 transition-all"
-                  title="Dodaj emoji"
-                >
-                  😀
-                </button>
-                <button
+                  tooltip="Wstaw emoji"
+                  regularIcon={<Smiley size={18} weight="regular" />}
+                  filledIcon={<Smiley size={18} weight="fill" />}
+                  variant="cyan"
+                  wrapperClassName="absolute right-14 top-1/2 -translate-y-1/2"
+                />
+                <HoverHintIconButton
                   onClick={() => void handleAddGeneralComment()}
                   disabled={isSubmittingComment || !commentText.trim()}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-cyan-500/20 flex items-center justify-center text-cyan-400 hover:bg-cyan-500 hover:text-cyan-300 transition-all hover:shadow-[0_0_15px_rgba(0,255,255,0.6)] disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  <PaperPlaneTilt size={18} weight="fill" />
-                </button>
+                  tooltip="Wyślij komentarz"
+                  regularIcon={<PaperPlaneTilt size={18} weight="regular" />}
+                  filledIcon={<PaperPlaneTilt size={18} weight="fill" />}
+                  variant="cyan"
+                  wrapperClassName="absolute right-2 top-1/2 -translate-y-1/2"
+                />
               </div>
               <EmojiPopover
                 open={showGeneralCommentEmojiPicker}
@@ -970,26 +974,30 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
                     disabled={!photoCommentsTableAvailable}
                     className="w-full bg-black/40 border border-cyan-500/20 rounded-full py-3 pl-5 pr-20 text-sm text-white placeholder-cyan-400/40 outline-none focus:border-cyan-500/50 transition-all disabled:opacity-50"
                   />
-                  <button
+                  <HoverHintIconButton
                     ref={photoCommentEmojiButtonRef}
-                    type="button"
                     onClick={() => {
                       setShowGeneralCommentEmojiPicker(false);
                       setShowPhotoCommentEmojiPicker((prev) => !prev);
                     }}
                     disabled={!photoCommentsTableAvailable}
-                    className="absolute right-10 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-cyan-500/10 flex items-center justify-center text-sm hover:bg-cyan-500/20 transition-all disabled:opacity-50"
-                    title="Dodaj emoji"
-                  >
-                    😀
-                  </button>
-                  <button
+                    tooltip="Wstaw emoji"
+                    regularIcon={<Smiley size={16} weight="regular" />}
+                    filledIcon={<Smiley size={16} weight="fill" />}
+                    variant="cyan"
+                    size="sm"
+                    wrapperClassName="absolute right-10 top-1/2 -translate-y-1/2"
+                  />
+                  <HoverHintIconButton
                     onClick={() => void handleAddPhotoComment()}
                     disabled={isSubmittingPhotoComment || !photoCommentText.trim() || !photoCommentsTableAvailable}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-cyan-500/20 flex items-center justify-center text-cyan-300 hover:bg-cyan-500 hover:text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                  >
-                    <PaperPlaneTilt size={16} weight="fill" />
-                  </button>
+                    tooltip="Wyślij komentarz"
+                    regularIcon={<PaperPlaneTilt size={16} weight="regular" />}
+                    filledIcon={<PaperPlaneTilt size={16} weight="fill" />}
+                    variant="cyan"
+                    size="sm"
+                    wrapperClassName="absolute right-2 top-1/2 -translate-y-1/2"
+                  />
                 </div>
                 <EmojiPopover
                   open={showPhotoCommentEmojiPicker}

@@ -5,6 +5,7 @@ import { MagnifyingGlass, Prohibit, Trash, Flag, PaperPlaneRight, ArrowLeft, Smi
 import { supabase } from '@/lib/supabase';
 import { resolveProfileIdForAuthUser } from '@/lib/profileAuth';
 import EmojiPopover from '@/components/ui/EmojiPopover';
+import HoverHintIconButton from '@/components/ui/HoverHintIconButton';
 
 interface Message {
   id: string;
@@ -813,22 +814,24 @@ export default function NewMessagesView() {
                     }}
                     className="flex-1 bg-transparent border-none text-white text-sm px-4 outline-none"
                   />
-                  <button
+                  <HoverHintIconButton
                     ref={messageEmojiButtonRef}
-                    type="button"
                     onClick={() => setShowMessageEmojiPicker((prev) => !prev)}
-                    className="w-10 h-10 rounded-full border border-cyan-500/25 bg-cyan-500/10 flex items-center justify-center text-cyan-300 hover:bg-cyan-500/20 hover:border-cyan-400/40 transition-all mr-1"
-                    title="Emoji"
-                  >
-                    <Smiley size={18} weight="bold" />
-                  </button>
-                  <button 
+                    tooltip="Wstaw emoji"
+                    regularIcon={<Smiley size={18} weight="regular" />}
+                    filledIcon={<Smiley size={18} weight="fill" />}
+                    variant="cyan"
+                    wrapperClassName="mr-1"
+                  />
+                  <HoverHintIconButton
                     onClick={sendMessage}
                     disabled={!messageText.trim() || !currentUserId}
-                    className="w-10 h-10 bg-gradient-to-tr from-fuchsia-600 to-cyan-600 rounded-full flex items-center justify-center text-white hover:scale-105 transition-transform shadow-[0_0_15px_rgba(255,0,255,0.4)] mr-1 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
-                  >
-                    <PaperPlaneRight size={18} weight="fill" />
-                  </button>
+                    tooltip="Wyślij wiadomość"
+                    regularIcon={<PaperPlaneRight size={18} weight="regular" />}
+                    filledIcon={<PaperPlaneRight size={18} weight="fill" />}
+                    variant="cyan"
+                    wrapperClassName="mr-1"
+                  />
                 </div>
                 <EmojiPopover
                   open={showMessageEmojiPicker}
