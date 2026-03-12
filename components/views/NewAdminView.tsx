@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Users, Activity, AlertTriangle, TrendingUp, MessageCircle, Eye, Ban, Check, X, Flag, Trash2, Plus, Minus } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
@@ -34,9 +35,11 @@ interface CommentReport {
 }
 
 export default function NewAdminView() {
+  const router = useRouter();
   const [users, setUsers] = useState<User[]>([]);
   const [reports, setReports] = useState<CommentReport[]>([]);
   const [loading, setLoading] = useState(true);
+  const [busyUserId, setBusyUserId] = useState<string | null>(null);
 
   // Stats
   const [stats, setStats] = useState({
@@ -139,6 +142,9 @@ export default function NewAdminView() {
   };
 
   const handleBanUser = async (userId: string) => {
+    if (busyUserId === userId) return;
+    setBusyUserId(userId);
+
     try {
       const { error } = await supabase
         .from('profiles')
@@ -153,10 +159,15 @@ export default function NewAdminView() {
     } catch (err) {
       console.error('Error banning user:', err);
       alert('Błąd przy banowaniu użytkownika');
+    } finally {
+      setBusyUserId((prev) => (prev === userId ? null : prev));
     }
   };
 
   const handleUnbanUser = async (userId: string) => {
+    if (busyUserId === userId) return;
+    setBusyUserId(userId);
+
     try {
       const { error } = await supabase
         .from('profiles')
@@ -171,7 +182,33 @@ export default function NewAdminView() {
     } catch (err) {
       console.error('Error unbanning user:', err);
       alert('Błąd przy odblokowaniu użytkownika');
+    } finally {
+      setBusyUserId((prev) => (prev === userId ? null : prev));
     }
+  };
+
+  const handleOpenProfilePreview = (userId: string) => {
+    router.push(`/profile/${encodeURIComponent(userId)}`);
+  };
+
+  const handleSendMessageToUser = (userId: string) => {
+    router.push(`/messages?user=${encodeURIComponent(userId)}`);
+  };
+
+  const handleToggleUserBan = async (user: User) => {
+    const confirmed = window.confirm(
+      user.isBanned
+        ? `Czy na pewno chcesz odblokować użytkownika "${user.name || 'Bez nazwy'}"?`
+        : `Czy na pewno chcesz zbanować użytkownika "${user.name || 'Bez nazwy'}"?`,
+    );
+    if (!confirmed) return;
+
+    if (user.isBanned) {
+      await handleUnbanUser(user.id);
+      return;
+    }
+
+    await handleBanUser(user.id);
   };
 
   // Ręczna korekta liczby strajków (+1 lub -1)
@@ -319,14 +356,14 @@ export default function NewAdminView() {
           </h2>
 
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full table-fixed">
               <thead>
                 <tr className="border-b border-white/10">
                   <th className="text-left text-sm text-cyan-400 font-medium pb-3 px-2">Użytkownik</th>
-                  <th className="text-left text-sm text-cyan-400 font-medium pb-3 px-2">Status</th>
-                  <th className="text-left text-sm text-cyan-400 font-medium pb-3 px-2">Strajki</th>
-                  <th className="text-left text-sm text-cyan-400 font-medium pb-3 px-2">Data Reg.</th>
-                  <th className="text-right text-sm text-cyan-400 font-medium pb-3 px-2">Akcje</th>
+                  <th className="text-center text-sm text-cyan-400 font-medium pb-3 px-2">Status</th>
+                  <th className="text-center text-sm text-cyan-400 font-medium pb-3 px-2">Strajki</th>
+                  <th className="text-center text-sm text-cyan-400 font-medium pb-3 px-2">Data rejestracji</th>
+                  <th className="text-center text-sm text-cyan-400 font-medium pb-3 px-2">Akcje</th>
                 </tr>
               </thead>
               <tbody>
@@ -349,19 +386,21 @@ export default function NewAdminView() {
                         </div>
                       </div>
                     </td>
-                    <td className="py-3 px-2">
-                      {user.isBanned ? (
-                        <span className="inline-flex items-center gap-1 bg-red-500/20 border border-red-500/40 text-red-400 text-xs px-2 py-1 rounded-full">
-                          Zbanowany
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 bg-green-500/20 border border-green-500/40 text-green-400 text-xs px-2 py-1 rounded-full">
-                          Aktywny
-                        </span>
-                      )}
+                    <td className="py-3 px-2 text-center">
+                      <div className="flex justify-center">
+                        {user.isBanned ? (
+                          <span className="inline-flex items-center gap-1 bg-red-500/20 border border-red-500/40 text-red-400 text-xs px-2 py-1 rounded-full">
+                            Zbanowany
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 bg-green-500/20 border border-green-500/40 text-green-400 text-xs px-2 py-1 rounded-full">
+                            Aktywny
+                          </span>
+                        )}
+                      </div>
                     </td>
-                    <td className="py-3 px-2">
-                      <div className="flex items-center gap-1.5">
+                    <td className="py-3 px-2 text-center">
+                      <div className="flex items-center justify-center gap-1.5">
                         <button
                           title="Zdejmij ostrzeżenie"
                           onClick={() => handleAdjustStrikes(user.id, -1)}
@@ -383,32 +422,42 @@ export default function NewAdminView() {
                         </button>
                       </div>
                     </td>
-                    <td className="py-3 px-2">
+                    <td className="py-3 px-2 text-center">
                       <p className="text-xs text-cyan-400/60">
                         {new Date(user.created_at).toLocaleDateString('pl-PL')}
                       </p>
                     </td>
-                    <td className="py-3 px-2">
-                      <div className="flex gap-2 justify-end">
-                        <button title="Wyślij wiadomość" className="w-8 h-8 rounded-lg bg-white/10 hover:bg-cyan-500/20 flex items-center justify-center text-cyan-400 transition-colors">
+                    <td className="py-3 px-2 text-center">
+                      <div className="flex gap-2 justify-center">
+                        <button
+                          title="Wyślij wiadomość"
+                          onClick={() => handleSendMessageToUser(user.id)}
+                          className="w-8 h-8 rounded-lg bg-white/10 hover:bg-cyan-500/20 flex items-center justify-center text-cyan-400 transition-colors"
+                        >
                           <MessageCircle size={16} />
                         </button>
-                        <button title="Podgląd profilu" className="w-8 h-8 rounded-lg bg-white/10 hover:bg-blue-500/20 flex items-center justify-center text-blue-400 transition-colors">
+                        <button
+                          title="Podgląd profilu"
+                          onClick={() => handleOpenProfilePreview(user.id)}
+                          className="w-8 h-8 rounded-lg bg-white/10 hover:bg-blue-500/20 flex items-center justify-center text-blue-400 transition-colors"
+                        >
                           <Eye size={16} />
                         </button>
                         {user.isBanned ? (
                           <button
                             title="Odbanuj użytkownika"
-                            onClick={() => handleUnbanUser(user.id)}
-                            className="w-8 h-8 rounded-lg bg-green-500/20 hover:bg-green-500/30 flex items-center justify-center text-green-400 transition-colors"
+                            onClick={() => void handleToggleUserBan(user)}
+                            disabled={busyUserId === user.id}
+                            className="w-8 h-8 rounded-lg bg-green-500/20 hover:bg-green-500/30 flex items-center justify-center text-green-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             <Check size={16} />
                           </button>
                         ) : (
                           <button
                             title="Zbanuj użytkownika"
-                            onClick={() => handleBanUser(user.id)}
-                            className="w-8 h-8 rounded-lg bg-red-500/20 hover:bg-red-500/30 flex items-center justify-center text-red-400 transition-colors"
+                            onClick={() => void handleToggleUserBan(user)}
+                            disabled={busyUserId === user.id}
+                            className="w-8 h-8 rounded-lg bg-red-500/20 hover:bg-red-500/30 flex items-center justify-center text-red-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             <Ban size={16} />
                           </button>
