@@ -25,12 +25,16 @@ import {
   CaretRight,
   Smiley,
   Flag,
+  UserPlus,
+  UserMinus,
+  UserCheck,
 } from '@phosphor-icons/react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { resolveProfileIdForAuthUser } from '@/lib/profileAuth';
 import { Profile } from '@/lib/types';
 import { useLikes } from '@/lib/hooks/useLikes';
+import { useFriends, type FriendshipStatus } from '@/lib/hooks/useFriends';
 import { ALL_INTERESTS } from './constants/profileFormOptions';
 import EmojiPopover from '@/components/ui/EmojiPopover';
 import HoverHintIconButton from '@/components/ui/HoverHintIconButton';
@@ -74,6 +78,11 @@ function formatRelativeTime(timestamp: string): string {
 export default function NewProfileDetailView({ profileId }: { profileId: string }) {
   const router = useRouter();
   const { likeProfile, unlikeProfile, hasLikedProfile } = useLikes();
+  const { sendFriendRequest, acceptFriendRequest, removeFriendship, getFriendshipStatus } = useFriends();
+
+  const [friendshipStatus, setFriendshipStatus] = useState<FriendshipStatus>('none');
+  const [friendshipId, setFriendshipId] = useState<string | null>(null);
+  const [friendshipLoading, setFriendshipLoading] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [comments, setComments] = useState<AppComment[]>([]);
   const [photoComments, setPhotoComments] = useState<AppComment[]>([]);
@@ -436,6 +445,10 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
 
         const liked = await hasLikedProfile(profileId);
         setIsLiked(liked);
+
+        const fs = await getFriendshipStatus(profileId);
+        setFriendshipStatus(fs.status);
+        setFriendshipId(fs.friendshipId);
       } catch (error) {
         console.error('Error loading profile:', error);
       } finally {
@@ -444,7 +457,7 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
     };
 
     void loadProfile();
-  }, [hasLikedProfile, loadGeneralComments, profileId]);
+  }, [hasLikedProfile, getFriendshipStatus, loadGeneralComments, profileId]);
 
   useEffect(() => {
     setIsClient(true);
@@ -815,6 +828,57 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
               </div>
               <span className="text-[10px] font-medium text-cyan-400 group-hover:text-cyan-300 transition-colors uppercase tracking-wider mt-1">
                 Prezent
+              </span>
+            </button>
+
+            {/* Friend Request Button */}
+            <button
+              disabled={friendshipLoading}
+              onClick={async () => {
+                setFriendshipLoading(true);
+                try {
+                  if (friendshipStatus === 'none' || friendshipStatus === 'declined') {
+                    await sendFriendRequest(profileId);
+                    setFriendshipStatus('pending_sent');
+                  } else if (friendshipStatus === 'pending_received' && friendshipId) {
+                    await acceptFriendRequest(friendshipId);
+                    setFriendshipStatus('accepted');
+                  } else if (friendshipStatus === 'accepted' && friendshipId) {
+                    await removeFriendship(friendshipId);
+                    setFriendshipStatus('none');
+                    setFriendshipId(null);
+                  }
+                } catch (err) {
+                  console.error('Friendship action error:', err);
+                } finally {
+                  setFriendshipLoading(false);
+                }
+              }}
+              className="cta-dock-btn flex flex-col items-center justify-center gap-1 p-2 group w-16 disabled:opacity-50"
+            >
+              <div className={`w-12 h-12 rounded-full border flex items-center justify-center transition-all shadow-inner ${
+                friendshipStatus === 'accepted'
+                  ? 'bg-green-500/20 border-green-500/50'
+                  : friendshipStatus === 'pending_sent'
+                  ? 'bg-yellow-500/20 border-yellow-500/50'
+                  : friendshipStatus === 'pending_received'
+                  ? 'bg-blue-500/20 border-blue-500/50'
+                  : 'bg-white/10 border-cyan-500/20 group-hover:bg-blue-500/20 group-hover:border-blue-500/50'
+              }`}>
+                {friendshipStatus === 'accepted' ? (
+                  <UserCheck size={20} className="text-green-400" />
+                ) : friendshipStatus === 'pending_sent' ? (
+                  <UserCheck size={20} className="text-yellow-400" />
+                ) : friendshipStatus === 'pending_received' ? (
+                  <UserPlus size={20} className="text-blue-400" />
+                ) : (
+                  <UserPlus size={20} className="text-cyan-400 group-hover:text-blue-400 transition-all" />
+                )}
+              </div>
+              <span className="text-[10px] font-medium text-cyan-400 group-hover:text-cyan-300 transition-colors uppercase tracking-wider mt-1">
+                {friendshipStatus === 'accepted' ? 'Znajomy' :
+                 friendshipStatus === 'pending_sent' ? 'Wysłano' :
+                 friendshipStatus === 'pending_received' ? 'Akceptuj' : 'Znajomi'}
               </span>
             </button>
 

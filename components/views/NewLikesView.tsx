@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Heart, ChatCircle, Sparkle, MapPin, HeartBreak } from '@phosphor-icons/react';
 import { supabase } from '@/lib/supabase';
+import { resolveProfileIdForAuthUser } from '@/lib/profileAuth';
 import { Profile } from '@/lib/types';
 import { LOOKING_FOR_OPTIONS } from './constants/profileFormOptions';
 
@@ -22,11 +23,23 @@ export default function NewLikesView() {
           return;
         }
 
-        // Get all likes from this user
+        // Resolve the real profile ID (handles legacy accounts where profile.id ≠ auth.uid())
+        const profileId = await resolveProfileIdForAuthUser({
+          id: user.id,
+          email: user.email,
+          user_metadata: user.user_metadata,
+        });
+
+        if (!profileId) {
+          setLoading(false);
+          return;
+        }
+
+        // Get all likes from this profile
         const { data: likes, error: likesError } = await supabase
           .from('likes')
           .select('to_profile_id')
-          .eq('from_profile_id', user.id);
+          .eq('from_profile_id', profileId);
 
         if (likesError) throw likesError;
 
@@ -62,10 +75,17 @@ export default function NewLikesView() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
+      const myProfileId = await resolveProfileIdForAuthUser({
+        id: user.id,
+        email: user.email,
+        user_metadata: user.user_metadata,
+      });
+      if (!myProfileId) return;
+
       await supabase
         .from('likes')
         .delete()
-        .eq('from_profile_id', user.id)
+        .eq('from_profile_id', myProfileId)
         .eq('to_profile_id', profileId);
 
       setLikedProfiles((prev) => prev.filter((p) => p.id !== profileId));
