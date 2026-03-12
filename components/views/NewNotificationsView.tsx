@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, BadgeCheck, Bell, Gift, Heart, MessageCircle, RefreshCw } from 'lucide-react';
+import { ArrowLeft, BadgeCheck, Bell, Gift, Heart, MessageCircle, RefreshCw, UserPlus } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { resolveProfileIdForAuthUser } from '@/lib/profileAuth';
 import { formatNotificationTime, useNotifications } from '@/lib/hooks/useNotifications';
@@ -84,13 +84,14 @@ export default function NewNotificationsView({ isAdmin: isAdminFromApp = false }
         verification: 0,
         comment: 0,
       } as Record<'gift' | 'like' | 'poke' | 'verification' | 'comment', number>,
-    );
-  }, [notifications]);
-
-  if (authLoading) {
-    return <div className="pt-28 text-center text-cyan-400">Ładowanie powiadomień...</div>;
-  }
-
+      {
+        gift: 0,
+        like: 0,
+        poke: 0,
+        verification: 0,
+        comment: 0,
+        friend_request: 0,
+      } as Record<'gift' | 'like' | 'poke' | 'verification' | 'comment' | 'friend_request', number>,
   if (!userId) {
     return (
       <div className="relative z-10 pt-28 pb-16 px-6 lg:px-12 max-w-[1400px] mx-auto">
@@ -123,7 +124,7 @@ export default function NewNotificationsView({ isAdmin: isAdminFromApp = false }
             <h1 className="text-4xl md:text-5xl font-light text-white flex items-center gap-3">
               <Bell size={34} className="text-fuchsia-400" /> Centrum powiadomień
             </h1>
-            <p className="text-cyan-300/70 mt-2">W jednym miejscu zobaczysz polubienia, prezenty, zaczepienia, komentarze i status weryfikacji.</p>
+            <p className="text-cyan-300/70 mt-2">W jednym miejscu zobaczysz polubienia, prezenty, zaczepienia, komentarze, zaproszenia znajomych i status weryfikacji.</p>
           </div>
         </div>
 
@@ -135,7 +136,7 @@ export default function NewNotificationsView({ isAdmin: isAdminFromApp = false }
         </button>
       </div>
 
-      <section className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+      <section className="grid grid-cols-2 lg:grid-cols-6 gap-4">
         <div className="glass rounded-2xl p-4 border border-red-500/20">
           <div className="text-xs uppercase tracking-wider text-red-300/70">Polubienia</div>
           <div className="text-3xl text-white mt-2">{counters.like}</div>
@@ -155,6 +156,10 @@ export default function NewNotificationsView({ isAdmin: isAdminFromApp = false }
         <div className="glass rounded-2xl p-4 border border-white/10">
           <div className="text-xs uppercase tracking-wider text-white/60">Komentarze</div>
           <div className="text-3xl text-white mt-2">{counters.comment}</div>
+        </div>
+        <div className="glass rounded-2xl p-4 border border-green-500/20">
+          <div className="text-xs uppercase tracking-wider text-green-300/70">Znajomi</div>
+          <div className="text-3xl text-white mt-2">{counters.friend_request}</div>
         </div>
       </section>
 
@@ -214,6 +219,20 @@ export default function NewNotificationsView({ isAdmin: isAdminFromApp = false }
                   {notification.kind === 'comment' && !notification.actorImageUrl && (
                     <div className="w-11 h-11 rounded-full bg-white/10 border border-white/15 flex items-center justify-center shrink-0">
                       <MessageCircle size={18} className="text-cyan-300" />
+
+                                      {notification.kind === 'friend_request' && notification.actorImageUrl && (
+                                        <img
+                                          src={notification.actorImageUrl}
+                                          className="w-11 h-11 rounded-full object-cover border border-green-500/30 shrink-0 shadow-[0_0_10px_rgba(34,197,94,0.2)]"
+                                          alt={notification.actorName || 'Zaproszenie'}
+                                        />
+                                      )}
+
+                                      {notification.kind === 'friend_request' && !notification.actorImageUrl && (
+                                        <div className="w-11 h-11 rounded-full bg-green-500/20 border border-green-500/30 flex items-center justify-center shrink-0 shadow-[0_0_10px_rgba(34,197,94,0.2)]">
+                                          <UserPlus size={20} className="text-green-400" />
+                                        </div>
+                                      )}
                     </div>
                   )}
 

@@ -5,7 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { resolveProfileIdForAuthUser } from '@/lib/profileAuth';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
-import { Bell, MessageCircle, Shield, Menu, X, Gift, Heart, BadgeCheck, LogIn, LogOut, UserPlus } from 'lucide-react';
+import { Bell, MessageCircle, Shield, Menu, X, Gift, Heart, BadgeCheck, LogIn, LogOut, UserPlus, Users } from 'lucide-react';
 import { useNotifications } from '@/lib/hooks/useNotifications';
 
 type HeaderProfile = {
@@ -479,6 +479,20 @@ export default function NewHeader() {
                           {notification.kind === 'comment' && !notification.actorImageUrl && (
                             <div className="w-10 h-10 rounded-full bg-white/10 border border-white/15 flex items-center justify-center shrink-0">
                               <MessageCircle size={18} className="text-cyan-300" />
+
+                                                      {notification.kind === 'friend_request' && notification.actorImageUrl && (
+                                                        <img
+                                                          src={notification.actorImageUrl}
+                                                          className="w-10 h-10 rounded-full object-cover border border-green-500/30 shrink-0 shadow-[0_0_8px_rgba(34,197,94,0.2)]"
+                                                          alt={notification.actorName || 'Zaproszenie'}
+                                                        />
+                                                      )}
+
+                                                      {notification.kind === 'friend_request' && !notification.actorImageUrl && (
+                                                        <div className="w-10 h-10 rounded-full bg-green-500/20 border border-green-500/30 flex items-center justify-center shrink-0 shadow-[0_0_8px_rgba(34,197,94,0.2)]">
+                                                          <UserPlus size={18} className="text-green-400" />
+                                                        </div>
+                                                      )}
                             </div>
                           )}
 

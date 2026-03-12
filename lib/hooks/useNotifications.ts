@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 
-export type NotificationKind = 'gift' | 'like' | 'poke' | 'verification' | 'comment';
+export type NotificationKind = 'gift' | 'like' | 'poke' | 'verification' | 'comment' | 'friend_request';
 
 export type NotificationItem = {
   id: string;
@@ -86,7 +86,7 @@ export function useNotifications({
     setLoading(true);
 
     try {
-      const [likesRes, interactionsRes, commentsRes] = await Promise.all([
+      const [likesRes, interactionsRes, commentsRes, friendRequestsRes] = await Promise.all([
         supabase
           .from('likes')
           .select('id, from_profile_id, created_at')
@@ -106,6 +106,13 @@ export function useNotifications({
           .in('profile_id', profileTargets)
           .order('created_at', { ascending: false })
           .limit(20),
+        supabase
+          .from('friendships')
+          .select('id, requester_id, created_at')
+          .in('addressee_id', profileTargets)
+          .eq('status', 'pending')
+          .order('created_at', { ascending: false })
+          .limit(10),
       ]);
 
       if (likesRes.error) {
@@ -139,10 +146,20 @@ export function useNotifications({
         id: string;
         author_profile_id: string;
         content: string;
+              type FriendRequestRow = {
+                id: string;
+                requester_id: string;
+                created_at: string;
+              };
         created_at: string;
       };
 
+      const friendRequests = friendRequestsRes.error
+        ? []
+        : ((friendRequestsRes.data as FriendRequestRow[] | null) ?? []);
+
       const likes = (likesRes.data as LikeRow[] | null) ?? [];
+      const interactions = interactionsRes.error
       const interactions = interactionsRes.error
         ? []
         : ((interactionsRes.data as InteractionRow[] | null) ?? []);
@@ -157,6 +174,7 @@ export function useNotifications({
           ...likes.map((row) => row.from_profile_id),
           ...interactions.map((row) => row.from_profile_id),
           ...comments.map((row) => row.author_profile_id),
+          ...friendRequests.map((row) => row.requester_id),
         ]),
       );
 
@@ -251,7 +269,24 @@ export function useNotifications({
         });
       }
 
+      for (const req of friendRequests) {
+        const actor = actorMap.get(req.requester_id);
+        const actorName = actor?.name || 'Ktos';
+
+        nextNotifications.push({
+          id: `friend_request-${req.id}`,
+          kind: 'friend_request',
+          actorName,
+          actorImageUrl: actor?.image_url || undefined,
+          actorProfileId: req.requester_id,
+          message: `${actorName} wyslal Ci zaproszenie do znajomych!`,
+          createdAt: req.created_at,
+          href: buildProfileHref(req.requester_id),
+        });
+      }
+
       if (profileIsVerified) {
+        nextNotifications.push({
         nextNotifications.push({
           id: `verification-${userId}`,
           kind: 'verification',

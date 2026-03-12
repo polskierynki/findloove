@@ -1,5 +1,5 @@
-import App from '../page';
+import NewNotificationsView from '@/components/views/NewNotificationsView';
 
 export default function NotificationsPage() {
-  return <App />;
+  return <NewNotificationsView />;
 }
