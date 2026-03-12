@@ -134,6 +134,8 @@ export interface SupabaseProfileInteraction {
   emoji?: string | null;
   label?: string | null;
   token_cost?: number | null;
+  is_anonymous?: boolean | null;
+  message?: string | null;
   created_at: string;
 }
 

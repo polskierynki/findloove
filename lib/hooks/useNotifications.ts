@@ -226,7 +226,7 @@ export function useNotifications({
           .limit(20),
         supabase
           .from('profile_interactions')
-          .select('id, from_profile_id, kind, label, emoji, created_at')
+          .select('id, from_profile_id, kind, label, emoji, token_cost, is_anonymous, message, created_at')
           .in('to_profile_id', profileTargets)
           .in('kind', ['gift', 'poke'])
           .order('created_at', { ascending: false })
@@ -304,6 +304,9 @@ export function useNotifications({
         kind: 'gift' | 'poke' | 'emote';
         label?: string | null;
         emoji?: string | null;
+        token_cost?: number | null;
+        is_anonymous?: boolean | null;
+        message?: string | null;
         created_at: string;
       };
       type CommentRow = {
@@ -407,18 +410,25 @@ export function useNotifications({
         const actorName = actor?.name || 'Ktos';
 
         if (interaction.kind === 'gift') {
+          const isAnonymous = Boolean(interaction.is_anonymous);
+          const visibleActorName = isAnonymous ? 'Tajemniczy wielbiciel' : actorName;
           const giftLabel = interaction.label ? ` (${interaction.label})` : '';
           const giftEmoji = interaction.emoji ? ` ${interaction.emoji}` : '';
+          const giftMessage = interaction.message
+            ? ` \"${interaction.message.length > 80 ? `${interaction.message.slice(0, 80)}...` : interaction.message}\"`
+            : '';
 
           nextNotifications.push({
             id: `gift-${interaction.id}`,
             kind: 'gift',
-            actorName,
-            actorImageUrl: actor?.image_url || undefined,
-            actorProfileId: interaction.from_profile_id,
-            message: `${actorName} wyslal Ci prezent${giftLabel}!${giftEmoji}`,
+            actorName: visibleActorName,
+            actorImageUrl: isAnonymous ? undefined : (actor?.image_url || undefined),
+            actorProfileId: isAnonymous ? undefined : interaction.from_profile_id,
+            message: `${visibleActorName} wyslal Ci prezent${giftLabel}!${giftEmoji}${giftMessage}`,
             createdAt: interaction.created_at,
-            href: buildProfileHref(interaction.from_profile_id),
+            href: isAnonymous
+              ? (isAdmin ? '/notifications' : '/myprofile')
+              : buildProfileHref(interaction.from_profile_id),
           });
         }
 

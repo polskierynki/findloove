@@ -38,6 +38,7 @@ import { ALL_INTERESTS } from './constants/profileFormOptions';
 import EmojiPopover from '@/components/ui/EmojiPopover';
 import HoverHintIconButton from '@/components/ui/HoverHintIconButton';
 import ReportCommentModal from '@/components/ui/ReportCommentModal';
+import GiftModal, { type GiftSelectionPayload } from '@/components/modals/GiftModal';
 
 type AppComment = {
   id: string;
@@ -57,6 +58,17 @@ type ProfileCommentRow = {
     image_url?: string | null;
     city?: string | null;
   } | null;
+};
+
+type ReceivedGift = {
+  id: string;
+  emoji: string;
+  label: string;
+  tokenCost: number;
+  fromName: string;
+  isAnonymous: boolean;
+  message: string;
+  createdAt: string;
 };
 
 function formatRelativeTime(timestamp: string): string {
@@ -294,6 +306,13 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
   const [authorProfileId, setAuthorProfileId] = useState<string | null>(null);
   const [viewerProfile, setViewerProfile] = useState<CompatibilityProfile | null>(null);
   const [compatibilityLoading, setCompatibilityLoading] = useState(true);
+  const [isGiftModalOpen, setIsGiftModalOpen] = useState(false);
+  const [giftBalance, setGiftBalance] = useState<number>(0);
+  const [giftSending, setGiftSending] = useState(false);
+  const [giftError, setGiftError] = useState<string | null>(null);
+  const [giftNotice, setGiftNotice] = useState<string | null>(null);
+  const [receivedGifts, setReceivedGifts] = useState<ReceivedGift[]>([]);
+  const [receivedGiftsLoading, setReceivedGiftsLoading] = useState(false);
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
   const [isSubmittingPhotoComment, setIsSubmittingPhotoComment] = useState(false);
   const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
@@ -551,24 +570,193 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
     };
   }, [profileId, refreshViewerProfileSnapshot, resolveCurrentAuthorProfileId]);
 
-  const handleSendGiftInteraction = useCallback(async () => {
-    const senderProfileId = await resolveCurrentAuthorProfileId();
-    if (!senderProfileId || senderProfileId === profileId) return;
+  const loadReceivedGifts = useCallback(async () => {
+    setReceivedGiftsLoading(true);
 
-    const { error } = await supabase
-      .from('profile_interactions')
-      .insert({
-        from_profile_id: senderProfileId,
-        to_profile_id: profileId,
-        kind: 'gift',
-        label: 'Prezent',
-        emoji: '🎁',
+    try {
+      const { data, error } = await supabase
+        .from('profile_interactions')
+        .select('id, from_profile_id, label, emoji, token_cost, created_at, is_anonymous, message')
+        .eq('to_profile_id', profileId)
+        .eq('kind', 'gift')
+        .order('created_at', { ascending: false })
+        .limit(16);
+
+      if (error) {
+        const errorText = error.message.toLowerCase();
+        if (errorText.includes('is_anonymous') || errorText.includes('token_balance') || errorText.includes('send_profile_gift')) {
+          setGiftError('Brak migracji systemu prezentow/tokenow. Uruchom SQL: supabase/gift_tokens_migration.sql');
+          setReceivedGifts([]);
+          return;
+        }
+        throw error;
+      }
+
+      const rows = (data || []) as Array<{
+        id: string;
+        from_profile_id: string;
+        label: string | null;
+        emoji: string | null;
+        token_cost: number | null;
+        created_at: string;
+        is_anonymous?: boolean | null;
+        message?: string | null;
+      }>;
+
+      const actorIds = Array.from(
+        new Set(
+          rows
+            .filter((row) => !row.is_anonymous)
+            .map((row) => row.from_profile_id)
+            .filter(Boolean),
+        ),
+      );
+
+      const actorMap = new Map<string, string>();
+      if (actorIds.length > 0) {
+        const { data: actors, error: actorError } = await supabase
+          .from('profiles')
+          .select('id, name')
+          .in('id', actorIds);
+
+        if (actorError) {
+          console.error('Blad ladowania autorow prezentow:', actorError.message);
+        } else {
+          for (const actor of actors || []) {
+            actorMap.set(actor.id as string, ((actor as { name?: string | null }).name || 'Ktos').trim() || 'Ktos');
+          }
+        }
+      }
+
+      setReceivedGifts(
+        rows.map((row) => {
+          const isAnonymous = Boolean(row.is_anonymous);
+          const message = (row.message || '').trim();
+          return {
+            id: row.id,
+            emoji: row.emoji || '🎁',
+            label: row.label || 'Prezent',
+            tokenCost: Number(row.token_cost || 0),
+            fromName: isAnonymous ? 'Tajemniczy wielbiciel' : (actorMap.get(row.from_profile_id) || 'Ktos'),
+            isAnonymous,
+            message,
+            createdAt: row.created_at,
+          };
+        }),
+      );
+    } catch (error) {
+      console.error('Blad ladowania otrzymanych prezentow:', error);
+      setReceivedGifts([]);
+    } finally {
+      setReceivedGiftsLoading(false);
+    }
+  }, [profileId]);
+
+  const openGiftModal = useCallback(async () => {
+    setGiftError(null);
+    setGiftNotice(null);
+
+    const senderProfileId = await resolveCurrentAuthorProfileId();
+    if (!senderProfileId) {
+      setGiftError('Zaloguj sie, aby wysylac prezenty.');
+      return;
+    }
+
+    if (senderProfileId === profileId) {
+      setGiftError('Nie mozesz wyslac prezentu samemu sobie.');
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('token_balance')
+      .eq('id', senderProfileId)
+      .maybeSingle();
+
+    if (error) {
+      const errorText = error.message.toLowerCase();
+      if (errorText.includes('token_balance')) {
+        setGiftError('Brak migracji systemu prezentow/tokenow. Uruchom SQL: supabase/gift_tokens_migration.sql');
+      } else {
+        setGiftError(`Nie udalo sie pobrac salda tokenow: ${error.message}`);
+      }
+      return;
+    }
+
+    const nextBalance = Number((data as { token_balance?: number | null } | null)?.token_balance ?? 0);
+    setGiftBalance(Number.isFinite(nextBalance) ? nextBalance : 0);
+    setIsGiftModalOpen(true);
+  }, [profileId, resolveCurrentAuthorProfileId]);
+
+  const handleSendGiftInteraction = useCallback(async (payload: GiftSelectionPayload): Promise<boolean> => {
+    setGiftError(null);
+    setGiftNotice(null);
+
+    const senderProfileId = await resolveCurrentAuthorProfileId();
+    if (!senderProfileId) {
+      setGiftError('Zaloguj sie, aby wyslac prezent.');
+      return false;
+    }
+
+    if (senderProfileId === profileId) {
+      setGiftError('Nie mozesz wyslac prezentu samemu sobie.');
+      return false;
+    }
+
+    setGiftSending(true);
+
+    try {
+      const { data, error } = await supabase.rpc('send_profile_gift', {
+        p_to_profile_id: profileId,
+        p_label: payload.label,
+        p_emoji: payload.emoji,
+        p_token_cost: payload.price,
+        p_message: payload.message?.trim() || null,
+        p_is_anonymous: payload.isAnonymous,
       });
 
-    if (error && !error.message.toLowerCase().includes('does not exist')) {
-      console.error('Blad zapisu interakcji prezentu:', error.message);
+      if (error) {
+        const errorText = error.message.toLowerCase();
+        if (errorText.includes('send_profile_gift') || errorText.includes('token_balance') || errorText.includes('is_anonymous')) {
+          setGiftError('Brak migracji systemu prezentow/tokenow. Uruchom SQL: supabase/gift_tokens_migration.sql');
+          return false;
+        }
+
+        setGiftError(error.message || 'Nie udalo sie wyslac prezentu.');
+        return false;
+      }
+
+      const row = Array.isArray(data)
+        ? (data[0] as { new_balance?: number } | undefined)
+        : (data as { new_balance?: number } | null);
+
+      const nextBalance = Number(row?.new_balance);
+      if (Number.isFinite(nextBalance)) {
+        setGiftBalance(nextBalance);
+      } else {
+        const { data: balanceSnapshot } = await supabase
+          .from('profiles')
+          .select('token_balance')
+          .eq('id', senderProfileId)
+          .maybeSingle();
+
+        const fallbackBalance = Number((balanceSnapshot as { token_balance?: number | null } | null)?.token_balance ?? giftBalance);
+        if (Number.isFinite(fallbackBalance)) {
+          setGiftBalance(fallbackBalance);
+        }
+      }
+
+      setGiftNotice(`Prezent "${payload.label}" zostal wyslany.`);
+      await loadReceivedGifts();
+      return true;
+    } catch (error) {
+      console.error('Blad wysylania prezentu:', error);
+      setGiftError('Nie udalo sie wyslac prezentu. Sprobuj ponownie.');
+      return false;
+    } finally {
+      setGiftSending(false);
     }
-  }, [profileId, resolveCurrentAuthorProfileId]);
+  }, [giftBalance, loadReceivedGifts, profileId, resolveCurrentAuthorProfileId]);
 
   const handleAddGeneralComment = useCallback(async () => {
     const content = commentText.trim();
@@ -773,6 +961,33 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
 
     void loadProfile();
   }, [getFriendshipStatus, hasLikedProfile, loadGeneralComments, profileId, refreshTargetProfileSnapshot]);
+
+  useEffect(() => {
+    void loadReceivedGifts();
+  }, [loadReceivedGifts]);
+
+  useEffect(() => {
+    const channel = supabase
+      .channel(`profile-detail-gifts-${profileId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'profile_interactions',
+        },
+        (payload) => {
+          const row = payload.new as { to_profile_id?: string; kind?: string };
+          if (row.to_profile_id !== profileId || row.kind !== 'gift') return;
+          void loadReceivedGifts();
+        },
+      )
+      .subscribe();
+
+    return () => {
+      channel.unsubscribe();
+    };
+  }, [loadReceivedGifts, profileId]);
 
   useEffect(() => {
     const viewerId = viewerProfile?.id || null;
@@ -1355,7 +1570,7 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
             </button>
 
             <button
-              onClick={() => void handleSendGiftInteraction()}
+              onClick={() => void openGiftModal()}
               title="Wyslij prezent"
               className="cta-dock-btn flex flex-col items-center justify-center gap-1 p-2 group w-16"
             >
@@ -1446,6 +1661,16 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
             </button>
           </div>
 
+          {(giftError || giftNotice) && (
+            <div className={`mx-auto w-full max-w-lg rounded-xl border px-4 py-2 text-sm ${
+              giftError
+                ? 'border-red-500/30 bg-red-500/10 text-red-200'
+                : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200'
+            }`}>
+              {giftError || giftNotice}
+            </div>
+          )}
+
           {/* Bio Card */}
           <div className="glass rounded-[2rem] p-8 relative overflow-hidden">
             <h2 className="text-2xl font-light text-white mb-6 flex items-center gap-3">
@@ -1480,28 +1705,37 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
 
           {/* Received Gifts Widget */}
           <div className="glass rounded-[2rem] p-6 relative overflow-hidden">
-            <h3 className="text-base font-medium text-cyan-300/70 tracking-wider uppercase flex items-center gap-2 mb-5">
-              <Gift size={20} weight="duotone" className="text-amber-400" /> Otrzymane prezenty
-            </h3>
-            <div className="grid grid-cols-4 gap-4">
-              {[
-                { emoji: '🌹', from: 'Michał', value: 50 },
-                { emoji: '💍', from: 'Tomasz', value: 1000 },
-                { emoji: '🧸', from: 'Kasia', value: 300 },
-                { emoji: '💎', from: 'Anna', value: 5000 },
-              ].map((gift, i) => (
-                <div
-                  key={i}
-                  className="relative group glass rounded-2xl aspect-square flex items-center justify-center text-4xl cursor-pointer hover:scale-105 transition-transform border border-white/5 hover:border-amber-500/30"
-                >
-                  <span>{gift.emoji}</span>
-                  <div className="absolute -top-12 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 bg-black/90 backdrop-blur-md px-3 py-2 rounded-lg text-xs text-white whitespace-nowrap border border-amber-500/20">
-                    <div className="font-medium">{gift.from}</div>
-                    <div className="text-amber-400 text-[10px]">{gift.value} monet</div>
-                  </div>
-                </div>
-              ))}
+            <div className="flex items-center justify-between gap-3 mb-5">
+              <h3 className="text-base font-medium text-cyan-300/70 tracking-wider uppercase flex items-center gap-2">
+                <Gift size={20} weight="duotone" className="text-amber-400" /> Otrzymane prezenty
+              </h3>
+              <span className="text-xs text-white/55">{receivedGifts.length}</span>
             </div>
+
+            {receivedGiftsLoading ? (
+              <div className="text-sm text-cyan-300/70">Ladowanie prezentow...</div>
+            ) : receivedGifts.length === 0 ? (
+              <div className="text-sm text-cyan-300/70">Brak otrzymanych prezentow.</div>
+            ) : (
+              <div className="grid grid-cols-4 gap-4">
+                {receivedGifts.map((gift) => (
+                  <div
+                    key={gift.id}
+                    className="relative group glass rounded-2xl aspect-square flex items-center justify-center text-4xl cursor-pointer hover:scale-105 transition-transform border border-white/5 hover:border-amber-500/30"
+                  >
+                    <span>{gift.emoji}</span>
+                    <div className="absolute -top-2 left-1/2 -translate-x-1/2 -translate-y-full opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 bg-black/90 backdrop-blur-md px-3 py-2 rounded-lg text-xs text-white whitespace-nowrap border border-amber-500/20 shadow-[0_8px_20px_rgba(0,0,0,0.35)]">
+                      <div className="font-medium">{gift.fromName}</div>
+                      <div className="text-amber-400 text-[10px]">{gift.label} • {gift.tokenCost} monet</div>
+                      {gift.message && (
+                        <div className="text-[10px] text-cyan-200/80 mt-1 max-w-[180px] whitespace-normal">"{gift.message}"</div>
+                      )}
+                      <div className="text-[10px] text-white/45 mt-1">{formatCommentDateTime(gift.createdAt)}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </section>
       </div>
@@ -1656,6 +1890,19 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
         document.body,
       )}
     </div>
+
+    <GiftModal
+      isOpen={isGiftModalOpen}
+      onClose={() => {
+        if (giftSending) return;
+        setIsGiftModalOpen(false);
+      }}
+      onSend={handleSendGiftInteraction}
+      recipientName={profile.name}
+      currentBalance={giftBalance}
+      sending={giftSending}
+      errorMessage={giftError}
+    />
 
     {/* Report Comment Modal */}
     {reportModal && (

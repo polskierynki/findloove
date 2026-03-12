@@ -1,47 +1,90 @@
 'use client';
 
-import { useState } from 'react';
-import { X, Send } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { X } from 'lucide-react';
+import { VIRTUAL_GIFTS } from '@/components/views/constants/profileFormOptions';
+
+export type GiftOption = {
+  id: string;
+  emoji: string;
+  name: string;
+  price: number;
+};
+
+export type GiftSelectionPayload = {
+  giftId: string;
+  emoji: string;
+  label: string;
+  price: number;
+  message: string;
+  isAnonymous: boolean;
+};
 
 interface GiftModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSend?: (giftId: string, message: string) => void;
+  onSend?: (payload: GiftSelectionPayload) => Promise<boolean | void> | boolean | void;
   recipientName?: string;
   currentBalance?: number;
+  gifts?: GiftOption[];
+  sending?: boolean;
+  errorMessage?: string | null;
 }
 
-const GIFTS = [
-  { id: 'rose', emoji: '🌹', name: 'Róża', price: 50 },
-  { id: 'champagne', emoji: '🥂', name: 'Szampan', price: 150 },
-  { id: 'teddy', emoji: '🧸', name: 'Miś', price: 300 },
-  { id: 'ring', emoji: '💍', name: 'Pierścionek', price: 1000 },
-  { id: 'diamond', emoji: '💎', name: 'Diament', price: 5000 },
-  { id: 'car', emoji: '🏎️', name: 'Samochód', price: 9999 },
-];
+const DEFAULT_GIFTS: GiftOption[] = VIRTUAL_GIFTS.map((gift) => ({
+  id: gift.id,
+  emoji: gift.emoji,
+  name: gift.name,
+  price: gift.price,
+}));
 
 export default function GiftModal({
   isOpen,
   onClose,
   onSend,
   recipientName = 'User',
-  currentBalance = 1000,
+  currentBalance = 0,
+  gifts = DEFAULT_GIFTS,
+  sending = false,
+  errorMessage = null,
 }: GiftModalProps) {
   const [selectedGift, setSelectedGift] = useState<string | null>(null);
   const [message, setMessage] = useState('');
+  const [isAnonymous, setIsAnonymous] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) return;
+    setSelectedGift(null);
+    setMessage('');
+    setIsAnonymous(false);
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
-  const handleSend = () => {
-    if (selectedGift) {
-      onSend?.(selectedGift, message);
-      setSelectedGift(null);
-      setMessage('');
-      onClose();
-    }
-  };
+  const selectedGiftData = useMemo(
+    () => gifts.find((gift) => gift.id === selectedGift),
+    [gifts, selectedGift],
+  );
 
-  const selectedGiftData = GIFTS.find((g) => g.id === selectedGift);
+  const handleSend = async () => {
+    if (!selectedGiftData || sending) return;
+
+    const result = await onSend?.({
+      giftId: selectedGiftData.id,
+      emoji: selectedGiftData.emoji,
+      label: selectedGiftData.name,
+      price: selectedGiftData.price,
+      message: message.trim(),
+      isAnonymous,
+    });
+
+    if (result === false) return;
+
+    setSelectedGift(null);
+    setMessage('');
+    setIsAnonymous(false);
+    onClose();
+  };
 
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
@@ -57,20 +100,20 @@ export default function GiftModal({
           <span className="text-2xl">🎁</span> Wyślij prezent
         </h3>
         <p className="text-sm text-gray-400 mb-6">
-          Zaskocz <span className="text-white font-medium">{recipientName}</span> pięknym upominkiem!
+          Zaskocz <span className="text-white font-medium">{recipientName}</span> pięknym upominkiem.
         </p>
 
         {/* Gifts Grid */}
         <div className="grid grid-cols-3 gap-3 mb-6">
-          {GIFTS.map((gift) => {
+          {gifts.map((gift) => {
             const canAfford = currentBalance >= gift.price;
             const isSelected = selectedGift === gift.id;
 
             return (
               <button
                 key={gift.id}
-                onClick={() => canAfford && setSelectedGift(gift.id)}
-                disabled={!canAfford}
+                onClick={() => canAfford && !sending && setSelectedGift(gift.id)}
+                disabled={!canAfford || sending}
                 className={`glass rounded-2xl p-4 flex flex-col items-center justify-center gap-2 cursor-pointer transition-all group overflow-hidden relative ${
                   isSelected
                     ? 'bg-amber-500/10 border border-amber-400'
@@ -92,15 +135,28 @@ export default function GiftModal({
           })}
         </div>
 
+        <label className="flex items-center gap-2 text-sm text-gray-300 mb-4">
+          <input
+            type="checkbox"
+            checked={isAnonymous}
+            onChange={(event) => setIsAnonymous(event.target.checked)}
+            className="rounded border-white/20 bg-black/30"
+            disabled={sending}
+          />
+          Wyślij jako <span className="text-amber-300">Tajemniczy wielbiciel</span>
+        </label>
+
         {/* Optional Message */}
         <div className="mb-5 relative">
           <input
             type="text"
-            placeholder="Dodaj krótką wiadomość (opcjonalnie)..."
+            placeholder="Dodaj komentarz do prezentu (opcjonalnie)..."
             value={message}
-            onChange={(e) => setMessage(e.target.value)}
+            onChange={(event) => setMessage(event.target.value.slice(0, 180))}
             className="w-full bg-black/40 border border-white/10 rounded-xl py-3 px-4 text-sm text-white outline-none focus:border-amber-400/50 transition-all"
+            disabled={sending}
           />
+          <p className="text-[10px] text-white/40 mt-1 text-right">{message.length}/180</p>
         </div>
 
         {/* Balance */}
@@ -111,12 +167,20 @@ export default function GiftModal({
           </span>
         </div>
 
+        {errorMessage && (
+          <p className="text-xs text-red-300 mb-4 text-center">{errorMessage}</p>
+        )}
+
         <button
-          onClick={handleSend}
-          disabled={!selectedGift}
+          onClick={() => void handleSend()}
+          disabled={!selectedGiftData || sending}
           className="w-full bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 disabled:opacity-50 disabled:cursor-not-allowed py-3.5 rounded-xl font-bold text-black transition-all shadow-[0_0_20px_rgba(245,158,11,0.4)] hover:shadow-[0_0_30px_rgba(245,158,11,0.6)]"
         >
-          {selectedGiftData ? `Wyślij za ${selectedGiftData.price} monet` : 'Wybierz prezent'}
+          {sending
+            ? 'Wysyłanie...'
+            : selectedGiftData
+            ? `Wyślij za ${selectedGiftData.price} monet`
+            : 'Wybierz prezent'}
         </button>
       </div>
     </div>
