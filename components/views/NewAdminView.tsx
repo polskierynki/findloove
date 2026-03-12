@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Users, Activity, AlertTriangle, TrendingUp, MessageCircle, Eye, Ban, Check, X, Flag, Trash2 } from 'lucide-react';
+import { Users, Activity, AlertTriangle, TrendingUp, MessageCircle, Eye, Ban, Check, X, Flag, Trash2, Plus, Minus } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
 interface User {
@@ -174,6 +174,33 @@ export default function NewAdminView() {
     }
   };
 
+  // Ręczna korekta liczby strajków (+1 lub -1)
+  const handleAdjustStrikes = async (userId: string, delta: 1 | -1) => {
+    const user = users.find((u) => u.id === userId);
+    if (!user) return;
+    const newStrikes = Math.max(0, user.strikes + delta);
+    const shouldBan = newStrikes >= 3;
+    const shouldUnban = user.isBanned && newStrikes < 3;
+    try {
+      await supabase
+        .from('profiles')
+        .update({
+          strikes: newStrikes,
+          ...(shouldBan ? { status: 'banned' } : shouldUnban ? { status: 'active' } : {}),
+        })
+        .eq('id', userId);
+      setUsers((prev) =>
+        prev.map((u) =>
+          u.id === userId
+            ? { ...u, strikes: newStrikes, isBanned: shouldBan || (u.isBanned && !shouldUnban), status: shouldBan ? 'banned' : shouldUnban ? 'active' : u.status }
+            : u
+        )
+      );
+    } catch (err) {
+      console.error('Error adjusting strikes:', err);
+    }
+  };
+
   // Usuń komentarz + daj strike autorowi (autoban przy 3 strikach)
   const handleStrikeAndDelete = async (report: CommentReport) => {
     try {
@@ -334,9 +361,27 @@ export default function NewAdminView() {
                       )}
                     </td>
                     <td className="py-3 px-2">
-                      <span className={`text-sm font-semibold ${user.strikes >= 3 ? 'text-red-400' : user.strikes >= 2 ? 'text-orange-400' : user.strikes >= 1 ? 'text-yellow-400' : 'text-white/40'}`}>
-                        {user.strikes} / 3
-                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          title="Zdejmij ostrzeżenie"
+                          onClick={() => handleAdjustStrikes(user.id, -1)}
+                          disabled={user.strikes === 0}
+                          className="w-6 h-6 rounded-md bg-white/5 hover:bg-green-500/20 border border-white/10 hover:border-green-500/40 flex items-center justify-center text-white/40 hover:text-green-400 transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
+                        >
+                          <Minus size={11} />
+                        </button>
+                        <span className={`text-sm font-semibold min-w-[36px] text-center ${user.strikes >= 3 ? 'text-red-400' : user.strikes >= 2 ? 'text-orange-400' : user.strikes >= 1 ? 'text-yellow-400' : 'text-white/40'}`}>
+                          {user.strikes} / 3
+                        </span>
+                        <button
+                          title="Dodaj ostrzeżenie"
+                          onClick={() => handleAdjustStrikes(user.id, 1)}
+                          disabled={user.strikes >= 3}
+                          className="w-6 h-6 rounded-md bg-white/5 hover:bg-red-500/20 border border-white/10 hover:border-red-500/40 flex items-center justify-center text-white/40 hover:text-red-400 transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
+                        >
+                          <Plus size={11} />
+                        </button>
+                      </div>
                     </td>
                     <td className="py-3 px-2">
                       <p className="text-xs text-cyan-400/60">
@@ -345,14 +390,15 @@ export default function NewAdminView() {
                     </td>
                     <td className="py-3 px-2">
                       <div className="flex gap-2 justify-end">
-                        <button className="w-8 h-8 rounded-lg bg-white/10 hover:bg-cyan-500/20 flex items-center justify-center text-cyan-400 transition-colors">
+                        <button title="Wyślij wiadomość" className="w-8 h-8 rounded-lg bg-white/10 hover:bg-cyan-500/20 flex items-center justify-center text-cyan-400 transition-colors">
                           <MessageCircle size={16} />
                         </button>
-                        <button className="w-8 h-8 rounded-lg bg-white/10 hover:bg-blue-500/20 flex items-center justify-center text-blue-400 transition-colors">
+                        <button title="Podgląd profilu" className="w-8 h-8 rounded-lg bg-white/10 hover:bg-blue-500/20 flex items-center justify-center text-blue-400 transition-colors">
                           <Eye size={16} />
                         </button>
                         {user.isBanned ? (
                           <button
+                            title="Odbanuj użytkownika"
                             onClick={() => handleUnbanUser(user.id)}
                             className="w-8 h-8 rounded-lg bg-green-500/20 hover:bg-green-500/30 flex items-center justify-center text-green-400 transition-colors"
                           >
@@ -360,6 +406,7 @@ export default function NewAdminView() {
                           </button>
                         ) : (
                           <button
+                            title="Zbanuj użytkownika"
                             onClick={() => handleBanUser(user.id)}
                             className="w-8 h-8 rounded-lg bg-red-500/20 hover:bg-red-500/30 flex items-center justify-center text-red-400 transition-colors"
                           >
@@ -428,6 +475,7 @@ export default function NewAdminView() {
                   {/* Actions */}
                   <div className="flex gap-2">
                     <button
+                      title="Usuń komentarz i daj strike autorowi (3 strike = ban permanentny)"
                       onClick={() => void handleStrikeAndDelete(report)}
                       className="flex-1 bg-red-500/20 hover:bg-red-500/35 border border-red-500/40 text-red-400 text-xs py-2 rounded-lg transition-colors flex items-center justify-center gap-1.5"
                     >
@@ -435,6 +483,7 @@ export default function NewAdminView() {
                       Usuń + Strike
                     </button>
                     <button
+                      title="Odrzuć zgłoszenie bez konsekwencji"
                       onClick={() => void handleDismissReport(report.id)}
                       className="flex-1 bg-white/5 hover:bg-white/10 border border-white/15 text-white/60 text-xs py-2 rounded-lg transition-colors flex items-center justify-center gap-1.5"
                     >
