@@ -28,10 +28,10 @@ import {
   UserPlus,
   UserCheck,
 } from '@phosphor-icons/react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { resolveProfileIdForAuthUser } from '@/lib/profileAuth';
-import { Profile } from '@/lib/types';
+import { Profile, getLookingFor } from '@/lib/types';
 import { useLikes } from '@/lib/hooks/useLikes';
 import { useFriends, type FriendshipStatus, type Friend } from '@/lib/hooks/useFriends';
 import { ALL_INTERESTS } from './constants/profileFormOptions';
@@ -80,8 +80,201 @@ function formatRelativeTime(timestamp: string): string {
   });
 }
 
+function formatCommentDateTime(timestamp: string): string {
+  const ts = Date.parse(timestamp);
+  if (Number.isNaN(ts)) return '';
+
+  return new Date(ts).toLocaleString('pl-PL', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+type CompatibilityProfile = {
+  id?: string | null;
+  age?: number | null;
+  city?: string | null;
+  interests?: string[] | null;
+  status?: string | null;
+  details?: {
+    looking_for?: string | null;
+    zodiac?: string | null;
+    smoking?: string | null;
+    drinking?: string | null;
+    pets?: string | null;
+    children?: string | null;
+  } | null;
+  looking_for?: string | null;
+  zodiac?: string | null;
+  smoking?: string | null;
+  drinking?: string | null;
+  pets?: string | null;
+  children?: string | null;
+  gender?: string | null;
+  seeking_gender?: string | null;
+  seeking_age_min?: number | null;
+  seeking_age_max?: number | null;
+  last_active?: string | null;
+  lastActive?: string | null;
+  created_at?: string | null;
+  createdAt?: string | null;
+  isVerified?: boolean | null;
+  is_verified?: boolean | null;
+};
+
+type CompatibilityResult = {
+  matchScore: number;
+  sharedTraits: number;
+  sharedInterests: number;
+};
+
+function normalizeText(value?: string | null): string {
+  return (value || '').trim().toLowerCase();
+}
+
+function toTimestamp(value?: string | null): number {
+  if (!value) return 0;
+  const ts = Date.parse(value);
+  return Number.isNaN(ts) ? 0 : ts;
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
+}
+
+function getProfileField(profile: CompatibilityProfile | null, field: 'looking_for' | 'zodiac' | 'smoking' | 'drinking' | 'pets' | 'children'): string {
+  if (!profile) return '';
+
+  const nested = normalizeText(profile.details?.[field]);
+  if (nested) return nested;
+
+  return normalizeText(profile[field]);
+}
+
+function getProfileLookingFor(profile: CompatibilityProfile | null): string {
+  const direct = getProfileField(profile, 'looking_for');
+  if (direct) return direct;
+
+  const inferred = getLookingFor(profile?.status || '');
+  return inferred ? normalizeText(inferred) : '';
+}
+
+function isAgeWithinRange(age: number, min?: number | null, max?: number | null): boolean {
+  if (!Number.isFinite(age)) return false;
+  if (typeof min === 'number' && age < min) return false;
+  if (typeof max === 'number' && age > max) return false;
+  return true;
+}
+
+function getActivityBonus(activityTs: number): number {
+  if (!activityTs) return 0;
+  const hoursAgo = (Date.now() - activityTs) / 3600000;
+  if (hoursAgo <= 2) return 12;
+  if (hoursAgo <= 24) return 8;
+  if (hoursAgo <= 72) return 5;
+  if (hoursAgo <= 168) return 2;
+  return 0;
+}
+
+function computeCompatibility(viewer: CompatibilityProfile | null, target: CompatibilityProfile | null): CompatibilityResult {
+  if (!target) {
+    return {
+      matchScore: 0,
+      sharedTraits: 0,
+      sharedInterests: 0,
+    };
+  }
+
+  if (!viewer) {
+    return {
+      matchScore: 0,
+      sharedTraits: 0,
+      sharedInterests: 0,
+    };
+  }
+
+  const myInterests = new Set((viewer.interests || []).map((interest) => normalizeText(interest)));
+  const targetInterests = (target.interests || []).map((interest) => normalizeText(interest));
+  const sharedInterests = targetInterests.filter((interest) => interest && myInterests.has(interest)).length;
+
+  const sameCity = normalizeText(viewer.city) !== '' && normalizeText(viewer.city) === normalizeText(target.city);
+  const lookingForMatch = Boolean(getProfileLookingFor(viewer) && getProfileLookingFor(viewer) === getProfileLookingFor(target));
+
+  const lifestyleFields: Array<'zodiac' | 'smoking' | 'drinking' | 'pets' | 'children'> = [
+    'zodiac',
+    'smoking',
+    'drinking',
+    'pets',
+    'children',
+  ];
+
+  const sharedLifestyleTraits = lifestyleFields.reduce((count, field) => {
+    const mine = getProfileField(viewer, field);
+    const theirs = getProfileField(target, field);
+    if (!mine || !theirs) return count;
+    return mine === theirs ? count + 1 : count;
+  }, 0);
+
+  const ageCompatibility = isAgeWithinRange(
+    Number(target.age || 0),
+    viewer.seeking_age_min,
+    viewer.seeking_age_max,
+  ) && isAgeWithinRange(
+    Number(viewer.age || 0),
+    target.seeking_age_min,
+    target.seeking_age_max,
+  );
+
+  const genderCompatibility =
+    (!viewer.seeking_gender || !target.gender || normalizeText(viewer.seeking_gender) === normalizeText(target.gender))
+    && (!target.seeking_gender || !viewer.gender || normalizeText(target.seeking_gender) === normalizeText(viewer.gender));
+
+  const activityTs = toTimestamp(target.lastActive || target.last_active || target.createdAt || target.created_at);
+  const activityBonus = getActivityBonus(activityTs);
+
+  const matchScore = clamp(
+    48
+      + sharedInterests * 11
+      + sharedLifestyleTraits * 5
+      + (sameCity ? 8 : 0)
+      + (lookingForMatch ? 9 : 0)
+      + (ageCompatibility ? 6 : 0)
+      + (genderCompatibility ? 4 : -6)
+      + Math.min(10, activityBonus)
+      + (target.isVerified || target.is_verified ? 3 : 0),
+    45,
+    99,
+  );
+
+  const sharedTraits =
+    sharedInterests
+    + sharedLifestyleTraits
+    + (sameCity ? 1 : 0)
+    + (lookingForMatch ? 1 : 0)
+    + (ageCompatibility ? 1 : 0)
+    + (genderCompatibility ? 1 : 0);
+
+  if (viewer.id && target.id && viewer.id === target.id) {
+    return {
+      matchScore: 100,
+      sharedTraits: Math.max(sharedTraits, 1),
+      sharedInterests,
+    };
+  }
+
+  return {
+    matchScore,
+    sharedTraits,
+    sharedInterests,
+  };
+}
+
 export default function NewProfileDetailView({ profileId }: { profileId: string }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { likeProfile, unlikeProfile, hasLikedProfile } = useLikes();
   const { sendFriendRequest, acceptFriendRequest, removeFriendship, getFriendshipStatus, getFriendsForProfile } = useFriends();
 
@@ -99,6 +292,8 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
   const [photoCommentText, setPhotoCommentText] = useState('');
   const [isLiked, setIsLiked] = useState(false);
   const [authorProfileId, setAuthorProfileId] = useState<string | null>(null);
+  const [viewerProfile, setViewerProfile] = useState<CompatibilityProfile | null>(null);
+  const [compatibilityLoading, setCompatibilityLoading] = useState(true);
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
   const [isSubmittingPhotoComment, setIsSubmittingPhotoComment] = useState(false);
   const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
@@ -120,6 +315,7 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
   const generalCommentEmojiButtonRef = useRef<HTMLButtonElement>(null);
   const photoCommentEmojiButtonRef = useRef<HTMLButtonElement>(null);
   const loggedProfileViewRef = useRef<string | null>(null);
+  const deepLinkHandledRef = useRef<string | null>(null);
 
   const allPhotos = useMemo(() => {
     if (!profile) return [];
@@ -137,6 +333,56 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
   );
 
   const hasMoreProfileFriends = profileFriends.length > 6;
+  const deepLinkPhotoParam = searchParams.get('photo');
+  const deepLinkCommentsParam = searchParams.get('comments');
+
+  const refreshTargetProfileSnapshot = useCallback(async () => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', profileId)
+      .maybeSingle();
+
+    if (error) {
+      console.error('Blad odswiezania profilu docelowego:', error.message);
+      return;
+    }
+
+    setProfile((data as Profile | null) ?? null);
+  }, [profileId]);
+
+  const refreshViewerProfileSnapshot = useCallback(async (viewerProfileId: string) => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', viewerProfileId)
+      .maybeSingle();
+
+    if (error) {
+      console.error('Blad odswiezania profilu odwiedzajacego:', error.message);
+      return;
+    }
+
+    setViewerProfile((data as CompatibilityProfile | null) ?? null);
+  }, []);
+
+  const compatibility = useMemo(
+    () => computeCompatibility(viewerProfile, profile as CompatibilityProfile | null),
+    [profile, viewerProfile],
+  );
+
+  const compatibilityTraitsLabel = useMemo(() => {
+    if (compatibilityLoading) return 'Trwa analiza dopasowania...';
+    if (!viewerProfile) return 'Zaloguj się, aby zobaczyć dopasowanie';
+
+    const suffix = compatibility.sharedTraits === 1
+      ? 'wspólna cecha'
+      : compatibility.sharedTraits <= 4
+      ? 'wspólne cechy'
+      : 'wspólnych cech';
+
+    return `${compatibility.sharedTraits} ${suffix}`;
+  }, [compatibility.sharedTraits, compatibilityLoading, viewerProfile]);
 
   const loadGeneralComments = useCallback(async () => {
     const { data: commentsData, error: commentsError } = await supabase
@@ -181,7 +427,7 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
         .select('id, content, author_profile_id, created_at')
         .eq('profile_id', profileId)
         .eq('photo_index', photoIndex)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: true });
 
       if (error) {
         const errorText = error.message.toLowerCase();
@@ -270,6 +516,41 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
     return resolved;
   }, [authorProfileId]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadViewerProfileForCompatibility = async () => {
+      setCompatibilityLoading(true);
+
+      try {
+        const viewerProfileId = await resolveCurrentAuthorProfileId();
+
+        if (cancelled) return;
+
+        if (!viewerProfileId) {
+          setViewerProfile(null);
+          return;
+        }
+
+        await refreshViewerProfileSnapshot(viewerProfileId);
+      } catch (error) {
+        console.error('Blad analizy dopasowania profili:', error);
+        if (cancelled) return;
+        setViewerProfile(null);
+      } finally {
+        if (!cancelled) {
+          setCompatibilityLoading(false);
+        }
+      }
+    };
+
+    void loadViewerProfileForCompatibility();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [profileId, refreshViewerProfileSnapshot, resolveCurrentAuthorProfileId]);
+
   const handleSendGiftInteraction = useCallback(async () => {
     const senderProfileId = await resolveCurrentAuthorProfileId();
     if (!senderProfileId || senderProfileId === profileId) return;
@@ -334,6 +615,12 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
         (error as { message?: string; code?: string } | null)?.message ||
         (error as { code?: string } | null)?.code ||
         'Nieznany blad';
+
+      if (typeof message === 'string' && message.toLowerCase().includes('row-level security')) {
+        setCommentsError('Brak uprawnien RLS do komentarzy tablicy. Uruchom SQL: supabase/fix_profile_comments_rls_profile_mapping.sql');
+        return;
+      }
+
       setCommentsError(`Nie udalo sie dodac komentarza: ${message}`);
     } finally {
       setIsSubmittingComment(false);
@@ -467,14 +754,7 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
   useEffect(() => {
     const loadProfile = async () => {
       try {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', profileId)
-          .single();
-
-        if (error) throw error;
-        setProfile(data as Profile);
+        await refreshTargetProfileSnapshot();
 
         await loadGeneralComments();
 
@@ -492,7 +772,47 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
     };
 
     void loadProfile();
-  }, [hasLikedProfile, getFriendshipStatus, loadGeneralComments, profileId]);
+  }, [getFriendshipStatus, hasLikedProfile, loadGeneralComments, profileId, refreshTargetProfileSnapshot]);
+
+  useEffect(() => {
+    const viewerId = viewerProfile?.id || null;
+    const observedIds = Array.from(new Set([profileId, viewerId].filter(Boolean))) as string[];
+    if (observedIds.length === 0) return;
+
+    const channel = supabase
+      .channel(`profile-detail-compat-live-${profileId}-${viewerId || 'guest'}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'profiles',
+        },
+        (payload) => {
+          const updatedId = (payload.new as { id?: string } | null)?.id;
+          if (!updatedId || !observedIds.includes(updatedId)) return;
+
+          void (async () => {
+            setCompatibilityLoading(true);
+            try {
+              if (updatedId === profileId) {
+                await refreshTargetProfileSnapshot();
+              }
+              if (viewerId && updatedId === viewerId) {
+                await refreshViewerProfileSnapshot(viewerId);
+              }
+            } finally {
+              setCompatibilityLoading(false);
+            }
+          })();
+        },
+      )
+      .subscribe();
+
+    return () => {
+      channel.unsubscribe();
+    };
+  }, [profileId, refreshTargetProfileSnapshot, refreshViewerProfileSnapshot, viewerProfile?.id]);
 
   useEffect(() => {
     if (loggedProfileViewRef.current === profileId) return;
@@ -562,6 +882,39 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
   useEffect(() => {
     setIsClient(true);
   }, []);
+
+  useEffect(() => {
+    if (loading || !profile) return;
+
+    const normalizedCommentsIntent = (deepLinkCommentsParam || '').trim().toLowerCase();
+    const hasCommentsIntent =
+      normalizedCommentsIntent.length > 0 &&
+      normalizedCommentsIntent !== '0' &&
+      normalizedCommentsIntent !== 'false' &&
+      normalizedCommentsIntent !== 'off';
+
+    if (!deepLinkPhotoParam && !hasCommentsIntent) return;
+
+    const requestedIndex = deepLinkPhotoParam ? Number.parseInt(deepLinkPhotoParam, 10) : 0;
+    if (Number.isNaN(requestedIndex) || requestedIndex < 0) return;
+
+    const maxPhotoIndex = allPhotos.length > 0 ? allPhotos.length - 1 : 0;
+    const safePhotoIndex = Math.min(requestedIndex, maxPhotoIndex);
+    const deepLinkKey = `${profileId}:${safePhotoIndex}`;
+
+    if (deepLinkHandledRef.current === deepLinkKey) return;
+
+    deepLinkHandledRef.current = deepLinkKey;
+    openPhotoCommentModal(safePhotoIndex);
+  }, [
+    allPhotos.length,
+    deepLinkCommentsParam,
+    deepLinkPhotoParam,
+    loading,
+    openPhotoCommentModal,
+    profile,
+    profileId,
+  ]);
 
   useEffect(() => {
     if (!isPhotoModalOpen) return;
@@ -646,20 +999,33 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
                   fill="none"
                   stroke="url(#magenta-cyan)"
                   strokeWidth="3"
-                  strokeDasharray="95, 100"
+                  strokeDasharray={`${compatibilityLoading ? 18 : compatibility.matchScore}, 100`}
                   strokeLinecap="round"
                 />
               </svg>
               <div className="absolute inset-0 flex items-center justify-center flex-col">
-                <span className="text-lg font-bold text-white leading-none">
-                  95<span className="text-[10px] text-fuchsia-400">%</span>
-                </span>
+                {compatibilityLoading ? (
+                  <span className="text-sm font-semibold text-cyan-200/80 leading-none animate-pulse">...</span>
+                ) : !viewerProfile ? (
+                  <span className="text-sm font-semibold text-cyan-200/80 leading-none">--</span>
+                ) : (
+                  <span className="text-lg font-bold text-white leading-none">
+                    {compatibility.matchScore}<span className="text-[10px] text-fuchsia-400">%</span>
+                  </span>
+                )}
               </div>
             </div>
             <div>
               <h4 className="text-white font-medium text-lg leading-tight">Idealny match</h4>
               <p className="text-xs text-cyan-400 font-light mt-1 flex items-center gap-1">
-                <Sparkle size={12} weight="fill" className="text-cyan-400" /> 12 wspólnych cech
+                <Sparkle size={12} weight="fill" className="text-cyan-400" /> {compatibilityTraitsLabel}
+              </p>
+              <p className="text-[11px] text-white/45 mt-1">
+                {compatibilityLoading
+                  ? 'Porownuje zajawki i dane profilowe...'
+                  : viewerProfile
+                  ? `${compatibility.sharedInterests} wspolnych zajawek`
+                  : 'Po zalogowaniu wynik odswieza sie automatycznie.'}
               </p>
             </div>
           </div>
@@ -794,13 +1160,14 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
                           <div className="flex items-center gap-2 mb-1">
                             <span className="text-sm font-semibold text-white leading-none">{comment.author.name}</span>
                             <span className="text-[11px] text-cyan-500/55 leading-none">{formatRelativeTime(comment.created_at)}</span>
+                            <span className="text-[10px] text-white/35 leading-none">{formatCommentDateTime(comment.created_at)}</span>
                             {comment.author_profile_id !== authorProfileId && (
                               <button
                                 onClick={() => setReportModal({ commentId: comment.id, type: 'wall', content: comment.content, authorId: comment.author_profile_id })}
-                                className="ml-auto text-white/20 hover:text-red-400 transition-colors p-0.5 rounded"
+                                className="ml-auto inline-flex items-center gap-1 text-[11px] text-white/35 hover:text-red-300 transition-colors p-0.5 rounded"
                                 title="Zgłoś komentarz"
                               >
-                                <Flag size={11} weight="regular" />
+                                <Flag size={11} weight="regular" /> Zglos
                               </button>
                             )}
                           </div>
@@ -1211,13 +1578,14 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
                         <div className="flex items-center gap-2">
                           <span className="text-sm font-medium text-white">{comment.author.name}</span>
                           <span className="text-cyan-500/60 text-xs">{formatRelativeTime(comment.created_at)}</span>
+                          <span className="text-[10px] text-white/35">{formatCommentDateTime(comment.created_at)}</span>
                           {comment.author_profile_id !== authorProfileId && (
                             <button
                               onClick={() => setReportModal({ commentId: comment.id, type: 'photo', content: comment.content, authorId: comment.author_profile_id })}
-                              className="ml-auto text-white/20 hover:text-red-400 transition-colors p-0.5 rounded"
+                              className="ml-auto inline-flex items-center gap-1 text-[11px] text-white/35 hover:text-red-300 transition-colors p-0.5 rounded"
                               title="Zgłoś komentarz"
                             >
-                              <Flag size={11} weight="regular" />
+                              <Flag size={11} weight="regular" /> Zglos
                             </button>
                           )}
                         </div>

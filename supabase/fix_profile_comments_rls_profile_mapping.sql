@@ -11,8 +11,15 @@
 -- - INSERT/UPDATE/DELETE: autor komentarza jest rozpoznawany:
 --   * po auth.uid() lub
 --   * po mapowaniu email z JWT -> profiles.email.
+-- - INSERT dodatkowo blokuje konta zbanowane.
 
 alter table public.profile_comments enable row level security;
+
+-- Remove legacy policies that can conflict with profile-id mapping.
+drop policy if exists "Authenticated insert comments" on public.profile_comments;
+drop policy if exists "Block banned users from commenting" on public.profile_comments;
+drop policy if exists "Authenticated update own comments" on public.profile_comments;
+drop policy if exists "Authenticated delete own comments" on public.profile_comments;
 
 drop policy if exists "profile_comments_insert_author_mapping" on public.profile_comments;
 create policy "profile_comments_insert_author_mapping"
@@ -32,6 +39,7 @@ create policy "profile_comments_insert_author_mapping"
             and lower(coalesce(me.email, '')) = lower(auth.jwt() ->> 'email')
           )
         )
+        and coalesce((to_jsonb(me) ->> 'is_banned')::boolean, false) = false
     )
   );
 
@@ -87,6 +95,20 @@ create policy "profile_comments_delete_author_mapping"
             and lower(coalesce(me.email, '')) = lower(auth.jwt() ->> 'email')
           )
         )
+    )
+  );
+
+drop policy if exists "Admin delete any comments" on public.profile_comments;
+create policy "Admin delete any comments"
+  on public.profile_comments
+  for delete
+  to authenticated
+  using (
+    exists (
+      select 1
+      from public.profiles me
+      where me.id = auth.uid()
+        and coalesce(to_jsonb(me) ->> 'role', 'user') in ('admin', 'super_admin')
     )
   );
 

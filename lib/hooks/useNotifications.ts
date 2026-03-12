@@ -34,6 +34,21 @@ function buildProfileHref(profileId?: string, fallbackHref = '/notifications'): 
   return profileId ? `/profile/${encodeURIComponent(profileId)}` : fallbackHref;
 }
 
+function buildPhotoCommentHref(
+  profileId?: string,
+  photoIndex?: number | null,
+  fallbackHref = '/notifications',
+): string {
+  const profileHref = buildProfileHref(profileId, fallbackHref);
+
+  if (typeof photoIndex !== 'number' || Number.isNaN(photoIndex) || photoIndex < 0) {
+    return profileHref;
+  }
+
+  const safePhotoIndex = Math.floor(photoIndex);
+  return `${profileHref}?photo=${safePhotoIndex}&comments=1`;
+}
+
 export function notificationTimestamp(value?: string | null): number {
   if (!value) return 0;
   const ts = Date.parse(value);
@@ -224,7 +239,7 @@ export function useNotifications({
           .limit(20),
         supabase
           .from('profile_photo_comments')
-          .select('id, author_profile_id, content, created_at')
+          .select('id, profile_id, photo_index, author_profile_id, content, created_at')
           .in('profile_id', profileTargets)
           .order('created_at', { ascending: false })
           .limit(20),
@@ -297,6 +312,14 @@ export function useNotifications({
         content: string;
         created_at: string;
       };
+      type PhotoCommentRow = {
+        id: string;
+        profile_id: string;
+        photo_index: number;
+        author_profile_id: string;
+        content: string;
+        created_at: string;
+      };
       type FriendRequestRow = {
         id: string;
         requester_id: string;
@@ -318,7 +341,7 @@ export function useNotifications({
           ));
       const photoComments = photoCommentsRes.error
         ? []
-        : (((photoCommentsRes.data as CommentRow[] | null) ?? []).filter(
+        : (((photoCommentsRes.data as PhotoCommentRow[] | null) ?? []).filter(
             (row) => !profileTargets.includes(row.author_profile_id),
           ));
       const friendRequests = friendRequestsRes.error
@@ -438,6 +461,7 @@ export function useNotifications({
         const snippet = comment.content.length > 90
           ? `${comment.content.slice(0, 90)}...`
           : comment.content;
+        const photoCommentFallbackHref = isAdmin ? '/notifications' : '/myprofile';
 
         nextNotifications.push({
           id: `photo-comment-${comment.id}`,
@@ -447,7 +471,7 @@ export function useNotifications({
           actorProfileId: comment.author_profile_id,
           message: `${actorName} skomentowal Twoje zdjecie: "${snippet}"`,
           createdAt: comment.created_at,
-          href: isAdmin ? '/notifications' : '/myprofile',
+          href: buildPhotoCommentHref(comment.profile_id, comment.photo_index, photoCommentFallbackHref),
         });
       }
 
