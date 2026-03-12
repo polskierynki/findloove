@@ -39,6 +39,7 @@ export default function NewMessagesView() {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [chatError, setChatError] = useState<string | null>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const identityIds = useMemo(
@@ -391,8 +392,15 @@ export default function NewMessagesView() {
 
   // Scroll to bottom on new messages
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+    const container = messagesContainerRef.current;
+    if (!container) return;
+
+    // Scroll only the chat panel to avoid moving the whole page.
+    container.scrollTo({
+      top: container.scrollHeight,
+      behavior: 'smooth',
+    });
+  }, [messages, selectedProfile?.id]);
 
   const sendMessage = async () => {
     const trimmedMessage = messageText.trim();
@@ -728,7 +736,7 @@ export default function NewMessagesView() {
               </div>
 
               {/* Messages */}
-              <div className="flex-1 overflow-y-auto custom-scrollbar p-8 space-y-6">
+              <div ref={messagesContainerRef} className="flex-1 overflow-y-auto custom-scrollbar p-8 space-y-6">
                 {messages.length === 0 ? (
                   <div className="flex items-center justify-center h-full text-cyan-400/60">
                     <p>Brak wiadomości - napisz coś!</p>
