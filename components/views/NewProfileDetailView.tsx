@@ -26,7 +26,6 @@ import {
   Smiley,
   Flag,
   UserPlus,
-  UserMinus,
   UserCheck,
 } from '@phosphor-icons/react';
 import { useRouter } from 'next/navigation';
@@ -34,7 +33,7 @@ import { supabase } from '@/lib/supabase';
 import { resolveProfileIdForAuthUser } from '@/lib/profileAuth';
 import { Profile } from '@/lib/types';
 import { useLikes } from '@/lib/hooks/useLikes';
-import { useFriends, type FriendshipStatus } from '@/lib/hooks/useFriends';
+import { useFriends, type FriendshipStatus, type Friend } from '@/lib/hooks/useFriends';
 import { ALL_INTERESTS } from './constants/profileFormOptions';
 import EmojiPopover from '@/components/ui/EmojiPopover';
 import HoverHintIconButton from '@/components/ui/HoverHintIconButton';
@@ -48,10 +47,16 @@ type AppComment = {
   created_at: string;
 };
 
-type AuthLikeUser = {
+type ProfileCommentRow = {
   id: string;
-  email?: string | null;
-  user_metadata?: Record<string, unknown>;
+  content: string;
+  author_profile_id: string;
+  created_at: string;
+  profiles?: {
+    name?: string | null;
+    image_url?: string | null;
+    city?: string | null;
+  } | null;
 };
 
 function formatRelativeTime(timestamp: string): string {
@@ -78,11 +83,14 @@ function formatRelativeTime(timestamp: string): string {
 export default function NewProfileDetailView({ profileId }: { profileId: string }) {
   const router = useRouter();
   const { likeProfile, unlikeProfile, hasLikedProfile } = useLikes();
-  const { sendFriendRequest, acceptFriendRequest, removeFriendship, getFriendshipStatus } = useFriends();
+  const { sendFriendRequest, acceptFriendRequest, removeFriendship, getFriendshipStatus, getFriendsForProfile } = useFriends();
 
   const [friendshipStatus, setFriendshipStatus] = useState<FriendshipStatus>('none');
   const [friendshipId, setFriendshipId] = useState<string | null>(null);
   const [friendshipLoading, setFriendshipLoading] = useState(false);
+  const [profileFriends, setProfileFriends] = useState<Friend[]>([]);
+  const [friendsLoading, setFriendsLoading] = useState(false);
+  const [friendsExpanded, setFriendsExpanded] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [comments, setComments] = useState<AppComment[]>([]);
   const [photoComments, setPhotoComments] = useState<AppComment[]>([]);
@@ -122,6 +130,13 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
     return Array.from(new Set(photos));
   }, [profile]);
 
+  const visibleProfileFriends = useMemo(
+    () => (friendsExpanded ? profileFriends : profileFriends.slice(0, 6)),
+    [friendsExpanded, profileFriends],
+  );
+
+  const hasMoreProfileFriends = profileFriends.length > 6;
+
   const loadGeneralComments = useCallback(async () => {
     const { data: commentsData, error: commentsError } = await supabase
       .from('profile_comments')
@@ -142,7 +157,7 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
     }
 
     setComments(
-      (commentsData || []).map((entry: any) => ({
+      ((commentsData as ProfileCommentRow[] | null) || []).map((entry) => ({
         id: entry.id,
         content: entry.content,
         author_profile_id: entry.author_profile_id,
@@ -460,6 +475,34 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
   }, [hasLikedProfile, getFriendshipStatus, loadGeneralComments, profileId]);
 
   useEffect(() => {
+    let cancelled = false;
+
+    const loadProfileFriends = async () => {
+      setFriendsLoading(true);
+      try {
+        const friends = await getFriendsForProfile(profileId);
+        if (cancelled) return;
+        setProfileFriends(friends);
+        setFriendsExpanded(false);
+      } catch (error) {
+        console.error('Blad ladowania listy znajomych profilu:', error);
+        if (cancelled) return;
+        setProfileFriends([]);
+      } finally {
+        if (!cancelled) {
+          setFriendsLoading(false);
+        }
+      }
+    };
+
+    void loadProfileFriends();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [getFriendsForProfile, profileId]);
+
+  useEffect(() => {
     setIsClient(true);
   }, []);
 
@@ -589,6 +632,71 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
                 </>
               )}
             </div>
+          </div>
+
+          {/* Friends Preview */}
+          <div className="glass rounded-[1.6rem] p-5 border border-white/10">
+            <div className="flex items-center justify-between gap-3 mb-4">
+              <h3 className="text-xs font-medium text-cyan-300/70 tracking-wider uppercase flex items-center gap-2">
+                <UserPlus size={16} weight="duotone" className="text-green-400" />
+                Znajomi
+                <span className="bg-white/10 text-[11px] px-2 py-0.5 rounded-full text-white">
+                  {profileFriends.length}
+                </span>
+              </h3>
+
+              {hasMoreProfileFriends && (
+                <button
+                  onClick={() => setFriendsExpanded((prev) => !prev)}
+                  className="text-xs text-cyan-300/80 hover:text-cyan-200 transition-colors px-2.5 py-1 rounded-full border border-cyan-500/20 hover:border-cyan-400/40"
+                >
+                  {friendsExpanded ? 'Zwin liste' : 'Zobacz wszystko'}
+                </button>
+              )}
+            </div>
+
+            {friendsLoading ? (
+              <div className="grid grid-cols-2 gap-2">
+                {[...Array(6)].map((_, idx) => (
+                  <div key={idx} className="h-14 rounded-xl bg-white/5 animate-pulse border border-white/5" />
+                ))}
+              </div>
+            ) : profileFriends.length === 0 ? (
+              <p className="text-sm text-cyan-400/60">Ten profil nie ma jeszcze dodanych znajomych.</p>
+            ) : (
+              <>
+                <div className={`grid gap-2 ${friendsExpanded ? 'grid-cols-1' : 'grid-cols-2'}`}>
+                  {visibleProfileFriends.map((friend) => {
+                    const friendMeta = [
+                      typeof friend.age === 'number' ? `${friend.age} l.` : null,
+                      friend.city || null,
+                    ].filter(Boolean).join(' • ');
+
+                    return (
+                      <button
+                        key={friend.id}
+                        onClick={() => router.push(`/profile/${encodeURIComponent(friend.id)}`)}
+                        className="w-full flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5 hover:bg-white/[0.06] hover:border-cyan-500/30 transition-colors text-left"
+                      >
+                        <img
+                          src={friend.image_url || 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&q=80'}
+                          alt={friend.name}
+                          className="w-9 h-9 rounded-full object-cover border border-white/15 shrink-0"
+                        />
+                        <div className="min-w-0">
+                          <p className="text-sm text-white truncate">{friend.name}</p>
+                          <p className="text-[11px] text-cyan-300/60 truncate">{friendMeta || 'Profil publiczny'}</p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {!friendsExpanded && hasMoreProfileFriends && (
+                  <p className="text-xs text-white/45 mt-3">+{profileFriends.length - visibleProfileFriends.length} wiecej</p>
+                )}
+              </>
+            )}
           </div>
 
           {/* Comments/Tablica */}

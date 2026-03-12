@@ -5,7 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { resolveProfileIdForAuthUser } from '@/lib/profileAuth';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
-import { Bell, MessageCircle, Shield, Menu, X, Gift, Heart, BadgeCheck, LogIn, LogOut, UserPlus, Users } from 'lucide-react';
+import { Bell, MessageCircle, Shield, Menu, X, Gift, Heart, BadgeCheck, LogIn, LogOut, UserPlus } from 'lucide-react';
 import { useNotifications } from '@/lib/hooks/useNotifications';
 
 type HeaderProfile = {

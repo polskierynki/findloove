@@ -15,6 +15,25 @@ export interface Friend {
   friendshipId: string;
 }
 
+type FriendshipAcceptedRow = {
+  id: string;
+  requester_id: string;
+  addressee_id: string;
+};
+
+type FriendshipPendingRow = {
+  id: string;
+  requester_id: string;
+};
+
+type FriendProfileRow = {
+  id: string;
+  name: string;
+  age?: number | null;
+  city?: string | null;
+  image_url?: string | null;
+};
+
 export function useFriends() {
   const getMyProfileId = useCallback(async (): Promise<string | null> => {
     const { data } = await supabase.auth.getUser();
@@ -75,43 +94,53 @@ export function useFriends() {
     return { status: 'none', friendshipId: null };
   }, [getMyProfileId]);
 
-  /** Lista zaakceptowanych znajomych */
-  const getMyFriends = useCallback(async (): Promise<Friend[]> => {
-    const myId = await getMyProfileId();
-    if (!myId) return [];
+  /** Lista zaakceptowanych znajomych dla dowolnego profilu */
+  const getFriendsForProfile = useCallback(async (targetProfileId: string): Promise<Friend[]> => {
+    if (!targetProfileId) return [];
 
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('friendships')
       .select('id, requester_id, addressee_id')
       .eq('status', 'accepted')
-      .or(`requester_id.eq.${myId},addressee_id.eq.${myId}`);
+      .or(`requester_id.eq.${targetProfileId},addressee_id.eq.${targetProfileId}`);
 
-    if (!data || data.length === 0) return [];
+    if (error || !data || data.length === 0) return [];
 
-    const friendIds = data.map((f: any) =>
-      f.requester_id === myId ? f.addressee_id : f.requester_id
-    );
-    const friendshipIdMap = new Map<string, string>(
-      data.map((f: any) => [
-        f.requester_id === myId ? f.addressee_id : f.requester_id,
-        f.id,
-      ])
-    );
+    const friendshipIdMap = new Map<string, string>();
+
+    for (const row of (data as FriendshipAcceptedRow[])) {
+      const friendId = row.requester_id === targetProfileId ? row.addressee_id : row.requester_id;
+      if (!friendId || friendId === targetProfileId || friendshipIdMap.has(friendId)) continue;
+      friendshipIdMap.set(friendId, row.id);
+    }
+
+    const friendIds = Array.from(friendshipIdMap.keys());
+    if (friendIds.length === 0) return [];
 
     const { data: profiles } = await supabase
       .from('profiles')
       .select('id, name, age, city, image_url')
       .in('id', friendIds);
 
-    return (profiles || []).map((p: any) => ({
-      id: p.id,
-      name: p.name,
-      age: p.age,
-      city: p.city,
-      image_url: p.image_url,
-      friendshipId: friendshipIdMap.get(p.id) || '',
-    }));
-  }, [getMyProfileId]);
+    return ((profiles as FriendProfileRow[] | null) || [])
+      .map((p) => ({
+        id: p.id,
+        name: p.name,
+        age: p.age ?? undefined,
+        city: p.city ?? undefined,
+        image_url: p.image_url ?? undefined,
+        friendshipId: friendshipIdMap.get(p.id) || '',
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name, 'pl', { sensitivity: 'base' }));
+  }, []);
+
+  /** Lista zaakceptowanych znajomych */
+  const getMyFriends = useCallback(async (): Promise<Friend[]> => {
+    const myId = await getMyProfileId();
+    if (!myId) return [];
+
+    return getFriendsForProfile(myId);
+  }, [getFriendsForProfile, getMyProfileId]);
 
   /** Oczekujące zaproszenia DO mnie */
   const getPendingRequests = useCallback(async (): Promise<Friend[]> => {
@@ -126,20 +155,21 @@ export function useFriends() {
 
     if (!data || data.length === 0) return [];
 
-    const requesterIds = data.map((f: any) => f.requester_id);
-    const friendshipIdMap = new Map<string, string>(data.map((f: any) => [f.requester_id, f.id]));
+    const pendingRows = data as FriendshipPendingRow[];
+    const requesterIds = pendingRows.map((f) => f.requester_id);
+    const friendshipIdMap = new Map<string, string>(pendingRows.map((f) => [f.requester_id, f.id]));
 
     const { data: profiles } = await supabase
       .from('profiles')
       .select('id, name, age, city, image_url')
       .in('id', requesterIds);
 
-    return (profiles || []).map((p: any) => ({
+    return ((profiles as FriendProfileRow[] | null) || []).map((p) => ({
       id: p.id,
       name: p.name,
-      age: p.age,
-      city: p.city,
-      image_url: p.image_url,
+      age: p.age ?? undefined,
+      city: p.city ?? undefined,
+      image_url: p.image_url ?? undefined,
       friendshipId: friendshipIdMap.get(p.id) || '',
     }));
   }, [getMyProfileId]);
@@ -149,6 +179,7 @@ export function useFriends() {
     acceptFriendRequest,
     removeFriendship,
     getFriendshipStatus,
+    getFriendsForProfile,
     getMyFriends,
     getPendingRequests,
   };
