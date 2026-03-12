@@ -590,7 +590,7 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto custom-scrollbar pr-3">
+            <div className="flex-1 overflow-y-auto custom-scrollbar pr-3 pl-2">
               {comments.length === 0 ? (
                 <div className="text-center text-sm text-cyan-400/70 pt-6">
                   Brak komentarzy. Napisz pierwszy cytat na tablicy.
@@ -598,11 +598,11 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
               ) : (
                 <div className="relative">
                   {/* Vertical timeline line */}
-                  <div className="absolute left-[5px] top-3 bottom-3 w-px bg-gradient-to-b from-cyan-400/60 via-cyan-500/25 to-transparent pointer-events-none" />
+                  <div className="absolute left-[9px] top-3 bottom-3 w-px bg-gradient-to-b from-cyan-400/60 via-cyan-500/25 to-transparent pointer-events-none" />
                   {comments.map((comment) => (
                     <div key={comment.id} className="relative flex gap-4 pb-5 last:pb-0">
                       {/* Timeline dot */}
-                      <div className="shrink-0 mt-2 z-10">
+                      <div className="shrink-0 mt-2 z-10 pl-[3px]">
                         <div className="w-[11px] h-[11px] rounded-full bg-cyan-400 shadow-[0_0_8px_2px_rgba(0,255,255,0.55)] ring-2 ring-[#0a0710]" />
                       </div>
                       {/* Avatar + content */}
