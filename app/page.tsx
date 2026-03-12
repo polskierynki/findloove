@@ -26,8 +26,7 @@ import DiscoverView from '@/components/views/DiscoverView';
 import ProfileDetailView from '@/components/views/ProfileDetailView';
 import MessagesView from '@/components/views/MessagesView';
 import SafetyView from '@/components/views/SafetyView';
-import LikesView from '@/components/views/LikesView';
-import NewLikesView from '@/components/views/NewLikesView';
+import NewFriendsView from '@/components/views/NewFriendsView';
 import NewNotificationsView from '@/components/views/NewNotificationsView';
 import SearchView from '@/components/views/SearchView';
 import AuthView from '@/components/views/AuthView';
@@ -64,6 +63,7 @@ const ROUTABLE_APP_VIEWS: AppView[] = [
   'messages',
   'safety',
   'likes',
+  'friends',
   'search',
   'auth',
   'register',
@@ -84,7 +84,8 @@ const STATIC_PATH_TO_VIEW: Record<string, AppView> = {
   '/discover': 'discover',
   '/messages': 'messages',
   '/safety': 'safety',
-  '/likes': 'likes',
+  '/likes': 'friends',
+  '/friends': 'friends',
   '/search': 'search',
   '/auth': 'auth',
   '/register': 'register',
@@ -131,6 +132,8 @@ function getPathForView(view: AppView, profileId?: string | null): string {
   if (view === 'profile') {
     return profileId ? `/profile/${encodeURIComponent(profileId)}` : '/profile';
   }
+  if (view === 'likes') return '/friends';
+  if (view === 'friends') return '/friends';
   return `/${view}`;
 }
 
@@ -849,8 +852,8 @@ export default function App() {
                 guestRestrictions={guestRestrictions}
               />
             )}
-            {!loading && view === 'likes' && (
-              <NewLikesView />
+            {!loading && (view === 'friends' || view === 'likes') && (
+              <NewFriendsView />
             )}
             {!loading && view === 'notifications' && (
               <NewNotificationsView isAdmin={isAdmin} />

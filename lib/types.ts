@@ -5,6 +5,7 @@ export type ViewType =
   | 'messages'
   | 'safety'
   | 'likes'
+  | 'friends'
   | 'search'
   | 'auth'
   | 'register'

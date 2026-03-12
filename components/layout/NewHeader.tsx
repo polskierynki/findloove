@@ -5,7 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { resolveProfileIdForAuthUser } from '@/lib/profileAuth';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
-import { Bell, MessageCircle, Shield, Menu, X, Gift, Heart, BadgeCheck, LogIn, LogOut, UserPlus, Eye } from 'lucide-react';
+import { Bell, MessageCircle, Shield, Menu, X, Gift, Heart, BadgeCheck, LogIn, LogOut, UserPlus, Eye, Users } from 'lucide-react';
 import { useNotifications } from '@/lib/hooks/useNotifications';
 
 type HeaderProfile = {
@@ -63,7 +63,7 @@ export default function NewHeader() {
     if (path === '/') return 'home';
     if (path.startsWith('/search')) return 'search';
     if (path.startsWith('/messages')) return 'messages';
-    if (path.startsWith('/likes')) return 'likes';
+    if (path.startsWith('/friends') || path.startsWith('/likes')) return 'friends';
     if (path.startsWith('/myprofile')) return 'profile';
     return null;
   };
@@ -337,13 +337,13 @@ export default function NewHeader() {
             Wiadomości
           </button>
           <button
-            onClick={() => router.push('/likes')}
+            onClick={() => router.push('/friends')}
             className={`nav-item relative text-gray-300 hover:text-white font-medium transition-colors pb-1 flex items-center gap-1.5 whitespace-nowrap ${
-              activeNav === 'likes' ? 'active' : ''
+              activeNav === 'friends' ? 'active' : ''
             }`}
           >
-            <Heart size={16} className="text-fuchsia-400" />
-            Ulubione
+            <Users size={16} className="text-emerald-400" />
+            Znajomi
           </button>
           {!isAdmin && (
             <button
@@ -612,16 +612,16 @@ export default function NewHeader() {
             </button>
             <button
               onClick={() => {
-                router.push('/likes');
+                router.push('/friends');
                 setMobileMenuOpen(false);
               }}
               className={`text-left px-4 py-2 rounded-lg transition-colors ${
-                activeNav === 'likes'
+                activeNav === 'friends'
                   ? 'text-cyan-300 bg-cyan-500/10 font-medium'
                   : 'text-cyan-300/60 hover:text-cyan-300 hover:bg-cyan-500/10'
               }`}
             >
-              Ulubione
+              Znajomi
             </button>
             {!isAdmin && (
               <button

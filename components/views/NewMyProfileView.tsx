@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   UserCircle,
   Images,
@@ -17,29 +18,21 @@ import {
   Tag,
   Wine,
   Dog,
-  Heart,
   GenderIntersex,
   HeartStraight,
   Users,
-  UserCheck,
-  UserMinus,
-  MapPin,
-  Check,
 } from '@phosphor-icons/react';
 import { supabase } from '@/lib/supabase';
 import { uploadProfilePhoto } from '@/lib/photoUpload';
 import { POLISH_CITIES, ZODIAC_SIGNS, ALL_INTERESTS, DRINKING_OPTIONS, PETS_OPTIONS, SEXUAL_ORIENTATION_OPTIONS, LOOKING_FOR_OPTIONS } from './constants/profileFormOptions';
 import type { Profile } from '@/lib/types';
-import { useFriends, type Friend } from '@/lib/hooks/useFriends';
 
 export default function NewMyProfileView() {
+  const router = useRouter();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [friends, setFriends] = useState<Friend[]>([]);
-  const [pendingRequests, setPendingRequests] = useState<Friend[]>([]);
-  const { getMyFriends, getPendingRequests, acceptFriendRequest, removeFriendship } = useFriends();
 
   // Form state
   const [name, setName] = useState('');
@@ -58,9 +51,6 @@ export default function NewMyProfileView() {
 
   useEffect(() => {
     loadProfile();
-    // Load friends data in parallel
-    getMyFriends().then(setFriends).catch(console.error);
-    getPendingRequests().then(setPendingRequests).catch(console.error);
   }, []);
 
   const loadProfile = async () => {
@@ -691,114 +681,25 @@ export default function NewMyProfileView() {
         </div>
       </div>
 
-      {/* ── Friends Section ── */}
-      {(friends.length > 0 || pendingRequests.length > 0) && (
-        <div className="mt-10">
-          <div className="flex items-center gap-3 mb-6">
-            <Users size={22} className="text-cyan-400" />
-            <h2 className="text-2xl font-light text-white">
-              Znajomi
-              {friends.length > 0 && (
-                <span className="ml-2 text-sm bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 px-2.5 py-0.5 rounded-full">
-                  {friends.length}
-                </span>
-              )}
-            </h2>
-            <div className="h-px flex-1 bg-gradient-to-r from-cyan-500/30 to-transparent" />
-          </div>
-
-          {/* Pending requests */}
-          {pendingRequests.length > 0 && (
-            <div className="mb-6">
-              <p className="text-xs text-yellow-400/70 uppercase tracking-wider mb-3 flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-yellow-400 animate-pulse" />
-                Oczekujące zaproszenia ({pendingRequests.length})
-              </p>
-              <div className="flex flex-wrap gap-3">
-                {pendingRequests.map((req) => (
-                  <div key={req.id} className="flex items-center gap-3 glass rounded-2xl px-4 py-3 border border-yellow-500/20">
-                    <img
-                      src={req.image_url || 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=80&q=70'}
-                      alt={req.name}
-                      className="w-10 h-10 rounded-full object-cover border border-yellow-500/30"
-                    />
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-white leading-tight">{req.name}{req.age ? `, ${req.age}` : ''}</p>
-                      {req.city && <p className="text-[11px] text-cyan-400/55 flex items-center gap-1"><MapPin size={10} />{req.city}</p>}
-                    </div>
-                    <div className="flex gap-2 ml-2">
-                      <button
-                        onClick={async () => {
-                          await acceptFriendRequest(req.friendshipId);
-                          setPendingRequests((prev) => prev.filter((r) => r.id !== req.id));
-                          setFriends((prev) => [...prev, { ...req }]);
-                        }}
-                        className="w-8 h-8 rounded-full bg-green-500/20 border border-green-500/40 flex items-center justify-center text-green-400 hover:bg-green-500/35 transition-colors"
-                        title="Akceptuj"
-                      >
-                        <Check size={14} weight="bold" />
-                      </button>
-                      <button
-                        onClick={async () => {
-                          await removeFriendship(req.friendshipId);
-                          setPendingRequests((prev) => prev.filter((r) => r.id !== req.id));
-                        }}
-                        className="w-8 h-8 rounded-full bg-white/5 border border-white/15 flex items-center justify-center text-white/40 hover:text-red-400 hover:border-red-500/30 transition-colors"
-                        title="Odrzuć"
-                      >
-                        <X size={14} />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Accepted friends grid */}
-          {friends.length > 0 ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-              {friends.map((friend) => (
-                <div
-                  key={friend.id}
-                  className="glass rounded-2xl overflow-hidden border border-cyan-500/10 hover:border-cyan-500/30 transition-all group cursor-pointer"
-                  onClick={() => window.location.href = `/profile/${friend.id}`}
-                >
-                  <div className="aspect-square relative">
-                    <img
-                      src={friend.image_url || 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200&q=70'}
-                      alt={friend.name}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-[#07050f]/90 via-transparent to-transparent" />
-                    <div className="absolute bottom-0 left-0 right-0 p-2.5">
-                      <p className="text-xs font-semibold text-white leading-tight truncate">{friend.name}{friend.age ? `, ${friend.age}` : ''}</p>
-                      {friend.city && <p className="text-[10px] text-cyan-300/60 truncate flex items-center gap-0.5"><MapPin size={8} />{friend.city}</p>}
-                    </div>
-                    {/* Remove button on hover */}
-                    <button
-                      onClick={async (e) => {
-                        e.stopPropagation();
-                        await removeFriendship(friend.friendshipId);
-                        setFriends((prev) => prev.filter((f) => f.id !== friend.id));
-                      }}
-                      className="absolute top-2 right-2 w-6 h-6 rounded-full bg-black/50 border border-white/20 flex items-center justify-center text-white/40 hover:text-red-400 hover:border-red-400/40 opacity-0 group-hover:opacity-100 transition-all"
-                      title="Usuń znajomego"
-                    >
-                      <UserMinus size={11} />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="glass rounded-2xl p-8 text-center border border-cyan-500/10">
-              <UserCheck size={36} className="mx-auto text-cyan-400/30 mb-3" />
-              <p className="text-sm text-cyan-400/60">Nie masz jeszcze znajomych. Wejdź na profil kogoś i wyślij zaproszenie!</p>
-            </div>
-          )}
+      <div className="mt-10 glass rounded-2xl p-6 border border-cyan-500/20 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+          <p className="text-xs uppercase tracking-wider text-cyan-300/70 mb-1">Nowa organizacja kontaktow</p>
+          <h2 className="text-2xl text-white font-light flex items-center gap-2">
+            <Users size={20} className="text-cyan-300" />
+            Zakladka Znajomi
+          </h2>
+          <p className="text-cyan-100/70 mt-2 text-sm">
+            Zarzadzanie znajomymi, zaproszeniami i ulubionymi profilami znajdziesz teraz w osobnej sekcji.
+          </p>
         </div>
-      )}
+
+        <button
+          onClick={() => router.push('/friends')}
+          className="self-start md:self-auto rounded-xl border border-cyan-500/40 bg-cyan-500/15 px-5 py-2.5 text-cyan-100 hover:bg-cyan-500/25 transition-colors"
+        >
+          Przejdz do znajomych
+        </button>
+      </div>
     </main>
   );
 }

@@ -15,6 +15,7 @@ const HELP_TEXTS: Record<ViewType, string> = {
   profile: "Tutaj czytasz szczegóły o danej osobie. Możesz poprosić o numer telefonu lub wysłać wiadomość.",
   safety: "To poradnik bezpiecznej randki. Przeczytaj go, aby wiedzieć, jak unikać oszustów w internecie.",
   likes: "Tutaj zobaczysz osoby, którym spodobał się Twój profil w findloove.pl.",
+  friends: "W zakładce Znajomi zarządzasz kontaktami, zaproszeniami i ulubionymi profilami.",
   search: "Tu możesz wyszukać profile według wieku, miasta, zainteresowań i stylu życia. Użyj filtrów, by znaleźć kogoś bliskiego sercu.",
   auth: "Tu możesz się zalogować lub założyć konto w findloove.pl. Możesz użyć swojego konta Facebook, Google lub Apple, albo zwykłego adresu e-mail.",
   register: "Kreator rejestracji przeprowadzi Cię przez kilka kroków: płeć, imię, miasto, czego szukasz, zainteresowania i weryfikację twarzy. Na końcu założysz konto e-mail.",

@@ -259,7 +259,7 @@ export function useNotifications({
           actorProfileId: like.from_profile_id,
           message: `${actorName} polubil Twoj profil. Sprawdz, czy to match!`,
           createdAt: like.created_at,
-          href: buildProfileHref(like.from_profile_id),
+          href: '/friends?tab=favorites',
         });
       }
 

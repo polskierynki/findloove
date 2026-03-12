@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Heart, Home, MessageCircle, HeartHandshake, User, Search } from 'lucide-react';
+import { Home, MessageCircle, HeartHandshake, User, Search, Users } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { resolveProfileIdForAuthUser } from '@/lib/profileAuth';
@@ -19,7 +19,7 @@ const NAV_ITEMS: { id: ViewType | 'myprofile'; icon: React.ReactNode; label: str
   { id: 'discover', icon: <HeartHandshake size={22} />, label: 'Randki', path: '/discover' },
   { id: 'search', icon: <Search size={20} />, label: 'Szukaj', path: '/search' },
   { id: 'messages', icon: <MessageCircle size={22} />, label: 'Poczta', path: '/messages' },
-  { id: 'likes', icon: <Heart size={20} />, label: 'Ulubione', path: '/likes' },
+  { id: 'friends', icon: <Users size={20} />, label: 'Znajomi', path: '/friends' },
   { id: 'myprofile', icon: <User size={22} />, label: 'Profil', path: '/myprofile' },
 ];
 
@@ -175,7 +175,7 @@ export default function BottomNav({ currentView, onNavigate, isLoggedIn = false,
     if (path.startsWith('/discover')) return 'discover';
     if (path.startsWith('/search')) return 'search';
     if (path.startsWith('/messages')) return 'messages';
-    if (path.startsWith('/likes')) return 'likes';
+    if (path.startsWith('/friends') || path.startsWith('/likes')) return 'friends';
     if (path.startsWith('/myprofile')) return 'myprofile';
     // /profile/[id] (cudze profile) nie podświetlają żadnej zakładki
     return null;
