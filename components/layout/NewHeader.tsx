@@ -5,7 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { resolveProfileIdForAuthUser } from '@/lib/profileAuth';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
-import { Bell, MessageCircle, Shield, Menu, X, Gift, Heart, BadgeCheck, LogIn, LogOut, UserPlus } from 'lucide-react';
+import { Bell, MessageCircle, Shield, Menu, X, Gift, Heart, BadgeCheck, LogIn, LogOut, UserPlus, Eye } from 'lucide-react';
 import { useNotifications } from '@/lib/hooks/useNotifications';
 
 type HeaderProfile = {
@@ -493,6 +493,20 @@ export default function NewHeader() {
                           {notification.kind === 'friend_request' && !notification.actorImageUrl && (
                             <div className="w-10 h-10 rounded-full bg-green-500/20 border border-green-500/30 flex items-center justify-center shrink-0 shadow-[0_0_8px_rgba(34,197,94,0.2)]">
                               <UserPlus size={18} className="text-green-400" />
+                            </div>
+                          )}
+
+                          {notification.kind === 'profile_view' && notification.actorImageUrl && (
+                            <img
+                              src={notification.actorImageUrl}
+                              className="w-10 h-10 rounded-full object-cover border border-indigo-500/30 shrink-0 shadow-[0_0_8px_rgba(99,102,241,0.2)]"
+                              alt={notification.actorName || 'Odwiedziny profilu'}
+                            />
+                          )}
+
+                          {notification.kind === 'profile_view' && !notification.actorImageUrl && (
+                            <div className="w-10 h-10 rounded-full bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center shrink-0 shadow-[0_0_8px_rgba(99,102,241,0.2)]">
+                              <Eye size={18} className="text-indigo-300" />
                             </div>
                           )}
 

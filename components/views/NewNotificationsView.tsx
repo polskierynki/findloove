@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, BadgeCheck, Bell, Gift, Heart, MessageCircle, RefreshCw, UserPlus } from 'lucide-react';
+import { ArrowLeft, BadgeCheck, Bell, Eye, Gift, Heart, MessageCircle, RefreshCw, UserPlus } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { resolveProfileIdForAuthUser } from '@/lib/profileAuth';
 import { formatNotificationTime, useNotifications } from '@/lib/hooks/useNotifications';
@@ -63,9 +63,14 @@ export default function NewNotificationsView({ isAdmin: isAdminFromApp = false }
     profile?.role === 'admin' ||
     profile?.role === 'super_admin';
 
+  const notificationTargets = useMemo(
+    () => Array.from(new Set([userId, profileId].filter(Boolean))) as string[],
+    [profileId, userId],
+  );
+
   const { notifications, loading, refresh } = useNotifications({
     userId,
-    targetProfileIds: Array.from(new Set([userId, profileId].filter(Boolean))) as string[],
+    targetProfileIds: notificationTargets,
     isAdmin,
     profileIsVerified: Boolean(profile?.is_verified),
     profileCreatedAt: profile?.created_at ?? null,
@@ -84,9 +89,90 @@ export default function NewNotificationsView({ isAdmin: isAdminFromApp = false }
         verification: 0,
         comment: 0,
         friend_request: 0,
-      } as Record<'gift' | 'like' | 'poke' | 'verification' | 'comment' | 'friend_request', number>,
+        profile_view: 0,
+      } as Record<'gift' | 'like' | 'poke' | 'verification' | 'comment' | 'friend_request' | 'profile_view', number>,
     );
   }, [notifications]);
+
+  useEffect(() => {
+    if (!userId) return;
+
+    void refresh();
+
+    const interval = window.setInterval(() => {
+      if (!document.hidden) {
+        void refresh();
+      }
+    }, 25000);
+
+    return () => window.clearInterval(interval);
+  }, [refresh, userId]);
+
+  useEffect(() => {
+    if (!userId || notificationTargets.length === 0) return;
+
+    const channel = supabase
+      .channel(`notifications-center-live-${notificationTargets.join('_')}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'likes',
+      }, (payload) => {
+        const row = payload.new as { to_profile_id?: string };
+        if (!row.to_profile_id || !notificationTargets.includes(row.to_profile_id)) return;
+        void refresh();
+      })
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'profile_interactions',
+      }, (payload) => {
+        const row = payload.new as { to_profile_id?: string };
+        if (!row.to_profile_id || !notificationTargets.includes(row.to_profile_id)) return;
+        void refresh();
+      })
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'profile_comments',
+      }, (payload) => {
+        const row = payload.new as { profile_id?: string };
+        if (!row.profile_id || !notificationTargets.includes(row.profile_id)) return;
+        void refresh();
+      })
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'profile_photo_comments',
+      }, (payload) => {
+        const row = payload.new as { profile_id?: string };
+        if (!row.profile_id || !notificationTargets.includes(row.profile_id)) return;
+        void refresh();
+      })
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'friendships',
+      }, (payload) => {
+        const row = payload.new as { addressee_id?: string; status?: string };
+        if (!row.addressee_id || !notificationTargets.includes(row.addressee_id) || row.status !== 'pending') return;
+        void refresh();
+      })
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'profile_views',
+      }, (payload) => {
+        const row = payload.new as { viewed_profile_id?: string };
+        if (!row.viewed_profile_id || !notificationTargets.includes(row.viewed_profile_id)) return;
+        void refresh();
+      })
+      .subscribe();
+
+    return () => {
+      channel.unsubscribe();
+    };
+  }, [notificationTargets, refresh, userId]);
 
   if (authLoading) {
     return <div className="pt-28 text-center text-cyan-400">Ładowanie powiadomień...</div>;
@@ -136,7 +222,7 @@ export default function NewNotificationsView({ isAdmin: isAdminFromApp = false }
         </button>
       </div>
 
-      <section className="grid grid-cols-2 lg:grid-cols-6 gap-4">
+      <section className="grid grid-cols-2 lg:grid-cols-7 gap-4">
         <div className="glass rounded-2xl p-4 border border-red-500/20">
           <div className="text-xs uppercase tracking-wider text-red-300/70">Polubienia</div>
           <div className="text-3xl text-white mt-2">{counters.like}</div>
@@ -160,6 +246,10 @@ export default function NewNotificationsView({ isAdmin: isAdminFromApp = false }
         <div className="glass rounded-2xl p-4 border border-green-500/20">
           <div className="text-xs uppercase tracking-wider text-green-300/70">Znajomi</div>
           <div className="text-3xl text-white mt-2">{counters.friend_request}</div>
+        </div>
+        <div className="glass rounded-2xl p-4 border border-indigo-500/20">
+          <div className="text-xs uppercase tracking-wider text-indigo-300/70">Odwiedziny</div>
+          <div className="text-3xl text-white mt-2">{counters.profile_view}</div>
         </div>
       </section>
 
@@ -233,6 +323,20 @@ export default function NewNotificationsView({ isAdmin: isAdminFromApp = false }
                   {notification.kind === 'friend_request' && !notification.actorImageUrl && (
                     <div className="w-11 h-11 rounded-full bg-green-500/20 border border-green-500/30 flex items-center justify-center shrink-0 shadow-[0_0_10px_rgba(34,197,94,0.2)]">
                       <UserPlus size={20} className="text-green-400" />
+                    </div>
+                  )}
+
+                  {notification.kind === 'profile_view' && notification.actorImageUrl && (
+                    <img
+                      src={notification.actorImageUrl}
+                      className="w-11 h-11 rounded-full object-cover border border-indigo-500/30 shrink-0 shadow-[0_0_10px_rgba(99,102,241,0.2)]"
+                      alt={notification.actorName || 'Odwiedziny profilu'}
+                    />
+                  )}
+
+                  {notification.kind === 'profile_view' && !notification.actorImageUrl && (
+                    <div className="w-11 h-11 rounded-full bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center shrink-0 shadow-[0_0_10px_rgba(99,102,241,0.2)]">
+                      <Eye size={20} className="text-indigo-300" />
                     </div>
                   )}
 

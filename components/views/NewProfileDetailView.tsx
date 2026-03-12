@@ -119,6 +119,7 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
   const photoCommentInputRef = useRef<HTMLInputElement>(null);
   const generalCommentEmojiButtonRef = useRef<HTMLButtonElement>(null);
   const photoCommentEmojiButtonRef = useRef<HTMLButtonElement>(null);
+  const loggedProfileViewRef = useRef<string | null>(null);
 
   const allPhotos = useMemo(() => {
     if (!profile) return [];
@@ -268,6 +269,25 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
 
     return resolved;
   }, [authorProfileId]);
+
+  const handleSendGiftInteraction = useCallback(async () => {
+    const senderProfileId = await resolveCurrentAuthorProfileId();
+    if (!senderProfileId || senderProfileId === profileId) return;
+
+    const { error } = await supabase
+      .from('profile_interactions')
+      .insert({
+        from_profile_id: senderProfileId,
+        to_profile_id: profileId,
+        kind: 'gift',
+        label: 'Prezent',
+        emoji: '🎁',
+      });
+
+    if (error && !error.message.toLowerCase().includes('does not exist')) {
+      console.error('Blad zapisu interakcji prezentu:', error.message);
+    }
+  }, [profileId, resolveCurrentAuthorProfileId]);
 
   const handleAddGeneralComment = useCallback(async () => {
     const content = commentText.trim();
@@ -473,6 +493,43 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
 
     void loadProfile();
   }, [hasLikedProfile, getFriendshipStatus, loadGeneralComments, profileId]);
+
+  useEffect(() => {
+    if (loggedProfileViewRef.current === profileId) return;
+
+    let cancelled = false;
+
+    const trackProfileView = async () => {
+      const viewerProfileId = await resolveCurrentAuthorProfileId();
+
+      if (cancelled) return;
+
+      // Track only real visits to other profiles.
+      if (!viewerProfileId || viewerProfileId === profileId) {
+        loggedProfileViewRef.current = profileId;
+        return;
+      }
+
+      const { error } = await supabase
+        .from('profile_views')
+        .insert({
+          viewer_profile_id: viewerProfileId,
+          viewed_profile_id: profileId,
+        });
+
+      if (error && !error.message.toLowerCase().includes('does not exist')) {
+        console.error('Blad zapisu podgladu profilu:', error.message);
+      }
+
+      loggedProfileViewRef.current = profileId;
+    };
+
+    void trackProfileView();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [profileId, resolveCurrentAuthorProfileId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -930,7 +987,11 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
               </span>
             </button>
 
-            <button className="cta-dock-btn flex flex-col items-center justify-center gap-1 p-2 group w-16">
+            <button
+              onClick={() => void handleSendGiftInteraction()}
+              title="Wyslij prezent"
+              className="cta-dock-btn flex flex-col items-center justify-center gap-1 p-2 group w-16"
+            >
               <div className="w-12 h-12 rounded-full bg-white/10 border border-cyan-500/20 flex items-center justify-center group-hover:bg-amber-500/20 group-hover:border-amber-500/50 transition-all shadow-inner">
                 <Gift size={20} className="text-cyan-400 group-hover:text-amber-400 drop-shadow-[0_0_8px_rgba(245,158,11,0)] group-hover:drop-shadow-[0_0_12px_rgba(245,158,11,0.8)] transition-all" />
               </div>

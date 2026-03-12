@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 
-export type NotificationKind = 'gift' | 'like' | 'poke' | 'verification' | 'comment' | 'friend_request';
+export type NotificationKind = 'gift' | 'like' | 'poke' | 'verification' | 'comment' | 'friend_request' | 'profile_view';
 
 export type NotificationItem = {
   id: string;
@@ -86,7 +86,7 @@ export function useNotifications({
     setLoading(true);
 
     try {
-      const [likesRes, interactionsRes, commentsRes, friendRequestsRes] = await Promise.all([
+      const [likesRes, interactionsRes, commentsRes, photoCommentsRes, friendRequestsRes, profileViewsRes] = await Promise.all([
         supabase
           .from('likes')
           .select('id, from_profile_id, created_at')
@@ -107,12 +107,24 @@ export function useNotifications({
           .order('created_at', { ascending: false })
           .limit(20),
         supabase
+          .from('profile_photo_comments')
+          .select('id, author_profile_id, content, created_at')
+          .in('profile_id', profileTargets)
+          .order('created_at', { ascending: false })
+          .limit(20),
+        supabase
           .from('friendships')
           .select('id, requester_id, created_at')
           .in('addressee_id', profileTargets)
           .eq('status', 'pending')
           .order('created_at', { ascending: false })
           .limit(10),
+        supabase
+          .from('profile_views')
+          .select('id, viewer_profile_id, created_at')
+          .in('viewed_profile_id', profileTargets)
+          .order('created_at', { ascending: false })
+          .limit(20),
       ]);
 
       if (likesRes.error) {
@@ -131,6 +143,27 @@ export function useNotifications({
         !commentsRes.error.message.toLowerCase().includes('does not exist')
       ) {
         console.error('Blad ladowania komentarzy do powiadomien:', commentsRes.error.message);
+      }
+
+      if (
+        photoCommentsRes.error &&
+        !photoCommentsRes.error.message.toLowerCase().includes('does not exist')
+      ) {
+        console.error('Blad ladowania komentarzy do zdjec w powiadomieniach:', photoCommentsRes.error.message);
+      }
+
+      if (
+        friendRequestsRes.error &&
+        !friendRequestsRes.error.message.toLowerCase().includes('does not exist')
+      ) {
+        console.error('Blad ladowania zaproszen znajomych do powiadomien:', friendRequestsRes.error.message);
+      }
+
+      if (
+        profileViewsRes.error &&
+        !profileViewsRes.error.message.toLowerCase().includes('does not exist')
+      ) {
+        console.error('Blad ladowania odwiedzin profilu do powiadomien:', profileViewsRes.error.message);
       }
 
       type LikeRow = { id: string; from_profile_id: string; created_at: string };
@@ -153,11 +186,11 @@ export function useNotifications({
         requester_id: string;
         created_at: string;
       };
-
-      const friendRequests = friendRequestsRes.error
-        ? []
-        : ((friendRequestsRes.data as FriendRequestRow[] | null) ?? []);
-
+      type ProfileViewRow = {
+        id: string;
+        viewer_profile_id: string;
+        created_at: string;
+      };
       const likes = (likesRes.data as LikeRow[] | null) ?? [];
       const interactions = interactionsRes.error
         ? []
@@ -167,13 +200,28 @@ export function useNotifications({
         : (((commentsRes.data as CommentRow[] | null) ?? []).filter(
             (row) => !profileTargets.includes(row.author_profile_id),
           ));
+      const photoComments = photoCommentsRes.error
+        ? []
+        : (((photoCommentsRes.data as CommentRow[] | null) ?? []).filter(
+            (row) => !profileTargets.includes(row.author_profile_id),
+          ));
+      const friendRequests = friendRequestsRes.error
+        ? []
+        : ((friendRequestsRes.data as FriendRequestRow[] | null) ?? []);
+      const profileViews = profileViewsRes.error
+        ? []
+        : (((profileViewsRes.data as ProfileViewRow[] | null) ?? []).filter(
+            (row) => !profileTargets.includes(row.viewer_profile_id),
+          ));
 
       const actorIds = Array.from(
         new Set([
           ...likes.map((row) => row.from_profile_id),
           ...interactions.map((row) => row.from_profile_id),
           ...comments.map((row) => row.author_profile_id),
+          ...photoComments.map((row) => row.author_profile_id),
           ...friendRequests.map((row) => row.requester_id),
+          ...profileViews.map((row) => row.viewer_profile_id),
         ]),
       );
 
@@ -268,6 +316,25 @@ export function useNotifications({
         });
       }
 
+      for (const comment of photoComments) {
+        const actor = actorMap.get(comment.author_profile_id);
+        const actorName = actor?.name || 'Ktos';
+        const snippet = comment.content.length > 90
+          ? `${comment.content.slice(0, 90)}...`
+          : comment.content;
+
+        nextNotifications.push({
+          id: `photo-comment-${comment.id}`,
+          kind: 'comment',
+          actorName,
+          actorImageUrl: actor?.image_url || undefined,
+          actorProfileId: comment.author_profile_id,
+          message: `${actorName} skomentowal Twoje zdjecie: "${snippet}"`,
+          createdAt: comment.created_at,
+          href: isAdmin ? '/notifications' : '/myprofile',
+        });
+      }
+
       for (const req of friendRequests) {
         const actor = actorMap.get(req.requester_id);
         const actorName = actor?.name || 'Ktos';
@@ -281,6 +348,22 @@ export function useNotifications({
           message: `${actorName} wyslal Ci zaproszenie do znajomych!`,
           createdAt: req.created_at,
           href: buildProfileHref(req.requester_id),
+        });
+      }
+
+      for (const view of profileViews) {
+        const actor = actorMap.get(view.viewer_profile_id);
+        const actorName = actor?.name || 'Ktos';
+
+        nextNotifications.push({
+          id: `profile-view-${view.id}`,
+          kind: 'profile_view',
+          actorName,
+          actorImageUrl: actor?.image_url || undefined,
+          actorProfileId: view.viewer_profile_id,
+          message: `${actorName} odwiedzil Twoj profil.`,
+          createdAt: view.created_at,
+          href: buildProfileHref(view.viewer_profile_id),
         });
       }
 
