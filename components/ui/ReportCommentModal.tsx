@@ -37,26 +37,34 @@ export default function ReportCommentModal({
   const [reason, setReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   if (!open) return null;
 
   const handleSubmit = async () => {
     if (!reason || submitting) return;
     setSubmitting(true);
+    setSubmitError(null);
     try {
-      await supabase.from('comment_reports').insert({
+      const { error } = await supabase.from('comment_reports').insert({
         comment_id: commentType === 'wall' ? commentId : null,
         photo_comment_id: commentType === 'photo' ? commentId : null,
         comment_type: commentType,
         comment_content: commentContent,
-        comment_author_id: commentAuthorId,
-        reporter_id: reporterProfileId,
+        comment_author_id: commentAuthorId || null,
+        reporter_id: reporterProfileId || null,
         reason,
         status: 'pending',
       });
+      if (error) {
+        console.error('Report insert error:', error);
+        setSubmitError(`Błąd: ${error.message}`);
+        return;
+      }
       setSubmitted(true);
-    } catch {
-      // fail silently — zgłoszenie best-effort
+    } catch (err: any) {
+      console.error('Report submit exception:', err);
+      setSubmitError('Nie udało się wysłać zgłoszenia. Spróbuj ponownie.');
     } finally {
       setSubmitting(false);
     }
@@ -65,6 +73,7 @@ export default function ReportCommentModal({
   const handleClose = () => {
     setReason('');
     setSubmitted(false);
+    setSubmitError(null);
     onClose();
   };
 
@@ -140,6 +149,9 @@ export default function ReportCommentModal({
             </div>
 
             {/* Submit */}
+            {submitError && (
+              <p className="text-xs text-red-400 mb-3 text-center">{submitError}</p>
+            )}
             <button
               onClick={() => void handleSubmit()}
               disabled={!reason || submitting}
