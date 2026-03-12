@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 
 export type NotificationKind = 'gift' | 'like' | 'poke' | 'verification' | 'comment' | 'friend_request' | 'profile_view';
@@ -8,6 +8,7 @@ export type NotificationKind = 'gift' | 'like' | 'poke' | 'verification' | 'comm
 export type NotificationItem = {
   id: string;
   kind: NotificationKind;
+  friendshipId?: string;
   actorName?: string;
   actorImageUrl?: string;
   actorProfileId?: string;
@@ -15,6 +16,10 @@ export type NotificationItem = {
   createdAt: string;
   href: string;
 };
+
+const DISMISSED_STORAGE_PREFIX = 'zl_notifications_dismissed';
+const DISMISSED_SYNC_EVENT = 'zl:notifications-dismissed-sync';
+const DISMISSED_IDS_LIMIT = 500;
 
 type UseNotificationsOptions = {
   userId: string | null;
@@ -66,6 +71,8 @@ export function useNotifications({
 }: UseNotificationsOptions) {
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
+  const dismissedIdsRef = useRef<Set<string>>(new Set());
 
   const profileTargets = useMemo(() => {
     const candidates = [
@@ -75,6 +82,115 @@ export function useNotifications({
 
     return Array.from(new Set(candidates));
   }, [targetProfileIds, userId]);
+
+  const dismissedStorageKey = useMemo(() => {
+    if (userId) return `${DISMISSED_STORAGE_PREFIX}:${userId}`;
+    if (profileTargets.length > 0) {
+      return `${DISMISSED_STORAGE_PREFIX}:${profileTargets.join('|')}`;
+    }
+    return null;
+  }, [profileTargets, userId]);
+
+  const persistDismissedIds = useCallback((next: Set<string>) => {
+    if (typeof window === 'undefined' || !dismissedStorageKey) return;
+
+    const serialized = Array.from(next).slice(-DISMISSED_IDS_LIMIT);
+    window.localStorage.setItem(dismissedStorageKey, JSON.stringify(serialized));
+    window.dispatchEvent(
+      new CustomEvent(DISMISSED_SYNC_EVENT, {
+        detail: {
+          key: dismissedStorageKey,
+          ids: serialized,
+        },
+      }),
+    );
+  }, [dismissedStorageKey]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    if (!dismissedStorageKey) {
+      setDismissedIds(new Set());
+      return;
+    }
+
+    const raw = window.localStorage.getItem(dismissedStorageKey);
+    if (!raw) {
+      setDismissedIds(new Set());
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        const normalized = parsed.filter((value): value is string => typeof value === 'string');
+        setDismissedIds(new Set(normalized));
+      } else {
+        setDismissedIds(new Set());
+      }
+    } catch {
+      setDismissedIds(new Set());
+    }
+  }, [dismissedStorageKey]);
+
+  useEffect(() => {
+    dismissedIdsRef.current = dismissedIds;
+    setNotifications((prev) => prev.filter((item) => !dismissedIds.has(item.id)));
+  }, [dismissedIds]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !dismissedStorageKey) return;
+
+    const handleDismissedSync = (event: Event) => {
+      const customEvent = event as CustomEvent<{ key?: string; ids?: string[] }>;
+      if (customEvent.detail?.key !== dismissedStorageKey) return;
+      if (!Array.isArray(customEvent.detail?.ids)) return;
+
+      const ids = customEvent.detail.ids.filter((value): value is string => typeof value === 'string');
+      setDismissedIds(new Set(ids));
+    };
+
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key !== dismissedStorageKey) return;
+
+      if (!event.newValue) {
+        setDismissedIds(new Set());
+        return;
+      }
+
+      try {
+        const parsed = JSON.parse(event.newValue);
+        if (!Array.isArray(parsed)) return;
+        const ids = parsed.filter((value): value is string => typeof value === 'string');
+        setDismissedIds(new Set(ids));
+      } catch {
+        setDismissedIds(new Set());
+      }
+    };
+
+    window.addEventListener(DISMISSED_SYNC_EVENT, handleDismissedSync as EventListener);
+    window.addEventListener('storage', handleStorage);
+
+    return () => {
+      window.removeEventListener(DISMISSED_SYNC_EVENT, handleDismissedSync as EventListener);
+      window.removeEventListener('storage', handleStorage);
+    };
+  }, [dismissedStorageKey]);
+
+  const dismissNotification = useCallback((notificationId: string) => {
+    if (!notificationId) return;
+
+    setDismissedIds((prev) => {
+      if (prev.has(notificationId)) return prev;
+
+      const next = new Set(prev);
+      next.add(notificationId);
+      persistDismissedIds(next);
+      return next;
+    });
+
+    setNotifications((prev) => prev.filter((item) => item.id !== notificationId));
+  }, [persistDismissedIds]);
 
   const refresh = useCallback(async () => {
     if (profileTargets.length === 0) {
@@ -342,6 +458,7 @@ export function useNotifications({
         nextNotifications.push({
           id: `friend_request-${req.id}`,
           kind: 'friend_request',
+          friendshipId: req.id,
           actorName,
           actorImageUrl: actor?.image_url || undefined,
           actorProfileId: req.requester_id,
@@ -378,7 +495,11 @@ export function useNotifications({
       }
 
       nextNotifications.sort((a, b) => notificationTimestamp(b.createdAt) - notificationTimestamp(a.createdAt));
-      setNotifications(nextNotifications.slice(0, 40));
+      const visibleNotifications = nextNotifications
+        .filter((item) => !dismissedIdsRef.current.has(item.id))
+        .slice(0, 40);
+
+      setNotifications(visibleNotifications);
     } catch (error) {
       console.error('Blad ladowania centrum powiadomien:', error);
     } finally {
@@ -395,5 +516,6 @@ export function useNotifications({
     notifications,
     loading,
     refresh,
+    dismissNotification,
   };
 }

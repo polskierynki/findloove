@@ -2,10 +2,11 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, BadgeCheck, Bell, Eye, Gift, Heart, MessageCircle, RefreshCw, UserPlus } from 'lucide-react';
+import { ArrowLeft, BadgeCheck, Bell, Check, Eye, Gift, Heart, MessageCircle, RefreshCw, Trash2, UserPlus, X } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { resolveProfileIdForAuthUser } from '@/lib/profileAuth';
-import { formatNotificationTime, useNotifications } from '@/lib/hooks/useNotifications';
+import { formatNotificationTime, NotificationItem, useNotifications } from '@/lib/hooks/useNotifications';
+import { useFriends } from '@/lib/hooks/useFriends';
 
 type NotificationProfile = {
   role?: string | null;
@@ -20,11 +21,13 @@ interface NewNotificationsViewProps {
 export default function NewNotificationsView({ isAdmin: isAdminFromApp = false }: NewNotificationsViewProps) {
   const router = useRouter();
   const adminEmail = 'lio1985lodz@gmail.com';
+  const { acceptFriendRequest, removeFriendship } = useFriends();
   const [userId, setUserId] = useState<string | null>(null);
   const [profileId, setProfileId] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [profile, setProfile] = useState<NotificationProfile | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const [friendActionBusyKey, setFriendActionBusyKey] = useState<string | null>(null);
 
   useEffect(() => {
     const loadUser = async () => {
@@ -68,13 +71,52 @@ export default function NewNotificationsView({ isAdmin: isAdminFromApp = false }
     [profileId, userId],
   );
 
-  const { notifications, loading, refresh } = useNotifications({
+  const { notifications, loading, refresh, dismissNotification } = useNotifications({
     userId,
     targetProfileIds: notificationTargets,
     isAdmin,
     profileIsVerified: Boolean(profile?.is_verified),
     profileCreatedAt: profile?.created_at ?? null,
   });
+
+  const openInviterProfile = (notification: NotificationItem) => {
+    if (!notification.actorProfileId) return;
+    router.push(`/profile/${encodeURIComponent(notification.actorProfileId)}`);
+  };
+
+  const handleAcceptFriendRequest = async (notification: NotificationItem) => {
+    if (!notification.friendshipId) return;
+
+    const busyKey = `accept-${notification.id}`;
+    setFriendActionBusyKey(busyKey);
+
+    try {
+      await acceptFriendRequest(notification.friendshipId);
+      dismissNotification(notification.id);
+      await refresh();
+    } catch (error) {
+      console.error('Blad akceptacji zaproszenia:', error);
+    } finally {
+      setFriendActionBusyKey((prev) => (prev === busyKey ? null : prev));
+    }
+  };
+
+  const handleRejectFriendRequest = async (notification: NotificationItem) => {
+    if (!notification.friendshipId) return;
+
+    const busyKey = `reject-${notification.id}`;
+    setFriendActionBusyKey(busyKey);
+
+    try {
+      await removeFriendship(notification.friendshipId);
+      dismissNotification(notification.id);
+      await refresh();
+    } catch (error) {
+      console.error('Blad odrzucenia zaproszenia:', error);
+    } finally {
+      setFriendActionBusyKey((prev) => (prev === busyKey ? null : prev));
+    }
+  };
 
   const counters = useMemo(() => {
     return notifications.reduce(
@@ -156,6 +198,26 @@ export default function NewNotificationsView({ isAdmin: isAdminFromApp = false }
       }, (payload) => {
         const row = payload.new as { addressee_id?: string; status?: string };
         if (!row.addressee_id || !notificationTargets.includes(row.addressee_id) || row.status !== 'pending') return;
+        void refresh();
+      })
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'friendships',
+      }, (payload) => {
+        const row = payload.new as { addressee_id?: string };
+        const previous = payload.old as { addressee_id?: string };
+        const targetId = row.addressee_id || previous.addressee_id;
+        if (!targetId || !notificationTargets.includes(targetId)) return;
+        void refresh();
+      })
+      .on('postgres_changes', {
+        event: 'DELETE',
+        schema: 'public',
+        table: 'friendships',
+      }, (payload) => {
+        const row = payload.old as { addressee_id?: string };
+        if (!row.addressee_id || !notificationTargets.includes(row.addressee_id)) return;
         void refresh();
       })
       .on('postgres_changes', {
@@ -313,17 +375,33 @@ export default function NewNotificationsView({ isAdmin: isAdminFromApp = false }
                   )}
 
                   {notification.kind === 'friend_request' && notification.actorImageUrl && (
-                    <img
-                      src={notification.actorImageUrl}
-                      className="w-11 h-11 rounded-full object-cover border border-green-500/30 shrink-0 shadow-[0_0_10px_rgba(34,197,94,0.2)]"
-                      alt={notification.actorName || 'Zaproszenie'}
-                    />
+                    <button
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        openInviterProfile(notification);
+                      }}
+                      title="Zobacz profil osoby zapraszajacej"
+                      className="shrink-0 rounded-full"
+                    >
+                      <img
+                        src={notification.actorImageUrl}
+                        className="w-11 h-11 rounded-full object-cover border border-green-500/30 shadow-[0_0_10px_rgba(34,197,94,0.2)]"
+                        alt={notification.actorName || 'Zaproszenie'}
+                      />
+                    </button>
                   )}
 
                   {notification.kind === 'friend_request' && !notification.actorImageUrl && (
-                    <div className="w-11 h-11 rounded-full bg-green-500/20 border border-green-500/30 flex items-center justify-center shrink-0 shadow-[0_0_10px_rgba(34,197,94,0.2)]">
+                    <button
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        openInviterProfile(notification);
+                      }}
+                      title="Zobacz profil osoby zapraszajacej"
+                      className="w-11 h-11 rounded-full bg-green-500/20 border border-green-500/30 flex items-center justify-center shrink-0 shadow-[0_0_10px_rgba(34,197,94,0.2)]"
+                    >
                       <UserPlus size={20} className="text-green-400" />
-                    </div>
+                    </button>
                   )}
 
                   {notification.kind === 'profile_view' && notification.actorImageUrl && (
@@ -341,8 +419,48 @@ export default function NewNotificationsView({ isAdmin: isAdminFromApp = false }
                   )}
 
                   <div className="min-w-0 flex-1">
-                    <p className="text-white leading-relaxed">{notification.message}</p>
-                    <p className="text-xs text-gray-500 mt-2">{formatNotificationTime(notification.createdAt)}</p>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-white leading-relaxed">{notification.message}</p>
+                        <p className="text-xs text-gray-500 mt-2">{formatNotificationTime(notification.createdAt)}</p>
+                      </div>
+
+                      <button
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          dismissNotification(notification.id);
+                        }}
+                        title="Usuń to powiadomienie"
+                        className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 hover:border-red-500/35 hover:bg-red-500/10 flex items-center justify-center text-white/40 hover:text-red-300 transition-colors shrink-0"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+
+                    {notification.kind === 'friend_request' && notification.friendshipId && (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <button
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            void handleAcceptFriendRequest(notification);
+                          }}
+                          disabled={friendActionBusyKey === `accept-${notification.id}` || friendActionBusyKey === `reject-${notification.id}`}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-green-500/40 bg-green-500/20 px-3 py-1.5 text-xs text-green-200 hover:bg-green-500/30 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                          <Check size={13} /> Akceptuj
+                        </button>
+                        <button
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            void handleRejectFriendRequest(notification);
+                          }}
+                          disabled={friendActionBusyKey === `accept-${notification.id}` || friendActionBusyKey === `reject-${notification.id}`}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-white/20 bg-white/5 px-3 py-1.5 text-xs text-white/80 hover:text-red-200 hover:bg-red-500/10 hover:border-red-500/35 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                          <X size={13} /> Odrzuc
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               );

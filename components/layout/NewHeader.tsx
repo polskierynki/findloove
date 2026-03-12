@@ -5,8 +5,9 @@ import { useRouter, usePathname } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { resolveProfileIdForAuthUser } from '@/lib/profileAuth';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
-import { Bell, MessageCircle, Shield, Menu, X, Gift, Heart, BadgeCheck, LogIn, LogOut, UserPlus, Eye, Users } from 'lucide-react';
-import { useNotifications } from '@/lib/hooks/useNotifications';
+import { Bell, MessageCircle, Shield, Menu, X, Gift, Heart, BadgeCheck, LogIn, LogOut, UserPlus, Eye, Users, Check, Trash2 } from 'lucide-react';
+import { useNotifications, type NotificationItem } from '@/lib/hooks/useNotifications';
+import { useFriends } from '@/lib/hooks/useFriends';
 
 type HeaderProfile = {
   role?: string | null;
@@ -52,6 +53,8 @@ export default function NewHeader() {
   const [unreadMessagesCount, setUnreadMessagesCount] = useState<number>(0);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [friendActionBusyKey, setFriendActionBusyKey] = useState<string | null>(null);
+  const { acceptFriendRequest, removeFriendship } = useFriends();
 
   const unreadTargetIds = useMemo(
     () => Array.from(new Set([user?.id, profileId].filter(Boolean))) as string[],
@@ -113,6 +116,7 @@ export default function NewHeader() {
     notifications,
     loading: notificationsLoading,
     refresh: loadNotifications,
+    dismissNotification,
   } = useNotifications({
     userId: user?.id || null,
     targetProfileIds: unreadTargetIds,
@@ -269,6 +273,45 @@ export default function NewHeader() {
     },
     [router],
   );
+
+  const openInviterProfile = useCallback((notification: NotificationItem) => {
+    if (!notification.actorProfileId) return;
+    openNotification(`/profile/${encodeURIComponent(notification.actorProfileId)}`);
+  }, [openNotification]);
+
+  const handleAcceptFriendRequest = useCallback(async (notification: NotificationItem) => {
+    if (!notification.friendshipId) return;
+
+    const busyKey = `accept-${notification.id}`;
+    setFriendActionBusyKey(busyKey);
+
+    try {
+      await acceptFriendRequest(notification.friendshipId);
+      dismissNotification(notification.id);
+      await loadNotifications();
+    } catch (error) {
+      console.error('Blad akceptacji zaproszenia ze skrótu powiadomien:', error);
+    } finally {
+      setFriendActionBusyKey((prev) => (prev === busyKey ? null : prev));
+    }
+  }, [acceptFriendRequest, dismissNotification, loadNotifications]);
+
+  const handleRejectFriendRequest = useCallback(async (notification: NotificationItem) => {
+    if (!notification.friendshipId) return;
+
+    const busyKey = `reject-${notification.id}`;
+    setFriendActionBusyKey(busyKey);
+
+    try {
+      await removeFriendship(notification.friendshipId);
+      dismissNotification(notification.id);
+      await loadNotifications();
+    } catch (error) {
+      console.error('Blad odrzucenia zaproszenia ze skrótu powiadomien:', error);
+    } finally {
+      setFriendActionBusyKey((prev) => (prev === busyKey ? null : prev));
+    }
+  }, [dismissNotification, loadNotifications, removeFriendship]);
 
   const toggleNotifications = useCallback(() => {
     const nextOpenState = !notificationsOpen;
@@ -483,17 +526,33 @@ export default function NewHeader() {
                           )}
 
                           {notification.kind === 'friend_request' && notification.actorImageUrl && (
-                            <img
-                              src={notification.actorImageUrl}
-                              className="w-10 h-10 rounded-full object-cover border border-green-500/30 shrink-0 shadow-[0_0_8px_rgba(34,197,94,0.2)]"
-                              alt={notification.actorName || 'Zaproszenie'}
-                            />
+                            <button
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                openInviterProfile(notification);
+                              }}
+                              title="Zobacz profil osoby zapraszajacej"
+                              className="shrink-0 rounded-full"
+                            >
+                              <img
+                                src={notification.actorImageUrl}
+                                className="w-10 h-10 rounded-full object-cover border border-green-500/30 shadow-[0_0_8px_rgba(34,197,94,0.2)]"
+                                alt={notification.actorName || 'Zaproszenie'}
+                              />
+                            </button>
                           )}
 
                           {notification.kind === 'friend_request' && !notification.actorImageUrl && (
-                            <div className="w-10 h-10 rounded-full bg-green-500/20 border border-green-500/30 flex items-center justify-center shrink-0 shadow-[0_0_8px_rgba(34,197,94,0.2)]">
+                            <button
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                openInviterProfile(notification);
+                              }}
+                              title="Zobacz profil osoby zapraszajacej"
+                              className="w-10 h-10 rounded-full bg-green-500/20 border border-green-500/30 flex items-center justify-center shrink-0 shadow-[0_0_8px_rgba(34,197,94,0.2)]"
+                            >
                               <UserPlus size={18} className="text-green-400" />
-                            </div>
+                            </button>
                           )}
 
                           {notification.kind === 'profile_view' && notification.actorImageUrl && (
@@ -510,9 +569,49 @@ export default function NewHeader() {
                             </div>
                           )}
 
-                          <div>
-                            <p className="text-sm text-gray-200">{notification.message}</p>
-                            <p className="text-xs text-gray-500 mt-1">{formatNotificationTime(notification.createdAt)}</p>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0">
+                                <p className="text-sm text-gray-200">{notification.message}</p>
+                                <p className="text-xs text-gray-500 mt-1">{formatNotificationTime(notification.createdAt)}</p>
+                              </div>
+
+                              <button
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  dismissNotification(notification.id);
+                                }}
+                                title="Usuń to powiadomienie"
+                                className="w-7 h-7 rounded-lg bg-white/5 border border-white/10 hover:border-red-500/35 hover:bg-red-500/10 flex items-center justify-center text-white/40 hover:text-red-300 transition-colors shrink-0"
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </div>
+
+                            {notification.kind === 'friend_request' && notification.friendshipId && (
+                              <div className="mt-2.5 flex flex-wrap gap-2">
+                                <button
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    void handleAcceptFriendRequest(notification);
+                                  }}
+                                  disabled={friendActionBusyKey === `accept-${notification.id}` || friendActionBusyKey === `reject-${notification.id}`}
+                                  className="inline-flex items-center gap-1 rounded-md border border-green-500/40 bg-green-500/20 px-2.5 py-1 text-[11px] text-green-200 hover:bg-green-500/30 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                >
+                                  <Check size={12} /> Akceptuj
+                                </button>
+                                <button
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    void handleRejectFriendRequest(notification);
+                                  }}
+                                  disabled={friendActionBusyKey === `accept-${notification.id}` || friendActionBusyKey === `reject-${notification.id}`}
+                                  className="inline-flex items-center gap-1 rounded-md border border-white/20 bg-white/5 px-2.5 py-1 text-[11px] text-white/75 hover:text-red-200 hover:border-red-500/35 hover:bg-red-500/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                >
+                                  <X size={12} /> Odrzuc
+                                </button>
+                              </div>
+                            )}
                           </div>
                         </div>
                       );
