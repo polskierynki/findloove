@@ -439,6 +439,12 @@ body.photo-modal-open nav[data-app-nav='bottom'] {
 }
 
 .icon-hint-wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.icon-hint-anchor {
   position: relative;
   display: inline-flex;
   align-items: center;

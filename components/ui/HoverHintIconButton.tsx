@@ -54,27 +54,29 @@ const HoverHintIconButton = forwardRef<HTMLButtonElement, HoverHintIconButtonPro
 ) {
   return (
     <div className={cn('icon-hint-wrap', wrapperClassName)}>
-      <button
-        ref={ref}
-        type={type}
-        onClick={onClick}
-        disabled={disabled}
-        aria-label={tooltip}
-        className={cn(
-          'icon-hint-btn',
-          sizeClasses[size],
-          variantClasses[variant],
-          buttonClassName,
-        )}
-      >
-        <span className="icon-hint-icon" aria-hidden="true">
-          <span className="icon-hint-icon--outline">{regularIcon}</span>
-          <span className="icon-hint-icon--fill">{filledIcon}</span>
+      <div className="icon-hint-anchor">
+        <button
+          ref={ref}
+          type={type}
+          onClick={onClick}
+          disabled={disabled}
+          aria-label={tooltip}
+          className={cn(
+            'icon-hint-btn',
+            sizeClasses[size],
+            variantClasses[variant],
+            buttonClassName,
+          )}
+        >
+          <span className="icon-hint-icon" aria-hidden="true">
+            <span className="icon-hint-icon--outline">{regularIcon}</span>
+            <span className="icon-hint-icon--fill">{filledIcon}</span>
+          </span>
+        </button>
+        <span role="tooltip" className={cn('icon-hint-tooltip', tooltipClasses[variant])}>
+          {tooltip}
         </span>
-      </button>
-      <span role="tooltip" className={cn('icon-hint-tooltip', tooltipClasses[variant])}>
-        {tooltip}
-      </span>
+      </div>
     </div>
   );
 });
