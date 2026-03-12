@@ -83,15 +83,15 @@ export default function NewNotificationsView({ isAdmin: isAdminFromApp = false }
         poke: 0,
         verification: 0,
         comment: 0,
-      } as Record<'gift' | 'like' | 'poke' | 'verification' | 'comment', number>,
-      {
-        gift: 0,
-        like: 0,
-        poke: 0,
-        verification: 0,
-        comment: 0,
         friend_request: 0,
       } as Record<'gift' | 'like' | 'poke' | 'verification' | 'comment' | 'friend_request', number>,
+    );
+  }, [notifications]);
+
+  if (authLoading) {
+    return <div className="pt-28 text-center text-cyan-400">Ładowanie powiadomień...</div>;
+  }
+
   if (!userId) {
     return (
       <div className="relative z-10 pt-28 pb-16 px-6 lg:px-12 max-w-[1400px] mx-auto">
@@ -219,20 +219,20 @@ export default function NewNotificationsView({ isAdmin: isAdminFromApp = false }
                   {notification.kind === 'comment' && !notification.actorImageUrl && (
                     <div className="w-11 h-11 rounded-full bg-white/10 border border-white/15 flex items-center justify-center shrink-0">
                       <MessageCircle size={18} className="text-cyan-300" />
+                    </div>
+                  )}
 
-                                      {notification.kind === 'friend_request' && notification.actorImageUrl && (
-                                        <img
-                                          src={notification.actorImageUrl}
-                                          className="w-11 h-11 rounded-full object-cover border border-green-500/30 shrink-0 shadow-[0_0_10px_rgba(34,197,94,0.2)]"
-                                          alt={notification.actorName || 'Zaproszenie'}
-                                        />
-                                      )}
+                  {notification.kind === 'friend_request' && notification.actorImageUrl && (
+                    <img
+                      src={notification.actorImageUrl}
+                      className="w-11 h-11 rounded-full object-cover border border-green-500/30 shrink-0 shadow-[0_0_10px_rgba(34,197,94,0.2)]"
+                      alt={notification.actorName || 'Zaproszenie'}
+                    />
+                  )}
 
-                                      {notification.kind === 'friend_request' && !notification.actorImageUrl && (
-                                        <div className="w-11 h-11 rounded-full bg-green-500/20 border border-green-500/30 flex items-center justify-center shrink-0 shadow-[0_0_10px_rgba(34,197,94,0.2)]">
-                                          <UserPlus size={20} className="text-green-400" />
-                                        </div>
-                                      )}
+                  {notification.kind === 'friend_request' && !notification.actorImageUrl && (
+                    <div className="w-11 h-11 rounded-full bg-green-500/20 border border-green-500/30 flex items-center justify-center shrink-0 shadow-[0_0_10px_rgba(34,197,94,0.2)]">
+                      <UserPlus size={20} className="text-green-400" />
                     </div>
                   )}
 

@@ -146,11 +146,11 @@ export function useNotifications({
         id: string;
         author_profile_id: string;
         content: string;
-              type FriendRequestRow = {
-                id: string;
-                requester_id: string;
-                created_at: string;
-              };
+        created_at: string;
+      };
+      type FriendRequestRow = {
+        id: string;
+        requester_id: string;
         created_at: string;
       };
 
@@ -159,7 +159,6 @@ export function useNotifications({
         : ((friendRequestsRes.data as FriendRequestRow[] | null) ?? []);
 
       const likes = (likesRes.data as LikeRow[] | null) ?? [];
-      const interactions = interactionsRes.error
       const interactions = interactionsRes.error
         ? []
         : ((interactionsRes.data as InteractionRow[] | null) ?? []);
@@ -286,7 +285,6 @@ export function useNotifications({
       }
 
       if (profileIsVerified) {
-        nextNotifications.push({
         nextNotifications.push({
           id: `verification-${userId}`,
           kind: 'verification',
