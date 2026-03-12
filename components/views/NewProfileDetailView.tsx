@@ -287,6 +287,8 @@ function computeCompatibility(viewer: CompatibilityProfile | null, target: Compa
 export default function NewProfileDetailView({ profileId }: { profileId: string }) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const deepLinkPhotoParam = searchParams.get('photo');
+  const deepLinkCommentsParam = searchParams.get('comments');
   const { likeProfile, unlikeProfile, hasLikedProfile } = useLikes();
   const { sendFriendRequest, acceptFriendRequest, removeFriendship, getFriendshipStatus, getFriendsForProfile } = useFriends();
 
@@ -352,8 +354,6 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
   );
 
   const hasMoreProfileFriends = profileFriends.length > 6;
-  const deepLinkPhotoParam = searchParams.get('photo');
-  const deepLinkCommentsParam = searchParams.get('comments');
 
   const refreshTargetProfileSnapshot = useCallback(async () => {
     const { data, error } = await supabase
