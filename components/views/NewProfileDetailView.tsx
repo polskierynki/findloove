@@ -317,6 +317,8 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
   const [receivedGiftsLoading, setReceivedGiftsLoading] = useState(false);
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
   const [isSubmittingPhotoComment, setIsSubmittingPhotoComment] = useState(false);
+  const [deletingWallCommentId, setDeletingWallCommentId] = useState<string | null>(null);
+  const [deletingPhotoCommentId, setDeletingPhotoCommentId] = useState<string | null>(null);
   const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
   const [isClient, setIsClient] = useState(false);
   const [activePhotoIndex, setActivePhotoIndex] = useState(0);
@@ -866,6 +868,89 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
     resolveCurrentAuthorProfileId,
   ]);
 
+  const canDeleteComment = useCallback((commentAuthorProfileId: string) => {
+    if (!authorProfileId) return false;
+    return commentAuthorProfileId === authorProfileId || authorProfileId === profileId;
+  }, [authorProfileId, profileId]);
+
+  const handleDeleteGeneralComment = useCallback(async (comment: AppComment) => {
+    if (!canDeleteComment(comment.author_profile_id)) return;
+
+    const shouldDelete = window.confirm('Usunac ten komentarz z tablicy?');
+    if (!shouldDelete) return;
+
+    setCommentsError(null);
+    setDeletingWallCommentId(comment.id);
+
+    try {
+      const { error } = await supabase
+        .from('profile_comments')
+        .delete()
+        .eq('id', comment.id);
+
+      if (error) {
+        throw error;
+      }
+
+      await loadGeneralComments();
+    } catch (error) {
+      console.error('Blad usuwania komentarza z tablicy:', error);
+
+      const message =
+        (error as { message?: string; code?: string } | null)?.message ||
+        (error as { code?: string } | null)?.code ||
+        'Nieznany blad';
+
+      if (typeof message === 'string' && message.toLowerCase().includes('row-level security')) {
+        setCommentsError('Brak uprawnien usuwania komentarzy tablicy. Uruchom SQL: supabase/fix_comment_owner_delete_policies.sql');
+        return;
+      }
+
+      setCommentsError(`Nie udalo sie usunac komentarza: ${message}`);
+    } finally {
+      setDeletingWallCommentId(null);
+    }
+  }, [canDeleteComment, loadGeneralComments]);
+
+  const handleDeletePhotoComment = useCallback(async (comment: AppComment) => {
+    if (!photoCommentsTableAvailable || !canDeleteComment(comment.author_profile_id)) return;
+
+    const shouldDelete = window.confirm('Usunac ten komentarz do zdjecia?');
+    if (!shouldDelete) return;
+
+    setCommentsError(null);
+    setDeletingPhotoCommentId(comment.id);
+
+    try {
+      const { error } = await supabase
+        .from('profile_photo_comments')
+        .delete()
+        .eq('id', comment.id);
+
+      if (error) {
+        throw error;
+      }
+
+      await loadPhotoComments(activePhotoIndex);
+    } catch (error) {
+      console.error('Blad usuwania komentarza do zdjecia:', error);
+
+      const message =
+        (error as { message?: string; code?: string } | null)?.message ||
+        (error as { code?: string } | null)?.code ||
+        'Nieznany blad';
+
+      if (typeof message === 'string' && message.toLowerCase().includes('row-level security')) {
+        setCommentsError('Brak uprawnien usuwania komentarzy do zdjec. Uruchom SQL: supabase/fix_comment_owner_delete_policies.sql');
+        return;
+      }
+
+      setCommentsError(`Nie udalo sie usunac komentarza do zdjecia: ${message}`);
+    } finally {
+      setDeletingPhotoCommentId(null);
+    }
+  }, [activePhotoIndex, canDeleteComment, loadPhotoComments, photoCommentsTableAvailable]);
+
   const insertEmojiToGeneralComment = useCallback((emoji: string) => {
     const input = generalCommentInputRef.current;
 
@@ -1358,7 +1443,11 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
                 <div className="relative">
                   {/* Vertical timeline line */}
                   <div className="absolute left-[9px] top-3 bottom-3 w-px bg-gradient-to-b from-cyan-400/60 via-cyan-500/25 to-transparent pointer-events-none" />
-                  {comments.map((comment) => (
+                  {comments.map((comment) => {
+                    const canDelete = canDeleteComment(comment.author_profile_id);
+                    const canReport = comment.author_profile_id !== authorProfileId;
+
+                    return (
                     <div key={comment.id} className="relative flex gap-4 pb-5 last:pb-0">
                       {/* Timeline dot */}
                       <div className="shrink-0 mt-2 z-10 pl-[3px]">
@@ -1376,21 +1465,36 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
                             <span className="text-sm font-semibold text-white leading-none">{comment.author.name}</span>
                             <span className="text-[11px] text-cyan-500/55 leading-none">{formatRelativeTime(comment.created_at)}</span>
                             <span className="text-[10px] text-white/35 leading-none">{formatCommentDateTime(comment.created_at)}</span>
-                            {comment.author_profile_id !== authorProfileId && (
-                              <button
-                                onClick={() => setReportModal({ commentId: comment.id, type: 'wall', content: comment.content, authorId: comment.author_profile_id })}
-                                className="ml-auto inline-flex items-center gap-1 text-[11px] text-white/35 hover:text-red-300 transition-colors p-0.5 rounded"
-                                title="Zgłoś komentarz"
-                              >
-                                <Flag size={11} weight="regular" /> Zglos
-                              </button>
+                            {(canDelete || canReport) && (
+                              <div className="ml-auto inline-flex items-center gap-2">
+                                {canDelete && (
+                                  <button
+                                    onClick={() => void handleDeleteGeneralComment(comment)}
+                                    disabled={deletingWallCommentId === comment.id}
+                                    className="inline-flex items-center gap-1 text-[11px] text-white/45 hover:text-amber-200 disabled:opacity-45 disabled:cursor-not-allowed transition-colors p-0.5 rounded"
+                                    title="Usuń komentarz"
+                                  >
+                                    {deletingWallCommentId === comment.id ? 'Usuwanie...' : 'Usun'}
+                                  </button>
+                                )}
+                                {canReport && (
+                                  <button
+                                    onClick={() => setReportModal({ commentId: comment.id, type: 'wall', content: comment.content, authorId: comment.author_profile_id })}
+                                    className="inline-flex items-center gap-1 text-[11px] text-white/35 hover:text-red-300 transition-colors p-0.5 rounded"
+                                    title="Zgłoś komentarz"
+                                  >
+                                    <Flag size={11} weight="regular" /> Zglos
+                                  </button>
+                                )}
+                              </div>
                             )}
                           </div>
                           <p className="text-[13.5px] text-cyan-200/65 font-light leading-snug">{comment.content}</p>
                         </div>
                       </div>
                     </div>
-                  ))}
+                  );
+                  })}
                 </div>
               )}
             </div>
@@ -1801,7 +1905,11 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
                 ) : photoComments.length === 0 ? (
                   <div className="text-sm text-cyan-300/70">Brak komentarzy do tego zdjęcia. Dodaj pierwszy cytat.</div>
                 ) : (
-                  photoComments.map((comment) => (
+                  photoComments.map((comment) => {
+                    const canDelete = canDeleteComment(comment.author_profile_id);
+                    const canReport = comment.author_profile_id !== authorProfileId;
+
+                    return (
                     <div key={comment.id} className="flex gap-3">
                       <img
                         src={comment.author.image || 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&q=80'}
@@ -1813,20 +1921,35 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
                           <span className="text-sm font-medium text-white">{comment.author.name}</span>
                           <span className="text-cyan-500/60 text-xs">{formatRelativeTime(comment.created_at)}</span>
                           <span className="text-[10px] text-white/35">{formatCommentDateTime(comment.created_at)}</span>
-                          {comment.author_profile_id !== authorProfileId && (
-                            <button
-                              onClick={() => setReportModal({ commentId: comment.id, type: 'photo', content: comment.content, authorId: comment.author_profile_id })}
-                              className="ml-auto inline-flex items-center gap-1 text-[11px] text-white/35 hover:text-red-300 transition-colors p-0.5 rounded"
-                              title="Zgłoś komentarz"
-                            >
-                              <Flag size={11} weight="regular" /> Zglos
-                            </button>
+                          {(canDelete || canReport) && (
+                            <div className="ml-auto inline-flex items-center gap-2">
+                              {canDelete && (
+                                <button
+                                  onClick={() => void handleDeletePhotoComment(comment)}
+                                  disabled={deletingPhotoCommentId === comment.id}
+                                  className="inline-flex items-center gap-1 text-[11px] text-white/45 hover:text-amber-200 disabled:opacity-45 disabled:cursor-not-allowed transition-colors p-0.5 rounded"
+                                  title="Usuń komentarz"
+                                >
+                                  {deletingPhotoCommentId === comment.id ? 'Usuwanie...' : 'Usun'}
+                                </button>
+                              )}
+                              {canReport && (
+                                <button
+                                  onClick={() => setReportModal({ commentId: comment.id, type: 'photo', content: comment.content, authorId: comment.author_profile_id })}
+                                  className="inline-flex items-center gap-1 text-[11px] text-white/35 hover:text-red-300 transition-colors p-0.5 rounded"
+                                  title="Zgłoś komentarz"
+                                >
+                                  <Flag size={11} weight="regular" /> Zglos
+                                </button>
+                              )}
+                            </div>
                           )}
                         </div>
                         <p className="text-sm text-cyan-300/80 leading-relaxed">{comment.content}</p>
                       </div>
                     </div>
-                  ))
+                  );
+                  })
                 )}
               </div>
 
