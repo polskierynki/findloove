@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import { VIRTUAL_GIFTS } from '@/components/views/constants/profileFormOptions';
 
@@ -59,12 +59,9 @@ export default function GiftModal({
     setIsAnonymous(false);
   }, [isOpen]);
 
-  if (!isOpen) return null;
+  const selectedGiftData = gifts.find((gift) => gift.id === selectedGift);
 
-  const selectedGiftData = useMemo(
-    () => gifts.find((gift) => gift.id === selectedGift),
-    [gifts, selectedGift],
-  );
+  if (!isOpen) return null;
 
   const handleSend = async () => {
     if (!selectedGiftData || sending) return;
