@@ -1704,7 +1704,7 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
           </div>
 
           {/* Received Gifts Widget */}
-          <div className="glass rounded-[2rem] p-6 relative overflow-hidden">
+          <div className="glass rounded-[2rem] p-6 relative z-10 overflow-visible">
             <div className="flex items-center justify-between gap-3 mb-5">
               <h3 className="text-base font-medium text-cyan-300/70 tracking-wider uppercase flex items-center gap-2">
                 <Gift size={20} weight="duotone" className="text-amber-400" /> Otrzymane prezenty
@@ -1717,14 +1717,14 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
             ) : receivedGifts.length === 0 ? (
               <div className="text-sm text-cyan-300/70">Brak otrzymanych prezentow.</div>
             ) : (
-              <div className="grid grid-cols-4 gap-4">
+              <div className="relative grid grid-cols-4 gap-4 overflow-visible">
                 {receivedGifts.map((gift) => (
                   <div
                     key={gift.id}
-                    className="relative group glass rounded-2xl aspect-square flex items-center justify-center text-4xl cursor-pointer hover:scale-105 transition-transform border border-white/5 hover:border-amber-500/30"
+                    className="relative z-0 group glass rounded-2xl aspect-square flex items-center justify-center text-4xl cursor-pointer border border-white/5 transition-transform hover:scale-105 hover:z-20 hover:border-amber-500/30"
                   >
                     <span>{gift.emoji}</span>
-                    <div className="absolute -top-2 left-1/2 -translate-x-1/2 -translate-y-full opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 bg-black/90 backdrop-blur-md px-3 py-2 rounded-lg text-xs text-white whitespace-nowrap border border-amber-500/20 shadow-[0_8px_20px_rgba(0,0,0,0.35)]">
+                    <div className="absolute -top-2 left-1/2 z-[70] -translate-x-1/2 -translate-y-full rounded-lg border border-amber-500/20 bg-black/90 px-3 py-2 text-xs whitespace-nowrap text-white opacity-0 shadow-[0_8px_20px_rgba(0,0,0,0.35)] backdrop-blur-md transition-opacity pointer-events-none group-hover:opacity-100">
                       <div className="font-medium">{gift.fromName}</div>
                       <div className="text-amber-400 text-[10px]">{gift.label} • {gift.tokenCost} monet</div>
                       {gift.message && (
