@@ -6,6 +6,7 @@ import {
   ArrowLeft,
   Heart,
   Gift,
+  Lightning,
   PaperPlaneTilt,
   ChatCircle,
   Sparkle,
@@ -195,6 +196,7 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
   const [friendsLoading, setFriendsLoading] = useState(false);
   const [friendsExpanded, setFriendsExpanded] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [isDetailPopular, setIsDetailPopular] = useState(false);
   const [comments, setComments] = useState<AppComment[]>([]);
   const [photoComments, setPhotoComments] = useState<AppComment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -316,6 +318,32 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
   const normalizedViewerRole = (viewerProfile?.role || '').trim().toLowerCase();
   const isViewerAdmin = normalizedViewerRole === 'admin' || normalizedViewerRole === 'super_admin';
   const isViewingOwnProfile = Boolean(authorProfileId && authorProfileId === profileId);
+
+  const isDetailRecentlyActive = useMemo(() => {
+    const lastActive = (profile as any)?.last_active as string | undefined;
+    if (!lastActive) return false;
+    const ts = Date.parse(lastActive);
+    return !Number.isNaN(ts) && Date.now() - ts <= 15 * 60 * 1000;
+  }, [profile]);
+
+  useEffect(() => {
+    if (!profile) return;
+    if (Boolean((profile as any).is_popular_override)) {
+      setIsDetailPopular(true);
+      return;
+    }
+    const windowStart = new Date(Date.now() - 45 * 86400000).toISOString();
+    void Promise.all([
+      supabase.from('likes').select('id', { count: 'exact', head: true })
+        .eq('to_profile_id', profileId)
+        .gte('created_at', windowStart),
+      supabase.from('friendships').select('id', { count: 'exact', head: true })
+        .or(`requester_id.eq.${profileId},addressee_id.eq.${profileId}`)
+        .eq('status', 'accepted'),
+    ]).then(([likesRes, friendsRes]) => {
+      setIsDetailPopular((likesRes.count ?? 0) >= 5 && (friendsRes.count ?? 0) >= 2);
+    }).catch(() => {});
+  }, [profile, profileId]);
 
   const canDeleteGift = useCallback((gift: ReceivedGift) => {
     if (isViewerAdmin) return true;
@@ -1603,7 +1631,7 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
         {/* Right Column: Main Photo, Dock, Bio */}
         <section className="lg:col-span-7 flex flex-col gap-8 relative">
           {/* Main Photo */}
-          <div className="relative w-full aspect-[3/4] md:aspect-[4/5] rounded-[3rem] p-1 bg-gradient-to-br from-cyan-500/40 via-white/5 to-fuchsia-500/40 double-glow z-10 group overflow-hidden">
+          <div className={`relative w-full aspect-[3/4] md:aspect-[4/5] rounded-[3rem] p-1 bg-gradient-to-br ${isDetailPopular ? 'from-yellow-400/60 via-yellow-300/20 to-yellow-400/60' : 'from-cyan-500/40 via-white/5 to-fuchsia-500/40'} double-glow z-10 group overflow-hidden`}>
             <img
               src={profile.image_url || 'https://images.unsplash.com/photo-1515372039744-b8f02a3ae446?w=1400&q=80'}
               alt={profile.name}
@@ -1611,32 +1639,38 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
               onClick={() => openPhotoCommentModal(0)}
             />
             <div className="absolute inset-0 bg-gradient-to-t from-[#07050f] via-transparent to-transparent rounded-[3rem] z-20 pointer-events-none opacity-90 transition-opacity group-hover:opacity-70"></div>
+            {isDetailPopular && (
+              <div className="popular-profile-frame absolute inset-0 rounded-[2.8rem] pointer-events-none z-[25]"></div>
+            )}
 
             {/* Float Tags */}
-            <div className="absolute top-8 right-8 z-30 flex flex-col gap-3 items-end">
-              <div className="bg-black/40 backdrop-blur-md px-4 py-1.5 rounded-full border border-green-500/30 flex items-center gap-2 shadow-[0_0_15px_rgba(74,222,128,0.2)]">
-                <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
-                <span className="text-xs font-medium text-white tracking-wide">Aktywna teraz</span>
-              </div>
-
+            <div className="absolute top-8 right-8 z-30 flex items-center gap-2.5">
+              {isDetailPopular && (
+                <div className="popular-bolt-badge !w-9 !h-9" title="Popularny profil">
+                  <Lightning size={16} weight="fill" className="popular-bolt-icon" />
+                </div>
+              )}
+              {profile.isVerified && (
+                <div className="relative group/verified w-9 h-9 rounded-full border border-cyan-400/50 bg-black/40 backdrop-blur-md inline-flex items-center justify-center cursor-default flex-shrink-0">
+                  <SealCheck size={17} weight="fill" className="text-cyan-400" />
+                  <div className="absolute top-full right-0 mt-2 px-2.5 py-1.5 bg-black/90 backdrop-blur-sm text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover/verified:opacity-100 transition-opacity pointer-events-none border border-cyan-500/40 shadow-[0_0_10px_rgba(0,255,255,0.2)] font-normal">
+                    Profil zweryfikowany
+                  </div>
+                </div>
+              )}
+              {isDetailRecentlyActive && (
+                <div className="w-9 h-9 rounded-full border border-green-400/50 bg-black/40 backdrop-blur-md inline-flex items-center justify-center flex-shrink-0">
+                  <div className="w-2.5 h-2.5 bg-green-400 rounded-full animate-pulse"></div>
+                </div>
+              )}
             </div>
 
             {/* Profile Info at Bottom */}
             <div className="absolute bottom-0 left-0 w-full p-8 md:p-12 z-30">
-              <h1 className="text-5xl md:text-7xl font-light tracking-tight text-white flex items-baseline gap-4 mb-2 drop-shadow-2xl">
-                <span className="flex items-center gap-2">
+                <h1 className="text-5xl md:text-7xl font-light tracking-tight text-white flex items-baseline gap-4 mb-2 drop-shadow-2xl">
                   {profile.name}
-                  {profile.isVerified && (
-                    <div className="relative group/verified inline-flex items-center self-center">
-                      <SealCheck size={28} weight="fill" className="text-cyan-400 drop-shadow-[0_0_10px_rgba(0,255,255,0.8)] cursor-default flex-shrink-0" />
-                      <div className="absolute bottom-full left-0 mb-2 px-2.5 py-1.5 bg-black/90 backdrop-blur-sm text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover/verified:opacity-100 transition-opacity pointer-events-none border border-cyan-500/40 shadow-[0_0_10px_rgba(0,255,255,0.2)] font-normal tracking-normal">
-                        Profil zweryfikowany
-                      </div>
-                    </div>
-                  )}
-                </span>
-                <span className="text-3xl md:text-5xl text-white font-extralight opacity-80">• {profile.age}</span>
-              </h1>
+                  <span className="text-3xl md:text-5xl text-white font-extralight opacity-80">• {profile.age}</span>
+                </h1>
               <p className="text-xl text-cyan-300 font-light mb-6 drop-shadow-lg flex items-center gap-2">
                 <Briefcase size={20} weight="duotone" className="text-cyan-400" /> {profile.details?.occupation || 'Brak informacji'} <MapPin size={18} weight="duotone" className="text-fuchsia-400" /> {profile.city}
               </p>

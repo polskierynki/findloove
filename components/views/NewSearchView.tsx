@@ -111,6 +111,7 @@ type SearchProfile = {
   isNearby?: boolean;
   sortValue?: number;
   is_verified?: boolean;
+  last_active?: string | null;
 };
 
 type HeartBurstParticle = {
@@ -421,7 +422,7 @@ export default function NewSearchView() {
   const loadFallbackProfiles = useCallback(async () => {
     let query = supabase
       .from('profiles')
-      .select('id, name, age, city, image_url, looking_for, interests, drinking, pets, sexual_orientation, created_at, is_blocked, role, email, is_verified')
+      .select('id, name, age, city, image_url, looking_for, interests, drinking, pets, sexual_orientation, created_at, is_blocked, role, email, is_verified, last_active')
       .order('created_at', { ascending: false });
 
     query = query.gte('age', ageMin).lte('age', ageMax);
@@ -528,6 +529,7 @@ export default function NewSearchView() {
             isNearby: item.isNearby,
             sortValue: item.sortValue,
             is_verified: profile.isVerified ?? false,
+            last_active: profile.lastActive ?? null,
           } satisfies SearchProfile;
         })
         .filter((profile) => !isHiddenAdminProfile(profile));
@@ -884,6 +886,7 @@ export default function NewSearchView() {
                 const distFromBase = profile.distanceKm ?? null;
                 const isLiked = likedIds.has(profile.id);
                 const isPopular = overrideSet.has(profile.id);
+                const isRecentlyActive = Boolean(profile.last_active) && Date.now() - Date.parse(profile.last_active!) <= 15 * 60 * 1000;
                 const isLikeBursting = burstingLikeIds.has(profile.id);
                 const isLikePopping = poppingLikeIds.has(profile.id);
                 const likeBurstTick = likeBurstTicks[profile.id] ?? 0;
@@ -923,6 +926,11 @@ export default function NewSearchView() {
                               <div className="absolute top-full right-0 mt-2 px-2.5 py-1.5 bg-black/90 backdrop-blur-sm text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover/verified:opacity-100 transition-opacity pointer-events-none border border-cyan-500/40 font-normal">
                                 Profil zweryfikowany
                               </div>
+                            </div>
+                          )}
+                          {isRecentlyActive && (
+                            <div className="w-[26px] h-[26px] rounded-full border border-green-400/50 bg-black/40 backdrop-blur-md inline-flex items-center justify-center flex-shrink-0">
+                              <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
                             </div>
                           )}
                         </div>

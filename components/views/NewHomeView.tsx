@@ -735,7 +735,7 @@ export default function NewHomeView() {
             const likeBurstTick = likeBurstTicks[profile.id] ?? 0;
             const likePopTick = likePopTicks[profile.id] ?? 0;
             const matchScore = item.matchScore;
-            const isRecentlyActive = item.activityTs > 0 && Date.now() - item.activityTs <= 24 * 3600000;
+            const isRecentlyActive = item.activityTs > 0 && Date.now() - item.activityTs <= 15 * 60 * 1000;
 
             return (
               <div
