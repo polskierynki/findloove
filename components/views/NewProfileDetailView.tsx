@@ -271,9 +271,10 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
     }
 
     const effectiveViewerProfileId = viewerProfileId ?? authorProfileId;
-    const rawProfile = data as ({ id?: string; is_blocked?: boolean } & Profile) | null;
+    const rawProfile = data as ({ id?: string; is_blocked?: boolean; is_verified?: boolean } & Profile) | null;
     const isHiddenForViewer = Boolean(rawProfile?.is_blocked) && rawProfile?.id !== effectiveViewerProfileId;
-    const nextProfile = isHiddenForViewer ? null : (data as Profile | null);
+    const baseProfile = data as Profile | null;
+    const nextProfile = isHiddenForViewer ? null : (baseProfile ? { ...baseProfile, isVerified: Boolean(rawProfile?.is_verified) } : null);
 
     setProfile(nextProfile ?? null);
     return nextProfile ?? null;

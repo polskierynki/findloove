@@ -777,19 +777,7 @@ export default function NewHomeView() {
                           <Lightning size={13} weight="fill" className="popular-bolt-icon" />
                         </div>
                       )}
-                      {profile.details?.looking_for && (
-                        <div className={`bg-black/40 backdrop-blur-md px-3 py-1 rounded-full border flex items-center gap-1.5 ${
-                          profile.details.looking_for === 'miłość' 
-                            ? 'border-pink-500/30 shadow-[0_0_10px_rgba(236,72,153,0.2)]'
-                            : profile.details.looking_for === 'przygoda'
-                            ? 'border-cyan-500/30 shadow-[0_0_10px_rgba(0,255,255,0.2)]'
-                            : 'border-cyan-500/30 shadow-[0_0_10px_rgba(0,255,255,0.2)]'
-                        }`}>
-                          <span className="text-xs font-semibold text-white">
-                            {LOOKING_FOR_OPTIONS.find(opt => opt.value === profile.details.looking_for)?.label}
-                          </span>
-                        </div>
-                      )}
+
                       {item.sharedInterests > 0 && (
                         <div className="bg-black/40 backdrop-blur-md px-2.5 py-1 rounded-full border border-cyan-500/30 text-[10px] font-semibold text-cyan-200 shadow-[0_0_8px_rgba(34,211,238,0.25)]">
                           Wspólne: {item.sharedInterests}
@@ -811,7 +799,12 @@ export default function NewHomeView() {
                             {typeof profile.age === 'number' ? `${profile.age} lat` : '? lat'}
                           </h2>
                           {profile.isVerified && (
-                            <SealCheck size={22} weight="fill" className="text-cyan-400 drop-shadow-[0_0_6px_rgba(0,255,255,0.8)] flex-shrink-0" />
+                            <div className="relative group/verified">
+                              <SealCheck size={22} weight="fill" className="text-cyan-400 drop-shadow-[0_0_6px_rgba(0,255,255,0.8)] flex-shrink-0 cursor-default" />
+                              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2.5 py-1.5 bg-black/90 backdrop-blur-sm text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover/verified:opacity-100 transition-opacity pointer-events-none border border-cyan-500/40 shadow-[0_0_10px_rgba(0,255,255,0.2)]">
+                                Profil zweryfikowany
+                              </div>
+                            </div>
                           )}
                         </div>
                         <div className="flex items-center gap-1.5 text-cyan-300/70 text-sm font-light">
