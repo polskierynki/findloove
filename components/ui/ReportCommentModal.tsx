@@ -34,7 +34,6 @@ export default function ReportCommentModal({
   targetId,
   targetContent,
   targetAuthorId,
-  contextLabel,
   reporterProfileId,
 }: Props) {
   const [isMounted, setIsMounted] = useState(false);
@@ -51,7 +50,6 @@ export default function ReportCommentModal({
 
   const isPhotoContentReport = reportKind === 'photo-content';
   const reportTitle = isPhotoContentReport ? 'Zgłoś zdjęcie' : 'Zgłoś komentarz';
-  const reportScopeLabel = isPhotoContentReport ? 'Zgłaszane zdjęcie' : 'Zgłaszany komentarz';
   const submitLabel = isPhotoContentReport ? 'Zgłoś zdjęcie' : 'Zgłoś komentarz';
 
   if (!open || !isMounted) return null;
@@ -112,7 +110,7 @@ export default function ReportCommentModal({
     >
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={handleClose} />
 
-      <div className="relative z-10 w-full max-w-sm glass rounded-3xl p-7 border border-red-500/25 shadow-[0_0_60px_rgba(239,68,68,0.15)]">
+      <div className="relative z-10 w-full max-w-sm rounded-3xl p-7 border border-red-500/30 bg-[#140f1f] shadow-[0_0_60px_rgba(239,68,68,0.22)]">
         {/* Close */}
         <button
           onClick={handleClose}
@@ -150,15 +148,6 @@ export default function ReportCommentModal({
                 <h3 className="text-base font-semibold text-white">{reportTitle}</h3>
                 <p className="text-xs text-cyan-400/55 mt-0.5">Pomóż nam utrzymać bezpieczną przestrzeń</p>
               </div>
-            </div>
-
-            {/* Podgląd zgłaszanego elementu */}
-            <div className="bg-white/[0.04] border border-white/10 rounded-xl px-4 py-3 mb-5">
-              <p className="text-[10px] text-cyan-400/50 uppercase tracking-wider mb-1">{reportScopeLabel}</p>
-              {contextLabel ? (
-                <p className="text-[11px] text-cyan-300/70 mb-1">{contextLabel}</p>
-              ) : null}
-              <p className="text-sm text-white/75 italic line-clamp-3">„{targetContent}"</p>
             </div>
 
             {/* Wybór powodu */}
