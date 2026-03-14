@@ -55,7 +55,8 @@ export default function NewLikesView() {
         const { data: profiles, error: profilesError } = await supabase
           .from('profiles')
           .select('*')
-          .in('id', profileIds);
+          .in('id', profileIds)
+          .neq('is_blocked', true);
 
         if (profilesError) throw profilesError;
 

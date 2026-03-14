@@ -65,6 +65,9 @@ export interface Profile {
   seeking_age_min?: number;
   seeking_age_max?: number;
   isBlocked?: boolean;
+  suspendedAt?: string | null;
+  deletionRequestedAt?: string | null;
+  deletionScheduledAt?: string | null;
   lastActive?: string;
   createdAt?: string;
   role?: string;            // 'user' | 'admin' | 'super_admin'
@@ -99,6 +102,9 @@ export interface SupabaseProfile {
   seeking_age_min?: number;
   seeking_age_max?: number;
   is_blocked?: boolean;
+  suspended_at?: string | null;
+  deletion_requested_at?: string | null;
+  deletion_scheduled_at?: string | null;
   last_active?: string;
   role?: string;
   is_premium?: boolean;
@@ -176,6 +182,9 @@ export function mapSupabaseProfile(p: SupabaseProfile): Profile {
     seeking_age_min: p.seeking_age_min,
     seeking_age_max: p.seeking_age_max,
     isBlocked: p.is_blocked,
+    suspendedAt: p.suspended_at,
+    deletionRequestedAt: p.deletion_requested_at,
+    deletionScheduledAt: p.deletion_scheduled_at,
     lastActive: p.last_active,
     createdAt: p.created_at,
     role: p.role || 'user',
@@ -197,8 +206,12 @@ export function mapSupabaseProfile(p: SupabaseProfile): Profile {
 
 /**
  * Filtruje profile wykluczając konta techniczne (adminy)
- * Konta z role = 'admin' lub 'super_admin' nie powinny się wyświetlać w systemie randkowym
+ * oraz profile ukryte/zawieszone.
  */
 export function filterNonAdminProfiles(profiles: Profile[]): Profile[] {
-  return profiles.filter(p => !p.role || (p.role !== 'admin' && p.role !== 'super_admin'));
+  return profiles.filter((p) => {
+    const isAdminAccount = Boolean(p.role && (p.role === 'admin' || p.role === 'super_admin'));
+    const isHidden = Boolean(p.isBlocked) || Boolean(p.suspendedAt) || Boolean(p.deletionScheduledAt);
+    return !isAdminAccount && !isHidden;
+  });
 }

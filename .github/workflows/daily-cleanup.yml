@@ -1,0 +1,30 @@
+name: Daily account cleanup
+
+on:
+  schedule:
+    - cron: '0 3 * * *'   # codziennie o 03:00 UTC (05:00 czasu polskiego)
+  workflow_dispatch:        # mozna tez uruchomic recznie z panelu GitHub
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Usun konta po uplywie 30-dniowego okresu
+        run: |
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+            "${{ secrets.SUPABASE_URL }}/rest/v1/rpc/process_due_account_deletions" \
+            -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d '{}')
+
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | head -n-1)
+
+          echo "Status HTTP: $HTTP_CODE"
+          echo "Usunieto kont: $BODY"
+
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "BLAD: nieoczekiwany status $HTTP_CODE"
+            exit 1
+          fi

@@ -111,7 +111,8 @@ export default function NewFriendsView() {
       const { data, error } = await supabase
         .from('profiles')
         .select('id, name, age, city, image_url')
-        .in('id', likedProfileIds);
+        .in('id', likedProfileIds)
+        .neq('is_blocked', true);
 
       if (error) throw error;
 

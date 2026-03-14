@@ -20,7 +20,6 @@ import {
   Dog,
   GenderIntersex,
   HeartStraight,
-  Users,
 } from '@phosphor-icons/react';
 import { supabase } from '@/lib/supabase';
 import { uploadProfilePhoto } from '@/lib/photoUpload';
@@ -28,6 +27,24 @@ import { POLISH_CITIES, ZODIAC_SIGNS, ALL_INTERESTS, DRINKING_OPTIONS, PETS_OPTI
 import type { Profile } from '@/lib/types';
 
 const MAX_GALLERY_PHOTOS = 9;
+const ACCOUNT_DELETION_GRACE_DAYS = 30;
+const DEFAULT_MAIN_PHOTO = 'https://ui-avatars.com/api/?name=Brak+zdjecia&background=111827&color=e5e7eb&size=512';
+
+type EditableProfile = Profile & {
+  id: string;
+  image_url?: string | null;
+  photos?: string[] | null;
+  occupation?: string | null;
+  zodiac?: string | null;
+  drinking?: string | null;
+  pets?: string | null;
+  sexual_orientation?: string | null;
+  looking_for?: string | null;
+  is_blocked?: boolean;
+  suspended_at?: string | null;
+  deletion_requested_at?: string | null;
+  deletion_scheduled_at?: string | null;
+};
 
 type PhotoCommentSyncRow = {
   id: string;
@@ -39,10 +56,13 @@ type PhotoCommentSyncRow = {
 
 export default function NewMyProfileView() {
   const router = useRouter();
-  const [profile, setProfile] = useState<Profile | null>(null);
+  const [profile, setProfile] = useState<EditableProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [accountActionLoading, setAccountActionLoading] = useState<
+    'suspend' | 'resume' | 'delete' | 'cancel-delete' | null
+  >(null);
   const [galleryUploadCount, setGalleryUploadCount] = useState(0);
 
   // Form state
@@ -87,7 +107,7 @@ export default function NewMyProfileView() {
       }
 
       if (prof) {
-        setProfile(prof as Profile);
+        setProfile(prof as EditableProfile);
         setName(prof.name || '');
         setAge(prof.age || 18);
         setOccupation(prof.occupation || '');
@@ -136,6 +156,288 @@ export default function NewMyProfileView() {
       alert('Błąd uploadu zdjęcia');
     } finally {
       setUploading(false);
+    }
+  };
+
+  const handleRemoveMainPhoto = async () => {
+    if (!profile) return;
+
+    if (!profile.image_url) {
+      alert('Nie masz ustawionego zdjecia glownego.');
+      return;
+    }
+
+    const shouldRemove = window.confirm(
+      'Usuniecie zdjecia glownego wyczysci komentarze do tego zdjecia i przesunie komentarze galerii. Kontynuowac?',
+    );
+
+    if (!shouldRemove) return;
+
+    const previousImage = profile.image_url;
+    setUploading(true);
+
+    try {
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ image_url: '' })
+        .eq('id', profile.id);
+
+      if (updateError) {
+        alert(`Blad usuwania zdjecia glownego: ${updateError.message}`);
+        return;
+      }
+
+      setProfile({ ...profile, image_url: '' });
+
+      const syncError = await syncPhotoCommentsAfterGalleryRemoval(profile.id, 0);
+      if (!syncError) {
+        alert('✓ Zdjecie glowne zostalo usuniete.');
+        return;
+      }
+
+      console.error('Blad synchronizacji komentarzy po usunieciu glownego zdjecia:', syncError);
+
+      const { error: rollbackError } = await supabase
+        .from('profiles')
+        .update({ image_url: previousImage })
+        .eq('id', profile.id);
+
+      if (!rollbackError) {
+        setProfile({ ...profile, image_url: previousImage });
+        alert(`Nie udalo sie zsynchronizowac komentarzy (${syncError}). Zmiana zdjecia zostala cofnieta.`);
+        return;
+      }
+
+      alert(`Zdjecie glowne zostalo usuniete, ale synchronizacja komentarzy sie nie powiodla: ${syncError}`);
+    } catch (err) {
+      console.error('Error removing main photo:', err);
+      alert('Nie udalo sie usunac zdjecia glownego.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const formatLifecycleDate = (value?: string | null): string | null => {
+    if (!value) return null;
+    const parsed = Date.parse(value);
+    if (Number.isNaN(parsed)) return null;
+    return new Date(parsed).toLocaleString('pl-PL', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  const handleSuspendAccount = async () => {
+    if (!profile) return;
+
+    if (profile.deletion_scheduled_at) {
+      alert('Konto jest juz oznaczone do usuniecia. Nie mozna go ponownie zawiesic.');
+      return;
+    }
+
+    if (profile.is_blocked) {
+      alert('Konto jest juz zawieszone i ukryte w portalu.');
+      return;
+    }
+
+    const shouldSuspend = window.confirm(
+      'Zawieszenie konta ukryje profil w portalu i w wyszukiwarce. Kontynuowac?',
+    );
+
+    if (!shouldSuspend) return;
+
+    setAccountActionLoading('suspend');
+
+    try {
+      const nowIso = new Date().toISOString();
+
+      const { error } = await supabase
+        .from('profiles')
+        .update({ is_blocked: true, suspended_at: nowIso })
+        .eq('id', profile.id);
+
+      if (error) {
+        const errorText = error.message.toLowerCase();
+        if (errorText.includes('suspended_at')) {
+          const { error: fallbackError } = await supabase
+            .from('profiles')
+            .update({ is_blocked: true })
+            .eq('id', profile.id);
+
+          if (fallbackError) {
+            alert(`Blad zawieszania konta: ${fallbackError.message}`);
+            return;
+          }
+        } else {
+          alert(`Blad zawieszania konta: ${error.message}`);
+          return;
+        }
+      }
+
+      await loadProfile();
+      alert('✓ Konto zostalo zawieszone. Profil jest teraz ukryty w portalu.');
+    } catch (err) {
+      console.error('Error suspending account:', err);
+      alert('Nie udalo sie zawiesic konta.');
+    } finally {
+      setAccountActionLoading(null);
+    }
+  };
+
+  const handleResumeAccount = async () => {
+    if (!profile) return;
+
+    if (profile.deletion_scheduled_at) {
+      alert('Najpierw anuluj wniosek o usuniecie konta.');
+      return;
+    }
+
+    if (!profile.is_blocked) {
+      alert('Konto jest juz aktywne.');
+      return;
+    }
+
+    const shouldResume = window.confirm('Wznowic konto i przywrocic widocznosc profilu w portalu?');
+    if (!shouldResume) return;
+
+    setAccountActionLoading('resume');
+
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ is_blocked: false, suspended_at: null })
+        .eq('id', profile.id);
+
+      if (error) {
+        const errorText = error.message.toLowerCase();
+        if (errorText.includes('suspended_at')) {
+          const { error: fallbackError } = await supabase
+            .from('profiles')
+            .update({ is_blocked: false })
+            .eq('id', profile.id);
+
+          if (fallbackError) {
+            alert(`Blad wznawiania konta: ${fallbackError.message}`);
+            return;
+          }
+        } else {
+          alert(`Blad wznawiania konta: ${error.message}`);
+          return;
+        }
+      }
+
+      await loadProfile();
+      alert('✓ Konto zostalo wznowione i jest znowu widoczne w portalu.');
+    } catch (err) {
+      console.error('Error resuming account:', err);
+      alert('Nie udalo sie wznowic konta.');
+    } finally {
+      setAccountActionLoading(null);
+    }
+  };
+
+  const handleRequestPermanentDeletion = async () => {
+    if (!profile) return;
+
+    if (profile.deletion_scheduled_at) {
+      alert('Wniosek o trwale usuniecie konta jest juz aktywny.');
+      return;
+    }
+
+    const confirmation = window.prompt(
+      `Aby potwierdzic trwale usuniecie konta z opoznieniem ${ACCOUNT_DELETION_GRACE_DAYS} dni, wpisz: USUN`,
+    );
+
+    if ((confirmation || '').trim().toUpperCase() !== 'USUN') {
+      return;
+    }
+
+    setAccountActionLoading('delete');
+
+    try {
+      const now = new Date();
+      const scheduled = new Date(now.getTime() + ACCOUNT_DELETION_GRACE_DAYS * 24 * 60 * 60 * 1000);
+
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          is_blocked: true,
+          suspended_at: now.toISOString(),
+          deletion_requested_at: now.toISOString(),
+          deletion_scheduled_at: scheduled.toISOString(),
+        })
+        .eq('id', profile.id);
+
+      if (error) {
+        const errorText = error.message.toLowerCase();
+        if (errorText.includes('deletion_requested_at') || errorText.includes('deletion_scheduled_at')) {
+          alert('Brak kolumn cyklu zycia konta. Uruchom SQL: supabase/account_lifecycle_migration.sql');
+          return;
+        }
+
+        alert(`Blad ustawiania wniosku o usuniecie: ${error.message}`);
+        return;
+      }
+
+      await loadProfile();
+      alert(`Wniosek przyjety. Konto zostanie usuniete po ${ACCOUNT_DELETION_GRACE_DAYS} dniach.`);
+      await supabase.auth.signOut();
+      router.replace('/auth');
+    } catch (err) {
+      console.error('Error scheduling account deletion:', err);
+      alert('Nie udalo sie ustawic wniosku o usuniecie konta.');
+    } finally {
+      setAccountActionLoading(null);
+    }
+  };
+
+  const handleCancelDeletionRequest = async () => {
+    if (!profile) return;
+
+    if (!profile.deletion_scheduled_at) {
+      alert('Brak aktywnego wniosku o usuniecie konta.');
+      return;
+    }
+
+    const shouldCancel = window.confirm(
+      'Anulowac wniosek o trwałe usuniecie i od razu przywrocic konto do portalu?',
+    );
+    if (!shouldCancel) return;
+
+    setAccountActionLoading('cancel-delete');
+
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          is_blocked: false,
+          suspended_at: null,
+          deletion_requested_at: null,
+          deletion_scheduled_at: null,
+        })
+        .eq('id', profile.id);
+
+      if (error) {
+        const errorText = error.message.toLowerCase();
+        if (errorText.includes('deletion_requested_at') || errorText.includes('deletion_scheduled_at')) {
+          alert('Brak kolumn cyklu zycia konta. Uruchom SQL: supabase/account_lifecycle_migration.sql');
+          return;
+        }
+
+        alert(`Blad anulowania wniosku: ${error.message}`);
+        return;
+      }
+
+      await loadProfile();
+      alert('✓ Wniosek o usuniecie zostal anulowany, konto jest znowu widoczne.');
+    } catch (err) {
+      console.error('Error canceling account deletion request:', err);
+      alert('Nie udalo sie anulowac wniosku o usuniecie konta.');
+    } finally {
+      setAccountActionLoading(null);
     }
   };
 
@@ -393,6 +695,13 @@ export default function NewMyProfileView() {
 
   const galleryPhotos = profile.photos || [];
   const maxGalleryPhotos = MAX_GALLERY_PHOTOS;
+  const deletionScheduledLabel = formatLifecycleDate(profile.deletion_scheduled_at);
+  const deletionRequestedLabel = formatLifecycleDate(profile.deletion_requested_at);
+  const suspendedAtLabel = formatLifecycleDate(profile.suspended_at);
+  const hasDeletionRequest = Boolean(profile.deletion_scheduled_at);
+  const isBlocked = Boolean(profile.is_blocked);
+  const isSuspendedOnly = isBlocked && !hasDeletionRequest;
+  const isBusy = Boolean(accountActionLoading);
 
   return (
     <main className="relative z-10 pt-28 pb-16 px-6 lg:px-12 max-w-[2200px] mx-auto">
@@ -416,7 +725,7 @@ export default function NewMyProfileView() {
             </h3>
             <label className="relative w-full aspect-[3/4] rounded-2xl overflow-hidden group cursor-pointer border border-white/10 hover:border-cyan-500/50 hover:shadow-[0_0_30px_rgba(0,255,255,0.2)] transition-all duration-500 block z-10">
               <img
-                src={profile.image_url || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800&q=80'}
+                src={profile.image_url || DEFAULT_MAIN_PHOTO}
                 className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-700"
                 alt="Główne zdjęcie"
               />
@@ -425,7 +734,7 @@ export default function NewMyProfileView() {
                   <Camera size={32} weight="fill" />
                 </div>
                 <span className="text-white font-medium tracking-wide">
-                  {uploading ? 'Wysyłanie...' : 'Zmień zdjęcie'}
+                  {uploading ? 'Wysylanie...' : profile.image_url ? 'Zmien zdjecie' : 'Dodaj zdjecie'}
                 </span>
               </div>
               <input
@@ -436,6 +745,19 @@ export default function NewMyProfileView() {
                 disabled={uploading}
               />
             </label>
+
+            <div className="mt-4 flex items-center justify-between gap-3 relative z-10">
+              <span className="text-xs text-white/60">
+                {profile.image_url ? 'Zdjecie glowne ustawione' : 'Brak zdjecia glownego'}
+              </span>
+              <button
+                onClick={handleRemoveMainPhoto}
+                disabled={uploading || !profile.image_url}
+                className="rounded-xl border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-200 hover:bg-red-500/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Usun zdjecie
+              </button>
+            </div>
           </div>
 
           {/* Gallery */}
@@ -846,24 +1168,87 @@ export default function NewMyProfileView() {
         </div>
       </div>
 
-      <div className="mt-10 glass rounded-2xl p-6 border border-cyan-500/20 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div className="mt-10 glass rounded-2xl p-6 border border-red-500/25 flex flex-col gap-4">
         <div>
-          <p className="text-xs uppercase tracking-wider text-cyan-300/70 mb-1">Nowa organizacja kontaktow</p>
-          <h2 className="text-2xl text-white font-light flex items-center gap-2">
-            <Users size={20} className="text-cyan-300" />
-            Zakladka Znajomi
-          </h2>
-          <p className="text-cyan-100/70 mt-2 text-sm">
-            Zarzadzanie znajomymi, zaproszeniami i ulubionymi profilami znajdziesz teraz w osobnej sekcji.
+          <p className="text-xs uppercase tracking-wider text-red-200/70 mb-1">Zarzadzanie kontem</p>
+          <h2 className="text-2xl text-white font-light">Widocznosc i usuniecie konta</h2>
+          <p className="text-red-100/75 mt-2 text-sm">
+            Zawieszenie ukrywa konto w portalu. Trwale usuniecie uruchamia 30-dniowe odliczanie i blokuje profil natychmiast.
           </p>
         </div>
 
-        <button
-          onClick={() => router.push('/friends')}
-          className="self-start md:self-auto rounded-xl border border-cyan-500/40 bg-cyan-500/15 px-5 py-2.5 text-cyan-100 hover:bg-cyan-500/25 transition-colors"
-        >
-          Przejdz do znajomych
-        </button>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+          <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2">
+            <p className="text-white/55">Status widocznosci</p>
+            <p className="text-white mt-1">
+              {hasDeletionRequest
+                ? 'Konto oznaczone do usuniecia'
+                : isBlocked
+                ? 'Konto ukryte w portalu'
+                : 'Konto publiczne'}
+            </p>
+          </div>
+          <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2">
+            <p className="text-white/55">Wniosek o usuniecie</p>
+            <p className="text-white mt-1">
+              {deletionRequestedLabel || 'Brak aktywnego wniosku'}
+            </p>
+          </div>
+          <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2">
+            <p className="text-white/55">Termin trwalego usuniecia</p>
+            <p className="text-white mt-1">
+              {deletionScheduledLabel || 'Nie zaplanowano'}
+            </p>
+          </div>
+        </div>
+
+        {suspendedAtLabel && isSuspendedOnly && (
+          <p className="text-xs text-white/55">Konto zostalo zawieszone: {suspendedAtLabel}</p>
+        )}
+
+        {hasDeletionRequest && (
+          <p className="text-xs text-red-200/80">
+            Konto jest ukryte i czeka na trwale usuniecie. Mozesz anulowac ten wniosek przed uplywem terminu.
+          </p>
+        )}
+
+        <div className="flex flex-col sm:flex-row gap-3">
+          <button
+            onClick={isBlocked ? handleResumeAccount : handleSuspendAccount}
+            disabled={isBusy || hasDeletionRequest}
+            className={`rounded-xl border px-5 py-2.5 transition-colors disabled:opacity-45 disabled:cursor-not-allowed ${
+              isBlocked
+                ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-100 hover:bg-emerald-500/20'
+                : 'border-amber-500/40 bg-amber-500/10 text-amber-100 hover:bg-amber-500/20'
+            }`}
+          >
+            {accountActionLoading === 'suspend'
+              ? 'Zawieszanie...'
+              : accountActionLoading === 'resume'
+              ? 'Wznawianie...'
+              : isBlocked
+              ? 'Wznow konto'
+              : 'Zawies konto'}
+          </button>
+
+          <button
+            onClick={hasDeletionRequest ? handleCancelDeletionRequest : handleRequestPermanentDeletion}
+            disabled={isBusy}
+            className={`rounded-xl border px-5 py-2.5 transition-colors disabled:opacity-45 disabled:cursor-not-allowed ${
+              hasDeletionRequest
+                ? 'border-sky-500/40 bg-sky-500/15 text-sky-100 hover:bg-sky-500/25'
+                : 'border-red-500/40 bg-red-500/15 text-red-100 hover:bg-red-500/25'
+            }`}
+          >
+            {accountActionLoading === 'delete'
+              ? 'Ustawianie wniosku...'
+              : accountActionLoading === 'cancel-delete'
+              ? 'Anulowanie wniosku...'
+              : hasDeletionRequest
+              ? 'Anuluj wniosek o usuniecie'
+              : `Usun konto bezpowrotnie (${ACCOUNT_DELETION_GRACE_DAYS} dni)`}
+          </button>
+        </div>
       </div>
     </main>
   );

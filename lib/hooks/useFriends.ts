@@ -120,7 +120,8 @@ export function useFriends() {
     const { data: profiles } = await supabase
       .from('profiles')
       .select('id, name, age, city, image_url')
-      .in('id', friendIds);
+      .in('id', friendIds)
+      .neq('is_blocked', true);
 
     return ((profiles as FriendProfileRow[] | null) || [])
       .map((p) => ({
@@ -162,7 +163,8 @@ export function useFriends() {
     const { data: profiles } = await supabase
       .from('profiles')
       .select('id, name, age, city, image_url')
-      .in('id', requesterIds);
+      .in('id', requesterIds)
+      .neq('is_blocked', true);
 
     return ((profiles as FriendProfileRow[] | null) || []).map((p) => ({
       id: p.id,

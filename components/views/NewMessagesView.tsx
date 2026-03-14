@@ -163,18 +163,18 @@ export default function NewMessagesView() {
       }
 
       const partnerIds = Array.from(newestConversationByPartner.keys());
-      let profileRows: Array<{ id: string; name?: string | null; image_url?: string | null; role?: string | null; email?: string | null }> = [];
+      let profileRows: Array<{ id: string; name?: string | null; image_url?: string | null; role?: string | null; email?: string | null; is_blocked?: boolean | null }> = [];
 
       const { data: profilesWithAdminData, error: profilesWithAdminDataError } = await supabase
         .from('profiles')
-        .select('id, name, image_url, role, email')
+        .select('id, name, image_url, role, email, is_blocked')
         .in('id', partnerIds);
 
       if (profilesWithAdminDataError) {
         console.error('Blad ladowania profili rozmowcow (pelne pola):', profilesWithAdminDataError.message);
         const { data: fallbackProfiles, error: fallbackProfilesError } = await supabase
           .from('profiles')
-          .select('id, name, image_url')
+          .select('id, name, image_url, is_blocked')
           .in('id', partnerIds);
 
         if (fallbackProfilesError) {
@@ -187,6 +187,7 @@ export default function NewMessagesView() {
           image_url: (profile as { image_url?: string | null }).image_url,
           role: null,
           email: null,
+          is_blocked: (profile as { is_blocked?: boolean | null }).is_blocked,
         }));
       } else {
         profileRows = (profilesWithAdminData || []).map((profile) => ({
@@ -195,6 +196,7 @@ export default function NewMessagesView() {
           image_url: (profile as { image_url?: string | null }).image_url,
           role: (profile as { role?: string | null }).role,
           email: (profile as { email?: string | null }).email,
+          is_blocked: (profile as { is_blocked?: boolean | null }).is_blocked,
         }));
       }
 
@@ -206,6 +208,7 @@ export default function NewMessagesView() {
           if (!preview) return [];
 
           const partnerProfile = profileMap.get(partnerId);
+          if (partnerProfile?.is_blocked) return [];
 
           return [{
             id: partnerId,
@@ -285,11 +288,12 @@ export default function NewMessagesView() {
     const loadTargetProfile = async () => {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, name, image_url, role, email')
+        .select('id, name, image_url, role, email, is_blocked')
         .eq('id', targetProfileId)
         .maybeSingle();
 
       if (error || !data) return;
+      if ((data as { is_blocked?: boolean | null }).is_blocked) return;
 
       const directConversation: ConversationProfile = {
         id: data.id as string,
@@ -431,7 +435,8 @@ export default function NewMessagesView() {
       const { data: participantProfiles, error: participantProfilesError } = await supabase
         .from('profiles')
         .select('id')
-        .in('id', participantIds);
+        .in('id', participantIds)
+        .neq('is_blocked', true);
 
       if (participantProfilesError) {
         console.warn('Nie udalo sie zweryfikowac profili przed wysylka:', participantProfilesError.message);

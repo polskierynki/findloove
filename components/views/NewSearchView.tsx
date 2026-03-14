@@ -100,6 +100,7 @@ type SearchProfile = {
   pets?: string;
   sexual_orientation?: string;
   created_at?: string;
+  is_blocked?: boolean;
   role?: string | null;
   email?: string | null;
   distanceKm?: number | null;
@@ -230,7 +231,7 @@ export default function NewSearchView() {
     try {
       let query = supabase
         .from('profiles')
-        .select('id, name, age, city, image_url, looking_for, interests, drinking, pets, sexual_orientation, created_at, role, email')
+        .select('id, name, age, city, image_url, looking_for, interests, drinking, pets, sexual_orientation, created_at, is_blocked, role, email')
         .order('created_at', { ascending: false });
 
       if (currentUserId) {
@@ -268,6 +269,7 @@ export default function NewSearchView() {
         : geoCoords;
 
       let results = ((data || []) as SearchProfile[])
+        .filter((profile) => !profile.is_blocked)
         .filter((profile) => !isHiddenAdminProfile(profile))
         .map((profile) => ({
           ...profile,

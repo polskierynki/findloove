@@ -357,7 +357,7 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
 
   const hasMoreProfileFriends = profileFriends.length > 6;
 
-  const refreshTargetProfileSnapshot = useCallback(async () => {
+  const refreshTargetProfileSnapshot = useCallback(async (viewerProfileId?: string | null) => {
     const { data, error } = await supabase
       .from('profiles')
       .select('*')
@@ -369,8 +369,14 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
       return;
     }
 
-    setProfile((data as Profile | null) ?? null);
-  }, [profileId]);
+    const effectiveViewerProfileId = viewerProfileId ?? authorProfileId;
+    const rawProfile = data as ({ id?: string; is_blocked?: boolean } & Profile) | null;
+    const isHiddenForViewer = Boolean(rawProfile?.is_blocked) && rawProfile?.id !== effectiveViewerProfileId;
+    const nextProfile = isHiddenForViewer ? null : (data as Profile | null);
+
+    setProfile(nextProfile ?? null);
+    return nextProfile ?? null;
+  }, [authorProfileId, profileId]);
 
   const refreshViewerProfileSnapshot = useCallback(async (viewerProfileId: string) => {
     const { data, error } = await supabase
@@ -1027,7 +1033,15 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
   useEffect(() => {
     const loadProfile = async () => {
       try {
-        await refreshTargetProfileSnapshot();
+        const viewerProfileId = await resolveCurrentAuthorProfileId();
+        const targetProfile = await refreshTargetProfileSnapshot(viewerProfileId);
+
+        if (!targetProfile) {
+          setComments([]);
+          setPhotoComments([]);
+          setReceivedGifts([]);
+          return;
+        }
 
         await loadGeneralComments();
 
@@ -1045,7 +1059,7 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
     };
 
     void loadProfile();
-  }, [getFriendshipStatus, hasLikedProfile, loadGeneralComments, profileId, refreshTargetProfileSnapshot]);
+  }, [getFriendshipStatus, hasLikedProfile, loadGeneralComments, profileId, refreshTargetProfileSnapshot, resolveCurrentAuthorProfileId]);
 
   useEffect(() => {
     void loadReceivedGifts();
