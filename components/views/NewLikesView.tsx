@@ -175,20 +175,18 @@ export default function NewLikesView() {
                   <div className="absolute bottom-0 left-0 w-full pb-1 px-5 pt-2 z-10 transform transition-transform duration-300 ease-out group-hover:-translate-y-6">
                     <div className="card-meta flex flex-col gap-2.5 relative z-10">
                       <div>
-                        <div className="flex items-center gap-2">
-                          <h2 className="text-3xl font-medium text-white">
-                            {profile.name || 'User'},{' '}
-                            {typeof profile.age === 'number' ? `${profile.age} lat` : '? lat'}
-                          </h2>
+                        <h2 className="text-3xl font-medium text-white flex items-center gap-1">
+                          <span className="truncate min-w-0">{profile.name || 'User'}</span>
                           {profile.isVerified && (
-                            <div className="relative group/verified">
-                              <SealCheck size={22} weight="fill" className="text-cyan-400 drop-shadow-[0_0_6px_rgba(0,255,255,0.8)] flex-shrink-0 cursor-default" />
-                              <div className="absolute bottom-full right-0 mb-2 px-2.5 py-1.5 bg-black/90 backdrop-blur-sm text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover/verified:opacity-100 transition-opacity pointer-events-none border border-cyan-500/40 shadow-[0_0_10px_rgba(0,255,255,0.2)]">
+                            <div className="relative group/verified flex-shrink-0 inline-flex items-center">
+                              <SealCheck size={15} weight="fill" className="text-cyan-400 drop-shadow-[0_0_5px_rgba(0,255,255,0.8)] cursor-default" />
+                              <div className="absolute bottom-full right-0 mb-2 px-2.5 py-1.5 bg-black/90 backdrop-blur-sm text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover/verified:opacity-100 transition-opacity pointer-events-none border border-cyan-500/40 shadow-[0_0_10px_rgba(0,255,255,0.2)] font-normal">
                                 Profil zweryfikowany
                               </div>
                             </div>
                           )}
-                        </div>
+                          <span className="flex-shrink-0">,&nbsp;{typeof profile.age === 'number' ? `${profile.age} lat` : '? lat'}</span>
+                        </h2>
                         <div className="flex items-center gap-1.5 text-cyan-300/70 text-sm font-light">
                           <MapPin size={14} weight="fill" className="text-cyan-400" />
                           <span>{profile.city || 'Bliżej nieokreślone'}</span>
