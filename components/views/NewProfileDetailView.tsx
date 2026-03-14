@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 import {
   ArrowLeft,
@@ -78,6 +78,24 @@ type ReceivedGift = {
   message: string;
   createdAt: string;
 };
+
+type HeartBurstParticle = {
+  x: number;
+  y: number;
+  delayMs: number;
+  sizePx: number;
+};
+
+const HEART_BURST_PARTICLES: HeartBurstParticle[] = [
+  { x: 0, y: -30, delayMs: 0, sizePx: 10 },
+  { x: 20, y: -20, delayMs: 30, sizePx: 11 },
+  { x: 28, y: -2, delayMs: 60, sizePx: 10 },
+  { x: 18, y: 16, delayMs: 90, sizePx: 9 },
+  { x: 0, y: 24, delayMs: 40, sizePx: 9 },
+  { x: -18, y: 16, delayMs: 70, sizePx: 10 },
+  { x: -28, y: -2, delayMs: 50, sizePx: 10 },
+  { x: -20, y: -20, delayMs: 20, sizePx: 11 },
+];
 
 function formatRelativeTime(timestamp: string): string {
   const ts = Date.parse(timestamp);
@@ -185,6 +203,8 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
   const [generalCommentSuggestions, setGeneralCommentSuggestions] = useState<EmojiKeywordSuggestion[]>([]);
   const [photoCommentSuggestions, setPhotoCommentSuggestions] = useState<EmojiKeywordSuggestion[]>([]);
   const [isLiked, setIsLiked] = useState(false);
+  const [likeBurstTick, setLikeBurstTick] = useState(0);
+  const [likePopTick, setLikePopTick] = useState(0);
   const [authorProfileId, setAuthorProfileId] = useState<string | null>(null);
   const [viewerProfile, setViewerProfile] = useState<CompatibilityProfile | null>(null);
   const [compatibilityLoading, setCompatibilityLoading] = useState(true);
@@ -1676,6 +1696,11 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
                 const nextLikedState = !isLiked;
                 setIsLiked(nextLikedState);
 
+                if (nextLikedState) {
+                  setLikeBurstTick((prev) => prev + 1);
+                  setLikePopTick((prev) => prev + 1);
+                }
+
                 try {
                   if (nextLikedState) {
                     await likeProfile(profileId);
@@ -1689,10 +1714,34 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
               }}
               className="cta-dock-btn flex flex-col items-center justify-center gap-1 p-2 group w-16"
             >
-              <div className="w-12 h-12 rounded-full bg-white/10 border border-cyan-500/20 flex items-center justify-center group-hover:bg-red-500/20 group-hover:border-red-500/50 transition-all shadow-inner">
+              <div className={`w-12 h-12 rounded-full border flex items-center justify-center transition-all shadow-inner relative ${
+                isLiked
+                  ? 'bg-red-500/20 border-red-500/55'
+                  : 'bg-white/10 border-cyan-500/20 group-hover:bg-red-500/20 group-hover:border-red-500/50'
+              }`}>
+                {isLiked && (
+                  <div key={`like-burst-${likeBurstTick}`} className="like-heart-burst" aria-hidden="true">
+                    {HEART_BURST_PARTICLES.map((particle, index) => {
+                      const style: CSSProperties = {
+                        fontSize: `${particle.sizePx}px`,
+                        animationDelay: `${particle.delayMs}ms`,
+                        ['--burst-x' as string]: `${particle.x}px`,
+                        ['--burst-y' as string]: `${particle.y}px`,
+                      };
+
+                      return (
+                        <span key={`particle-${likeBurstTick}-${index}`} className="like-heart-particle" style={style}>
+                          ❤
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
                 <Heart
+                  key={`heart-icon-${likePopTick}-${isLiked ? 'liked' : 'idle'}`}
                   size={20}
-                  className={`${isLiked ? 'fill-red-500 text-red-500' : 'text-cyan-400'} group-hover:text-red-500 drop-shadow-[0_0_8px_rgba(239,68,68,0)] group-hover:drop-shadow-[0_0_12px_rgba(239,68,68,0.8)] transition-all`}
+                  weight={isLiked ? 'fill' : 'regular'}
+                  className={`${isLiked ? 'text-red-500 like-heart-core-pop' : 'text-cyan-400'} group-hover:text-red-500 drop-shadow-[0_0_8px_rgba(239,68,68,0)] group-hover:drop-shadow-[0_0_12px_rgba(239,68,68,0.8)] transition-all`}
                 />
               </div>
               <span className="text-[10px] font-medium text-cyan-400 group-hover:text-cyan-300 transition-colors uppercase tracking-wider mt-1">

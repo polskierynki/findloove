@@ -217,6 +217,59 @@ html, body {
   transform: translateY(-2px);
 }
 
+/* Profile detail like burst */
+.like-heart-burst {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.like-heart-particle {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  line-height: 1;
+  color: #fb7185;
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.55);
+  text-shadow: 0 0 8px rgba(251, 113, 133, 0.65);
+  animation: like-heart-burst 620ms cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+}
+
+.like-heart-core-pop {
+  animation: like-heart-core-pop 260ms ease-out;
+}
+
+@keyframes like-heart-burst {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.55);
+  }
+  18% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(
+      calc(-50% + var(--burst-x, 0px)),
+      calc(-50% + var(--burst-y, 0px))
+    ) scale(1.08);
+  }
+}
+
+@keyframes like-heart-core-pop {
+  0% {
+    transform: scale(1);
+  }
+  45% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
 /* Gallery Hover Effects */
 .gallery-item {
   position: relative;
