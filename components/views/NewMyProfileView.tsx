@@ -29,6 +29,14 @@ import type { Profile } from '@/lib/types';
 
 const MAX_GALLERY_PHOTOS = 9;
 
+type PhotoCommentSyncRow = {
+  id: string;
+  author_profile_id: string;
+  content: string;
+  photo_index: number;
+  created_at: string;
+};
+
 export default function NewMyProfileView() {
   const router = useRouter();
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -220,21 +228,99 @@ export default function NewMyProfileView() {
     e.target.value = '';
   };
 
+  const syncPhotoCommentsAfterGalleryRemoval = async (profileId: string, removedPhotoIndex: number): Promise<string | null> => {
+    const { data, error: fetchError } = await supabase
+      .from('profile_photo_comments')
+      .select('id, author_profile_id, content, photo_index, created_at')
+      .eq('profile_id', profileId)
+      .gte('photo_index', removedPhotoIndex)
+      .order('photo_index', { ascending: true })
+      .order('created_at', { ascending: true });
+
+    if (fetchError) {
+      return fetchError.message || 'Nie udalo sie pobrac komentarzy do zdjec.';
+    }
+
+    const affectedRows = (data || []) as PhotoCommentSyncRow[];
+    if (affectedRows.length === 0) return null;
+
+    const rowsToShift = affectedRows.filter((row) => Number(row.photo_index) > removedPhotoIndex);
+
+    if (rowsToShift.length > 0) {
+      const shiftPayload = rowsToShift.map((row) => ({
+        profile_id: profileId,
+        photo_index: Number(row.photo_index) - 1,
+        author_profile_id: row.author_profile_id,
+        content: row.content,
+        created_at: row.created_at,
+      }));
+
+      const { error: insertError } = await supabase
+        .from('profile_photo_comments')
+        .insert(shiftPayload);
+
+      if (insertError) {
+        return insertError.message || 'Nie udalo sie przeniesc komentarzy do nowych pozycji zdjec.';
+      }
+    }
+
+    const oldRowIds = affectedRows.map((row) => row.id);
+    const { error: deleteError } = await supabase
+      .from('profile_photo_comments')
+      .delete()
+      .in('id', oldRowIds);
+
+    if (deleteError) {
+      return deleteError.message || 'Nie udalo sie usunac starych wpisow komentarzy.';
+    }
+
+    return null;
+  };
+
   const handleRemoveGalleryPhoto = async (index: number) => {
     if (!profile || !profile.photos) return;
 
+    const shouldRemove = window.confirm(
+      'Usuniecie zdjecia spowoduje tez usuniecie komentarzy do tego zdjecia. Kontynuowac?',
+    );
+
+    if (!shouldRemove) return;
+
+    const previousPhotos = profile.photos;
     const newPhotos = profile.photos.filter((_, i) => i !== index);
+    const removedPhotoIndex = index + 1;
     
-    const { error } = await supabase
+    const { error: updateError } = await supabase
       .from('profiles')
       .update({ photos: newPhotos })
       .eq('id', profile.id);
 
-    if (!error) {
-      setProfile({ ...profile, photos: newPhotos });
-    } else {
-      alert(`Błąd usuwania: ${error.message}`);
+    if (updateError) {
+      alert(`Błąd usuwania: ${updateError.message}`);
+      return;
     }
+
+    setProfile({ ...profile, photos: newPhotos });
+
+    const syncError = await syncPhotoCommentsAfterGalleryRemoval(profile.id, removedPhotoIndex);
+    if (!syncError) {
+      return;
+    }
+
+    console.error('Blad synchronizacji komentarzy po usunieciu zdjecia:', syncError);
+
+    const { error: rollbackError } = await supabase
+      .from('profiles')
+      .update({ photos: previousPhotos })
+      .eq('id', profile.id);
+
+    if (!rollbackError) {
+      setProfile({ ...profile, photos: previousPhotos });
+      alert(`Nie udało się zsynchronizować komentarzy (${syncError}). Zmiana zdjęcia została cofnięta.`);
+      return;
+    }
+
+    alert(`Zdjęcie zostało usunięte, ale wystąpił błąd synchronizacji komentarzy: ${syncError}`);
   };
 
   const handleAddInterest = () => {

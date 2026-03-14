@@ -1760,7 +1760,7 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
                 <Quotes size={20} weight="fill" className="text-cyan-400 group-hover:text-cyan-300 drop-shadow-[0_0_8px_rgba(0,255,255,0)] group-hover:drop-shadow-[0_0_12px_rgba(0,255,255,0.8)] transition-all" />
               </div>
               <span className="text-[10px] font-medium text-cyan-400 group-hover:text-cyan-300 transition-colors uppercase tracking-wider mt-1">
-                Cytat foto
+                Komentarz
               </span>
             </button>
           </div>
