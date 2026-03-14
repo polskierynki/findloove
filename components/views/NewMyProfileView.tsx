@@ -27,12 +27,15 @@ import { uploadProfilePhoto } from '@/lib/photoUpload';
 import { POLISH_CITIES, ZODIAC_SIGNS, ALL_INTERESTS, DRINKING_OPTIONS, PETS_OPTIONS, SEXUAL_ORIENTATION_OPTIONS, LOOKING_FOR_OPTIONS } from './constants/profileFormOptions';
 import type { Profile } from '@/lib/types';
 
+const MAX_GALLERY_PHOTOS = 9;
+
 export default function NewMyProfileView() {
   const router = useRouter();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [galleryUploadCount, setGalleryUploadCount] = useState(0);
 
   // Form state
   const [name, setName] = useState('');
@@ -128,38 +131,93 @@ export default function NewMyProfileView() {
     }
   };
 
-  const handleGalleryPhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !profile) return;
+  const formatPhotoCountLabel = (count: number): string => {
+    if (count === 1) return '1 zdjęcie';
+    return `${count} zdjęć`;
+  };
+
+  const uploadGalleryFiles = async (files: FileList | null) => {
+    if (!files || !profile) return;
+
+    const selectedFiles = Array.from(files).filter((file) => file.type.startsWith('image/'));
+    if (selectedFiles.length === 0) {
+      alert('Wybierz poprawny plik graficzny.');
+      return;
+    }
+
+    const currentPhotos = profile.photos || [];
+    const availableSlots = Math.max(0, MAX_GALLERY_PHOTOS - currentPhotos.length);
+
+    if (availableSlots <= 0) {
+      alert(`Galeria jest pełna (${MAX_GALLERY_PHOTOS}/${MAX_GALLERY_PHOTOS}). Usuń zdjęcie, aby dodać nowe.`);
+      return;
+    }
+
+    const filesToUpload = selectedFiles.slice(0, availableSlots);
+    const skippedByLimit = selectedFiles.length - filesToUpload.length;
 
     setUploading(true);
-    try {
-      const { url, error } = await uploadProfilePhoto(file, profile.id);
-      
-      if (url) {
-        const currentPhotos = profile.photos || [];
-        const newPhotos = [...currentPhotos, url];
-        
-        const { error: updateError } = await supabase
-          .from('profiles')
-          .update({ photos: newPhotos })
-          .eq('id', profile.id);
+    setGalleryUploadCount(filesToUpload.length);
 
-        if (!updateError) {
-          setProfile({ ...profile, photos: newPhotos });
-          alert('✓ Zdjęcie dodane do galerii!');
+    try {
+      const uploadedUrls: string[] = [];
+      let failedUploads = 0;
+
+      for (const file of filesToUpload) {
+        const { url, error } = await uploadProfilePhoto(file, profile.id);
+        if (url) {
+          uploadedUrls.push(url);
         } else {
-          alert(`Błąd aktualizacji: ${updateError.message}`);
+          failedUploads += 1;
+          console.error('Błąd uploadu zdjęcia galerii:', error);
         }
-      } else {
-        alert(`Błąd uploadu: ${error}`);
       }
+
+      if (uploadedUrls.length === 0) {
+        alert('Nie udało się dodać żadnego zdjęcia do galerii. Spróbuj ponownie.');
+        return;
+      }
+
+      const newPhotos = [...currentPhotos, ...uploadedUrls];
+
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ photos: newPhotos })
+        .eq('id', profile.id);
+
+      if (updateError) {
+        alert(`Błąd aktualizacji: ${updateError.message}`);
+        return;
+      }
+
+      setProfile({ ...profile, photos: newPhotos });
+
+      const notices: string[] = [`✓ Dodano ${formatPhotoCountLabel(uploadedUrls.length)} do galerii.`];
+      if (failedUploads > 0) {
+        notices.push(`${failedUploads} plików nie udało się wysłać.`);
+      }
+      if (skippedByLimit > 0) {
+        notices.push(`${skippedByLimit} plików pominięto (limit galerii).`);
+      }
+
+      alert(notices.join(' '));
     } catch (err) {
       console.error('Upload error:', err);
       alert('Błąd uploadu zdjęcia');
     } finally {
       setUploading(false);
+      setGalleryUploadCount(0);
     }
+  };
+
+  const handleSingleGalleryPhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    await uploadGalleryFiles(e.target.files);
+    e.target.value = '';
+  };
+
+  const handleBatchGalleryPhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    await uploadGalleryFiles(e.target.files);
+    e.target.value = '';
   };
 
   const handleRemoveGalleryPhoto = async (index: number) => {
@@ -248,7 +306,7 @@ export default function NewMyProfileView() {
   }
 
   const galleryPhotos = profile.photos || [];
-  const maxGalleryPhotos = 9;
+  const maxGalleryPhotos = MAX_GALLERY_PHOTOS;
 
   return (
     <main className="relative z-10 pt-28 pb-16 px-6 lg:px-12 max-w-[2200px] mx-auto">
@@ -323,19 +381,40 @@ export default function NewMyProfileView() {
               ))}
 
               {galleryPhotos.length < maxGalleryPhotos && (
-                <label className="aspect-square rounded-xl border-2 border-dashed border-white/20 hover:border-cyan-400 hover:bg-cyan-500/10 hover:shadow-[0_0_20px_rgba(0,255,255,0.15)] flex flex-col items-center justify-center text-white/50 hover:text-cyan-400 transition-all duration-300 group cursor-pointer">
-                  <Plus size={24} className="group-hover:scale-125 group-hover:rotate-90 transition-all duration-300" weight="bold" />
-                  <span className="text-[10px] uppercase tracking-wider mt-1">Dodaj</span>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleGalleryPhotoUpload}
-                    className="hidden"
-                    disabled={uploading}
-                  />
-                </label>
+                <>
+                  <label className="aspect-square rounded-xl border-2 border-dashed border-white/20 hover:border-cyan-400 hover:bg-cyan-500/10 hover:shadow-[0_0_20px_rgba(0,255,255,0.15)] flex flex-col items-center justify-center text-white/50 hover:text-cyan-400 transition-all duration-300 group cursor-pointer">
+                    <Plus size={24} className="group-hover:scale-125 group-hover:rotate-90 transition-all duration-300" weight="bold" />
+                    <span className="text-[10px] uppercase tracking-wider mt-1">1 szt.</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleSingleGalleryPhotoUpload}
+                      className="hidden"
+                      disabled={uploading}
+                    />
+                  </label>
+
+                  <label className="aspect-square rounded-xl border-2 border-dashed border-white/20 hover:border-fuchsia-400 hover:bg-fuchsia-500/10 hover:shadow-[0_0_20px_rgba(255,0,255,0.15)] flex flex-col items-center justify-center text-white/50 hover:text-fuchsia-300 transition-all duration-300 group cursor-pointer">
+                    <Images size={22} className="group-hover:scale-110 transition-transform duration-300" weight="duotone" />
+                    <span className="text-[10px] uppercase tracking-wider mt-1">Stos</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={handleBatchGalleryPhotoUpload}
+                      className="hidden"
+                      disabled={uploading}
+                    />
+                  </label>
+                </>
               )}
             </div>
+
+            {uploading && galleryUploadCount > 0 && (
+              <p className="text-xs text-cyan-300/80 mt-4 relative z-10">
+                Wysyłanie do galerii: {formatPhotoCountLabel(galleryUploadCount)}...
+              </p>
+            )}
           </div>
         </aside>
 
