@@ -1383,7 +1383,33 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
     return <div className="pt-28 text-center text-cyan-400">Profil nie znaleziony</div>;
   }
 
-  const normalizedLookingFor = (profile.details?.looking_for || '').trim().toLowerCase();
+  const profileRaw = profile as Profile & {
+    occupation?: string | null;
+    zodiac?: string | null;
+    smoking?: string | null;
+    drinking?: string | null;
+    pets?: string | null;
+    children?: string | null;
+    sexual_orientation?: string | null;
+    looking_for?: string | null;
+  };
+
+  const occupationLabel = (profile.details?.occupation || profileRaw.occupation || '').trim();
+  const zodiacLabel = (profile.details?.zodiac || profileRaw.zodiac || '').trim();
+  const drinkingLabel = (profile.details?.drinking || profileRaw.drinking || '').trim();
+  const petsLabel = (profile.details?.pets || profileRaw.pets || '').trim();
+  const childrenLabel = (profile.details?.children || profileRaw.children || '').trim();
+  const smokingRaw = (profile.details?.smoking || profileRaw.smoking || '').trim();
+  const normalizedSmoking = smokingRaw.toLowerCase();
+  const smokingLabel =
+    normalizedSmoking === 'nie'
+      ? 'Nie pali'
+      : normalizedSmoking === 'tak'
+      ? 'Pali'
+      : smokingRaw;
+
+  const rawLookingFor = (profile.details?.looking_for || profileRaw.looking_for || '').trim();
+  const normalizedLookingFor = rawLookingFor.toLowerCase();
   const lookingForLabel =
     normalizedLookingFor === 'miłość' || normalizedLookingFor === 'milosc'
       ? 'Miłość'
@@ -1391,10 +1417,10 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
       ? 'Przyjaźń'
       : normalizedLookingFor === 'przygoda'
       ? 'Przygoda'
-      : 'Nie podano';
+      : rawLookingFor || 'Nie podano';
 
-  const occupationLabel = (profile.details?.occupation || '').trim();
-  const normalizedOrientation = (profile.details?.sexual_orientation || '').trim().toLowerCase();
+  const rawOrientation = (profile.details?.sexual_orientation || profileRaw.sexual_orientation || '').trim();
+  const normalizedOrientation = rawOrientation.toLowerCase();
   const orientationLabel =
     normalizedOrientation === 'hetero'
       ? 'Heteroseksualna/y'
@@ -1406,7 +1432,7 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
       ? 'Panseksualna/y'
       : normalizedOrientation === 'other'
       ? 'Inna'
-      : (profile.details?.sexual_orientation || '').trim();
+      : rawOrientation;
 
   const genderLabel =
     profile.gender === 'K'
@@ -1421,6 +1447,21 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
       : profile.seeking_gender === 'M'
       ? 'Mężczyźni'
       : '';
+
+  const hasSeekingAgeRange = typeof profile.seeking_age_min === 'number' && typeof profile.seeking_age_max === 'number';
+  const hasProfileTraits = Boolean(
+    occupationLabel ||
+    zodiacLabel ||
+    smokingLabel ||
+    drinkingLabel ||
+    petsLabel ||
+    childrenLabel ||
+    orientationLabel ||
+    genderLabel ||
+    seekingGenderLabel ||
+    rawLookingFor ||
+    hasSeekingAgeRange,
+  );
 
   return (
     <>
@@ -1787,75 +1828,6 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
               <p className="text-xl text-cyan-300 font-light mb-6 drop-shadow-lg flex items-center gap-2">
                 <HeartStraight size={20} weight="fill" className="text-pink-400" /> Szuka: {lookingForLabel} <MapPin size={18} weight="duotone" className="text-fuchsia-400" /> {profile.city}
               </p>
-
-              {/* Info Pills */}
-              <div className="flex flex-wrap gap-3">
-                {occupationLabel && (
-                  <span className="glass px-4 py-2 rounded-xl text-sm font-medium text-white flex items-center gap-2 border-white/20 backdrop-blur-lg">
-                    <Briefcase size={16} weight="duotone" className="text-cyan-400" /> {occupationLabel}
-                  </span>
-                )}
-                {profile.details?.zodiac && (
-                  <span className="glass px-4 py-2 rounded-xl text-sm font-medium text-white flex items-center gap-2 border-white/20 backdrop-blur-lg">
-                    <Star size={16} weight="fill" className="text-yellow-400" /> {profile.details.zodiac}
-                  </span>
-                )}
-                {profile.details?.smoking && (
-                  <span className="glass px-4 py-2 rounded-xl text-sm font-medium text-white flex items-center gap-2 border-white/20 backdrop-blur-lg">
-                    <Cigarette size={16} weight="duotone" className="text-gray-400" /> {profile.details.smoking === 'nie' ? 'Nie pali' : 'Pali'}
-                  </span>
-                )}
-                {profile.details?.drinking && (
-                  <span className="glass px-4 py-2 rounded-xl text-sm font-medium text-white flex items-center gap-2 border-white/20 backdrop-blur-lg">
-                    <Wine size={16} weight="duotone" className="text-purple-400" /> {profile.details.drinking}
-                  </span>
-                )}
-                {profile.details?.pets && (
-                  <span className="glass px-4 py-2 rounded-xl text-sm font-medium text-white flex items-center gap-2 border-white/20 backdrop-blur-lg">
-                    <PawPrint size={16} weight="fill" className="text-amber-400" /> {profile.details.pets}
-                  </span>
-                )}
-                {orientationLabel && (
-                  <span className="glass px-4 py-2 rounded-xl text-sm font-medium text-white flex items-center gap-2 border-white/20 backdrop-blur-lg">
-                    <GenderIntersex size={16} weight="duotone" className="text-purple-400" /> Orientacja: {orientationLabel}
-                  </span>
-                )}
-                {genderLabel && (
-                  <span className="glass px-4 py-2 rounded-xl text-sm font-medium text-white flex items-center gap-2 border-white/20 backdrop-blur-lg">
-                    <GenderIntersex size={16} weight="duotone" className="text-cyan-300" /> Płeć: {genderLabel}
-                  </span>
-                )}
-                {seekingGenderLabel && (
-                  <span className="glass px-4 py-2 rounded-xl text-sm font-medium text-white flex items-center gap-2 border-white/20 backdrop-blur-lg">
-                    <HeartStraight size={16} weight="fill" className="text-fuchsia-400" /> Szuka: {seekingGenderLabel}
-                  </span>
-                )}
-                {typeof profile.seeking_age_min === 'number' && typeof profile.seeking_age_max === 'number' && (
-                  <span className="glass px-4 py-2 rounded-xl text-sm font-medium text-white flex items-center gap-2 border-white/20 backdrop-blur-lg">
-                    <UserPlus size={16} weight="duotone" className="text-green-300" /> Wiek: {profile.seeking_age_min} - {profile.seeking_age_max}
-                  </span>
-                )}
-                {profile.details?.looking_for && (
-                  <span className={`glass px-4 py-2 rounded-xl text-sm font-medium text-white flex items-center gap-2 backdrop-blur-lg ${
-                    profile.details.looking_for === 'miłość'
-                      ? 'border-pink-500/50 bg-pink-500/10'
-                      : profile.details.looking_for === 'przygoda'
-                      ? 'border-cyan-500/50 bg-cyan-500/10'
-                      : profile.details.looking_for === 'przyjaźń'
-                      ? 'border-blue-500/50 bg-blue-500/10'
-                      : 'border-white/20'
-                  }`}>
-                    <HeartStraight size={16} weight="fill" className={`${
-                      profile.details.looking_for === 'miłość' ? 'text-pink-400' :
-                      profile.details.looking_for === 'przygoda' ? 'text-cyan-400' :
-                      profile.details.looking_for === 'przyjaźń' ? 'text-blue-400' : 'text-gray-400'
-                    }`} />
-                    {profile.details.looking_for === 'miłość' ? 'Szukam miłości' : 
-                           profile.details.looking_for === 'przygoda' ? 'Szukam przygody' :
-                           profile.details.looking_for === 'przyjaźń' ? 'Szukam przyjaźni' : 'Jeszcze nie wiem'}
-                  </span>
-                )}
-              </div>
             </div>
           </div>
 
@@ -2030,6 +2002,91 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
             <div className="border-l-2 border-cyan-400/50 pl-5 mb-8">
               <p className="text-lg leading-relaxed text-white font-light drop-shadow-sm">{profile.bio}</p>
             </div>
+
+            {hasProfileTraits && (
+              <>
+                <h3 className="text-sm font-medium text-cyan-400 uppercase tracking-widest mb-4">Cechy profilu</h3>
+
+                <div className="flex flex-wrap gap-3 mb-8">
+                  {occupationLabel && (
+                    <span className="px-4 py-2 rounded-xl text-sm font-medium text-white flex items-center gap-2 border border-white/20 bg-black/25 backdrop-blur-md">
+                      <Briefcase size={16} weight="duotone" className="text-cyan-400" /> Zawód: {occupationLabel}
+                    </span>
+                  )}
+                  {zodiacLabel && (
+                    <span className="px-4 py-2 rounded-xl text-sm font-medium text-white flex items-center gap-2 border border-white/20 bg-black/25 backdrop-blur-md">
+                      <Star size={16} weight="fill" className="text-yellow-400" /> Zodiak: {zodiacLabel}
+                    </span>
+                  )}
+                  {smokingLabel && (
+                    <span className="px-4 py-2 rounded-xl text-sm font-medium text-white flex items-center gap-2 border border-white/20 bg-black/25 backdrop-blur-md">
+                      <Cigarette size={16} weight="duotone" className="text-gray-400" /> Palenie: {smokingLabel}
+                    </span>
+                  )}
+                  {drinkingLabel && (
+                    <span className="px-4 py-2 rounded-xl text-sm font-medium text-white flex items-center gap-2 border border-white/20 bg-black/25 backdrop-blur-md">
+                      <Wine size={16} weight="duotone" className="text-purple-400" /> Alkohol: {drinkingLabel}
+                    </span>
+                  )}
+                  {petsLabel && (
+                    <span className="px-4 py-2 rounded-xl text-sm font-medium text-white flex items-center gap-2 border border-white/20 bg-black/25 backdrop-blur-md">
+                      <PawPrint size={16} weight="fill" className="text-amber-400" /> Zwierzęta: {petsLabel}
+                    </span>
+                  )}
+                  {childrenLabel && (
+                    <span className="px-4 py-2 rounded-xl text-sm font-medium text-white flex items-center gap-2 border border-white/20 bg-black/25 backdrop-blur-md">
+                      <UserPlus size={16} weight="duotone" className="text-cyan-300" /> Dzieci: {childrenLabel}
+                    </span>
+                  )}
+                  {orientationLabel && (
+                    <span className="px-4 py-2 rounded-xl text-sm font-medium text-white flex items-center gap-2 border border-white/20 bg-black/25 backdrop-blur-md">
+                      <GenderIntersex size={16} weight="duotone" className="text-purple-400" /> Orientacja: {orientationLabel}
+                    </span>
+                  )}
+                  {genderLabel && (
+                    <span className="px-4 py-2 rounded-xl text-sm font-medium text-white flex items-center gap-2 border border-white/20 bg-black/25 backdrop-blur-md">
+                      <GenderIntersex size={16} weight="duotone" className="text-cyan-300" /> Płeć: {genderLabel}
+                    </span>
+                  )}
+                  {seekingGenderLabel && (
+                    <span className="px-4 py-2 rounded-xl text-sm font-medium text-white flex items-center gap-2 border border-white/20 bg-black/25 backdrop-blur-md">
+                      <HeartStraight size={16} weight="fill" className="text-fuchsia-400" /> Szuka: {seekingGenderLabel}
+                    </span>
+                  )}
+                  {hasSeekingAgeRange && (
+                    <span className="px-4 py-2 rounded-xl text-sm font-medium text-white flex items-center gap-2 border border-white/20 bg-black/25 backdrop-blur-md">
+                      <UserPlus size={16} weight="duotone" className="text-green-300" /> Wiek szukanej osoby: {profile.seeking_age_min} - {profile.seeking_age_max}
+                    </span>
+                  )}
+                  {rawLookingFor && (
+                    <span className={`px-4 py-2 rounded-xl text-sm font-medium text-white flex items-center gap-2 border backdrop-blur-md ${
+                      normalizedLookingFor === 'miłość' || normalizedLookingFor === 'milosc'
+                        ? 'border-pink-500/50 bg-pink-500/10'
+                        : normalizedLookingFor === 'przygoda'
+                        ? 'border-cyan-500/50 bg-cyan-500/10'
+                        : normalizedLookingFor === 'przyjaźń' || normalizedLookingFor === 'przyjazn'
+                        ? 'border-blue-500/50 bg-blue-500/10'
+                        : 'border-white/20 bg-black/25'
+                    }`}>
+                      <HeartStraight
+                        size={16}
+                        weight="fill"
+                        className={`${
+                          normalizedLookingFor === 'miłość' || normalizedLookingFor === 'milosc'
+                            ? 'text-pink-400'
+                            : normalizedLookingFor === 'przygoda'
+                            ? 'text-cyan-400'
+                            : normalizedLookingFor === 'przyjaźń' || normalizedLookingFor === 'przyjazn'
+                            ? 'text-blue-400'
+                            : 'text-gray-400'
+                        }`}
+                      />
+                      Szuka: {lookingForLabel}
+                    </span>
+                  )}
+                </div>
+              </>
+            )}
 
             <h3 className="text-sm font-medium text-cyan-400 uppercase tracking-widest mb-4">Moje zajawki</h3>
 
