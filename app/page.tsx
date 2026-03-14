@@ -173,9 +173,36 @@ export default function App() {
       setUrlSearch(window.location.search);
     };
 
+    const emitUrlChange = () => {
+      window.dispatchEvent(new Event('zl-url-change'));
+    };
+
+    const originalPushState = window.history.pushState;
+    const originalReplaceState = window.history.replaceState;
+
+    const patchedPushState: History['pushState'] = (...args) => {
+      originalPushState.apply(window.history, args);
+      syncLocation();
+      emitUrlChange();
+    };
+
+    const patchedReplaceState: History['replaceState'] = (...args) => {
+      originalReplaceState.apply(window.history, args);
+      syncLocation();
+      emitUrlChange();
+    };
+
+    window.history.pushState = patchedPushState;
+    window.history.replaceState = patchedReplaceState;
+
     syncLocation();
     window.addEventListener('popstate', syncLocation);
-    return () => window.removeEventListener('popstate', syncLocation);
+
+    return () => {
+      window.removeEventListener('popstate', syncLocation);
+      window.history.pushState = originalPushState;
+      window.history.replaceState = originalReplaceState;
+    };
   }, []);
 
   /* ─── Auth & token state ─── */

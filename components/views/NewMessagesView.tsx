@@ -90,9 +90,13 @@ export default function NewMessagesView() {
 
     readTargetFromLocation();
     window.addEventListener('popstate', readTargetFromLocation);
+    window.addEventListener('zl-url-change', readTargetFromLocation);
+    window.addEventListener('focus', readTargetFromLocation);
 
     return () => {
       window.removeEventListener('popstate', readTargetFromLocation);
+      window.removeEventListener('zl-url-change', readTargetFromLocation);
+      window.removeEventListener('focus', readTargetFromLocation);
     };
   }, []);
 
@@ -623,6 +627,8 @@ export default function NewMessagesView() {
 
   const handleDeleteMessages = async () => {
     if (!selectedProfile || identityIds.length === 0) return;
+
+    const deletingConversationId = selectedProfile.id;
     
     const confirmed = window.confirm('Czy na pewno chcesz usunąć wszystkie wiadomości z tą rozmową?');
     if (!confirmed) return;
@@ -649,6 +655,20 @@ export default function NewMessagesView() {
       }
 
       setMessages([]);
+      setConversations((prev) => prev.filter((conversation) => conversation.id !== deletingConversationId));
+      setSelectedProfile(null);
+
+      if (targetProfileId === deletingConversationId) {
+        setTargetProfileId(null);
+
+        const params = new URLSearchParams(window.location.search);
+        params.delete('user');
+        const nextQuery = params.toString();
+        const nextUrl = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ''}`;
+        window.history.replaceState(null, '', nextUrl);
+      }
+
+      void loadConversations();
       alert('Wiadomości zostały usunięte');
     } catch (error) {
       console.error('Error deleting messages:', error);
