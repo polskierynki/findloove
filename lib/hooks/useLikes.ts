@@ -76,7 +76,8 @@ export function useLikes() {
     const { data, error } = await supabase
       .from('likes')
       .select('to_profile_id')
-      .eq('from_profile_id', senderId);
+      .eq('from_profile_id', senderId)
+      .order('created_at', { ascending: false });
 
     if (error) {
       console.error('Blad ladowania ulubionych:', error.message);
@@ -86,5 +87,23 @@ export function useLikes() {
     return (data || []).map((row) => row.to_profile_id as string);
   }, [getSenderId]);
 
-  return { likeProfile, unlikeProfile, hasLikedProfile, getLikedProfileIds };
+  const getProfileIdsWhoLikedMe = useCallback(async (): Promise<string[]> => {
+    const senderId = await getSenderId();
+    if (!senderId) return [];
+
+    const { data, error } = await supabase
+      .from('likes')
+      .select('from_profile_id')
+      .eq('to_profile_id', senderId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Blad ladowania profili, ktore polubily mnie:', error.message);
+      return [];
+    }
+
+    return (data || []).map((row) => row.from_profile_id as string);
+  }, [getSenderId]);
+
+  return { likeProfile, unlikeProfile, hasLikedProfile, getLikedProfileIds, getProfileIdsWhoLikedMe };
 }

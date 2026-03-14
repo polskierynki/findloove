@@ -15,6 +15,14 @@ export interface Friend {
   friendshipId: string;
 }
 
+export type FriendRequestState = 'pending' | 'accepted' | 'declined';
+
+export interface SentFriendRequest extends Friend {
+  status: FriendRequestState;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 type FriendshipAcceptedRow = {
   id: string;
   requester_id: string;
@@ -26,6 +34,14 @@ type FriendshipPendingRow = {
   requester_id: string;
 };
 
+type FriendshipSentRow = {
+  id: string;
+  addressee_id: string;
+  status: FriendRequestState;
+  created_at?: string | null;
+  updated_at?: string | null;
+};
+
 type FriendProfileRow = {
   id: string;
   name: string;
@@ -33,6 +49,11 @@ type FriendProfileRow = {
   city?: string | null;
   image_url?: string | null;
 };
+
+function normalizeFriendRequestState(status: string | null | undefined): FriendRequestState {
+  if (status === 'accepted' || status === 'declined') return status;
+  return 'pending';
+}
 
 export function useFriends() {
   const getMyProfileId = useCallback(async (): Promise<string | null> => {
@@ -62,6 +83,14 @@ export function useFriends() {
     await supabase
       .from('friendships')
       .update({ status: 'accepted', updated_at: new Date().toISOString() })
+      .eq('id', friendshipId);
+  }, []);
+
+  /** Odrzuc zaproszenie (jako addressee), zostawiajac status do podgladu po stronie nadawcy */
+  const declineFriendRequest = useCallback(async (friendshipId: string): Promise<void> => {
+    await supabase
+      .from('friendships')
+      .update({ status: 'declined', updated_at: new Date().toISOString() })
       .eq('id', friendshipId);
   }, []);
 
@@ -176,13 +205,67 @@ export function useFriends() {
     }));
   }, [getMyProfileId]);
 
+  /** Wyslane zaproszenia ODE mnie, wraz ze statusem */
+  const getSentRequests = useCallback(async (): Promise<SentFriendRequest[]> => {
+    const myId = await getMyProfileId();
+    if (!myId) return [];
+
+    const { data } = await supabase
+      .from('friendships')
+      .select('id, addressee_id, status, created_at, updated_at')
+      .eq('requester_id', myId)
+      .in('status', ['pending', 'accepted', 'declined'])
+      .order('updated_at', { ascending: false });
+
+    if (!data || data.length === 0) return [];
+
+    const sentRows = (data as FriendshipSentRow[]).filter(
+      (row) => row.addressee_id && row.addressee_id !== myId,
+    );
+    const addresseeIds = sentRows.map((row) => row.addressee_id);
+    if (addresseeIds.length === 0) return [];
+
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id, name, age, city, image_url')
+      .in('id', addresseeIds)
+      .neq('is_blocked', true);
+
+    const profileMap = new Map<string, FriendProfileRow>(
+      ((profiles as FriendProfileRow[] | null) || []).map((profile) => [profile.id, profile]),
+    );
+
+    const result: SentFriendRequest[] = [];
+
+    for (const row of sentRows) {
+      const profile = profileMap.get(row.addressee_id);
+      if (!profile) continue;
+
+      result.push({
+        id: profile.id,
+        name: profile.name,
+        age: profile.age ?? undefined,
+        city: profile.city ?? undefined,
+        image_url: profile.image_url ?? undefined,
+        friendshipId: row.id,
+        status: normalizeFriendRequestState(row.status),
+        createdAt: row.created_at ?? undefined,
+        updatedAt: row.updated_at ?? undefined,
+      });
+    }
+
+    return result;
+  }, [getMyProfileId]);
+
   return {
     sendFriendRequest,
     acceptFriendRequest,
+    declineFriendRequest,
     removeFriendship,
     getFriendshipStatus,
     getFriendsForProfile,
     getMyFriends,
     getPendingRequests,
+    getSentRequests,
   };
 }
