@@ -384,14 +384,6 @@ export default function NewHeader() {
             Szukaj
           </button>
           <button
-            onClick={() => router.push('/messages')}
-            className={`nav-item relative text-gray-300 hover:text-white font-medium transition-colors pb-1 whitespace-nowrap ${
-              activeNav === 'messages' ? 'active' : ''
-            }`}
-          >
-            Wiadomości
-          </button>
-          <button
             onClick={() => router.push('/wallet')}
             className={`nav-item relative text-gray-300 hover:text-white font-medium transition-colors pb-1 flex items-center gap-1.5 whitespace-nowrap ${
               activeNav === 'wallet' ? 'active' : ''
@@ -452,18 +444,6 @@ export default function NewHeader() {
               Wiadomości
             </span>
           </div>
-
-          {/* Wallet / Top-up */}
-          {!isAdmin && (
-            <button
-              onClick={() => router.push('/wallet')}
-              title="Portfel i doladowanie"
-              className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-amber-500/35 bg-amber-500/10 px-3 py-1.5 text-xs font-semibold text-amber-200 hover:bg-amber-500/20 hover:border-amber-400/50 transition-colors"
-            >
-              <Coins size={14} className="text-amber-300" />
-              Doładuj
-            </button>
-          )}
 
           {/* Notifications */}
           <div className="relative group" id="notification-wrapper">
@@ -731,19 +711,6 @@ export default function NewHeader() {
             </button>
             <button
               onClick={() => {
-                router.push('/messages');
-                setMobileMenuOpen(false);
-              }}
-              className={`text-left px-4 py-2 rounded-lg transition-colors ${
-                activeNav === 'messages'
-                  ? 'text-cyan-300 bg-cyan-500/10 font-medium'
-                  : 'text-cyan-300/60 hover:text-cyan-300 hover:bg-cyan-500/10'
-              }`}
-            >
-              Wiadomości
-            </button>
-            <button
-              onClick={() => {
                 router.push('/wallet');
                 setMobileMenuOpen(false);
               }}
@@ -754,7 +721,7 @@ export default function NewHeader() {
               }`}
             >
               <Coins size={16} className="text-amber-300" />
-              Portfel i doładowanie
+              Portfel
             </button>
             <button
               onClick={() => {

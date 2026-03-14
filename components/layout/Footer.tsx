@@ -37,7 +37,7 @@ export default function Footer({ onNavigate }: FooterProps) {
               <button onClick={() => onNavigate?.('home')} className="block text-white/70 hover:text-cyan-400 transition-colors font-light">Strona główna</button>
               <button onClick={() => onNavigate?.('search')} className="block text-white/70 hover:text-cyan-400 transition-colors font-light">Szukaj</button>
               <button onClick={() => onNavigate?.('messages')} className="block text-white/70 hover:text-cyan-400 transition-colors font-light">Wiadomości</button>
-              <button onClick={() => onNavigate?.('wallet')} className="block text-white/70 hover:text-cyan-400 transition-colors font-light">Portfel i doładowanie</button>
+              <button onClick={() => onNavigate?.('wallet')} className="block text-white/70 hover:text-cyan-400 transition-colors font-light">Portfel</button>
               <button onClick={() => onNavigate?.('friends')} className="block text-white/70 hover:text-cyan-400 transition-colors font-light">Znajomi</button>
               <button onClick={() => onNavigate?.('safety')} className="block text-white/70 hover:text-cyan-400 transition-colors font-light">Bezpieczeństwo</button>
             </div>
