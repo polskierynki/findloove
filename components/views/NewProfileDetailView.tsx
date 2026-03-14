@@ -45,6 +45,7 @@ import { useFriends, type FriendshipStatus, type Friend } from '@/lib/hooks/useF
 import { ALL_INTERESTS } from './constants/profileFormOptions';
 import EmojiPopover from '@/components/ui/EmojiPopover';
 import EmojiKeywordSuggestions from '@/components/ui/EmojiKeywordSuggestions';
+import FloatingBadgeTooltip from '@/components/ui/FloatingBadgeTooltip';
 import HoverHintIconButton from '@/components/ui/HoverHintIconButton';
 import ReportCommentModal from '@/components/ui/ReportCommentModal';
 import GiftModal, { type GiftSelectionPayload } from '@/components/modals/GiftModal';
@@ -197,6 +198,11 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
   const [friendsExpanded, setFriendsExpanded] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isDetailPopular, setIsDetailPopular] = useState(false);
+  const [detailPopularityStats, setDetailPopularityStats] = useState({
+    score: 0,
+    likesReceived: 0,
+    acceptedFriendships: 0,
+  });
   const [comments, setComments] = useState<AppComment[]>([]);
   const [photoComments, setPhotoComments] = useState<AppComment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -326,13 +332,21 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
     return !Number.isNaN(ts) && Date.now() - ts <= 15 * 60 * 1000;
   }, [profile]);
 
+  const detailPopularTooltip = useMemo(() => {
+    const overrideSuffix = Boolean((profile as any)?.is_popular_override) ? ' • Oznaczony recznie' : '';
+    return `Popularny profil • Wynik: ${detailPopularityStats.score}/100 • Polubienia: ${detailPopularityStats.likesReceived} • Znajomi: ${detailPopularityStats.acceptedFriendships}${overrideSuffix}`;
+  }, [detailPopularityStats.acceptedFriendships, detailPopularityStats.likesReceived, detailPopularityStats.score, profile]);
+
   useEffect(() => {
-    if (!profile) return;
-    if (Boolean((profile as any).is_popular_override)) {
-      setIsDetailPopular(true);
+    if (!profile) {
+      setIsDetailPopular(false);
+      setDetailPopularityStats({ score: 0, likesReceived: 0, acceptedFriendships: 0 });
       return;
     }
+
+    const hasOverride = Boolean((profile as any).is_popular_override);
     const windowStart = new Date(Date.now() - 45 * 86400000).toISOString();
+
     void Promise.all([
       supabase.from('likes').select('id', { count: 'exact', head: true })
         .eq('to_profile_id', profileId)
@@ -341,8 +355,37 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
         .or(`requester_id.eq.${profileId},addressee_id.eq.${profileId}`)
         .eq('status', 'accepted'),
     ]).then(([likesRes, friendsRes]) => {
-      setIsDetailPopular((likesRes.count ?? 0) >= 5 && (friendsRes.count ?? 0) >= 2);
-    }).catch(() => {});
+      const likesReceived = likesRes.count ?? 0;
+      const acceptedFriendships = friendsRes.count ?? 0;
+
+      const lastActiveTs = Date.parse(((profile as any)?.last_active as string | undefined) || '');
+      let activityScore = 0;
+
+      if (!Number.isNaN(lastActiveTs)) {
+        const daysAgo = (Date.now() - lastActiveTs) / 86400000;
+        if (daysAgo <= 3) {
+          activityScore = 12;
+        } else if (daysAgo <= 10) {
+          activityScore = 6;
+        }
+      }
+
+      const verifiedScore = profile.isVerified ? 4 : 0;
+      const score = Math.min(100, likesReceived * 8 + acceptedFriendships * 12 + activityScore + verifiedScore);
+
+      setDetailPopularityStats({
+        score,
+        likesReceived,
+        acceptedFriendships,
+      });
+
+      setIsDetailPopular(
+        hasOverride || (score >= 70 && likesReceived >= 5 && acceptedFriendships >= 2),
+      );
+    }).catch(() => {
+      setDetailPopularityStats({ score: 0, likesReceived: 0, acceptedFriendships: 0 });
+      setIsDetailPopular(hasOverride);
+    });
   }, [profile, profileId]);
 
   const canDeleteGift = useCallback((gift: ReceivedGift) => {
@@ -1646,22 +1689,25 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
             {/* Float Tags */}
             <div className="absolute top-8 right-8 z-30 flex items-center gap-2.5">
               {isDetailPopular && (
-                <div className="popular-bolt-badge !w-9 !h-9" title="Popularny profil">
-                  <Lightning size={16} weight="fill" className="popular-bolt-icon" />
-                </div>
+                <FloatingBadgeTooltip content={detailPopularTooltip}>
+                  <div className="popular-bolt-badge !w-9 !h-9">
+                    <Lightning size={16} weight="fill" className="popular-bolt-icon" />
+                  </div>
+                </FloatingBadgeTooltip>
               )}
               {profile.isVerified && (
-                <div className="relative group/verified w-9 h-9 rounded-full border border-cyan-400/50 bg-black/40 backdrop-blur-md inline-flex items-center justify-center cursor-default flex-shrink-0">
-                  <SealCheck size={17} weight="fill" className="text-cyan-400" />
-                  <div className="absolute top-full right-0 mt-2 px-2.5 py-1.5 bg-black/90 backdrop-blur-sm text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover/verified:opacity-100 transition-opacity pointer-events-none border border-cyan-500/40 shadow-[0_0_10px_rgba(0,255,255,0.2)] font-normal">
-                    Profil zweryfikowany
+                <FloatingBadgeTooltip content="Profil zweryfikowany">
+                  <div className="w-9 h-9 rounded-full border border-cyan-400/50 bg-black/40 backdrop-blur-md inline-flex items-center justify-center cursor-default flex-shrink-0">
+                    <SealCheck size={17} weight="fill" className="text-cyan-400" />
                   </div>
-                </div>
+                </FloatingBadgeTooltip>
               )}
               {isDetailRecentlyActive && (
-                <div className="w-9 h-9 rounded-full border border-green-400/50 bg-black/40 backdrop-blur-md inline-flex items-center justify-center flex-shrink-0">
-                  <div className="w-2.5 h-2.5 bg-green-400 rounded-full animate-pulse"></div>
-                </div>
+                <FloatingBadgeTooltip content="Aktywny teraz (ostatnie 15 min)">
+                  <div className="w-9 h-9 rounded-full border border-green-400/50 bg-black/40 backdrop-blur-md inline-flex items-center justify-center flex-shrink-0">
+                    <div className="w-2.5 h-2.5 bg-green-400 rounded-full animate-pulse"></div>
+                  </div>
+                </FloatingBadgeTooltip>
               )}
             </div>
 

@@ -14,6 +14,7 @@ import { supabase } from '@/lib/supabase';
 import { resolveProfileIdForAuthUser } from '@/lib/profileAuth';
 import { MatchCursor, MatchSort, fetchRankedProfilesPage, isMissingMatchingRpc } from '@/lib/matching';
 import { useLikes } from '@/lib/hooks/useLikes';
+import FloatingBadgeTooltip from '@/components/ui/FloatingBadgeTooltip';
 
 // Współrzędne geograficzne polskich miast (lat, lon)
 const CITY_COORDS: Record<string, [number, number]> = {
@@ -887,6 +888,7 @@ export default function NewSearchView() {
                 const isLiked = likedIds.has(profile.id);
                 const isPopular = overrideSet.has(profile.id);
                 const isRecentlyActive = Boolean(profile.last_active) && Date.now() - Date.parse(profile.last_active!) <= 15 * 60 * 1000;
+                const popularTooltip = 'Popularny profil • Ranking: min. 70/100, 5 polubien, 2 znajomych lub reczne oznaczenie';
                 const isLikeBursting = burstingLikeIds.has(profile.id);
                 const isLikePopping = poppingLikeIds.has(profile.id);
                 const likeBurstTick = likeBurstTicks[profile.id] ?? 0;
@@ -916,22 +918,25 @@ export default function NewSearchView() {
                         </div>
                         <div className="flex items-center gap-1.5">
                           {isPopular && (
-                            <div className="popular-bolt-badge" title="Popularny profil">
-                              <Lightning size={13} weight="fill" className="popular-bolt-icon" />
-                            </div>
+                            <FloatingBadgeTooltip content={popularTooltip}>
+                              <div className="popular-bolt-badge">
+                                <Lightning size={13} weight="fill" className="popular-bolt-icon" />
+                              </div>
+                            </FloatingBadgeTooltip>
                           )}
                           {profile.is_verified && (
-                            <div className="relative group/verified w-[26px] h-[26px] rounded-full border border-cyan-400/50 bg-black/40 backdrop-blur-md inline-flex items-center justify-center cursor-default flex-shrink-0">
-                              <SealCheck size={13} weight="fill" className="text-cyan-400" />
-                              <div className="absolute top-full right-0 mt-2 px-2.5 py-1.5 bg-black/90 backdrop-blur-sm text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover/verified:opacity-100 transition-opacity pointer-events-none border border-cyan-500/40 font-normal">
-                                Profil zweryfikowany
+                            <FloatingBadgeTooltip content="Profil zweryfikowany">
+                              <div className="w-[26px] h-[26px] rounded-full border border-cyan-400/50 bg-black/40 backdrop-blur-md inline-flex items-center justify-center cursor-default flex-shrink-0">
+                                <SealCheck size={13} weight="fill" className="text-cyan-400" />
                               </div>
-                            </div>
+                            </FloatingBadgeTooltip>
                           )}
                           {isRecentlyActive && (
-                            <div className="w-[26px] h-[26px] rounded-full border border-green-400/50 bg-black/40 backdrop-blur-md inline-flex items-center justify-center flex-shrink-0">
-                              <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                            </div>
+                            <FloatingBadgeTooltip content="Aktywny teraz (ostatnie 15 min)">
+                              <div className="w-[26px] h-[26px] rounded-full border border-green-400/50 bg-black/40 backdrop-blur-md inline-flex items-center justify-center flex-shrink-0">
+                                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                              </div>
+                            </FloatingBadgeTooltip>
                           )}
                         </div>
                       </div>

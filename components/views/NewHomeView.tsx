@@ -9,6 +9,7 @@ import { Profile, SupabaseProfile, filterNonAdminProfiles, getLookingFor, mapSup
 import { MatchCursor, fetchRankedProfilesPage, isMissingMatchingRpc } from '@/lib/matching';
 import { LOOKING_FOR_OPTIONS } from './constants/profileFormOptions';
 import { useLikes } from '@/lib/hooks/useLikes';
+import FloatingBadgeTooltip from '@/components/ui/FloatingBadgeTooltip';
 
 const HIDDEN_ADMIN_EMAILS = new Set([
   'lio1985lodz@gmail.com',
@@ -736,6 +737,7 @@ export default function NewHomeView() {
             const likePopTick = likePopTicks[profile.id] ?? 0;
             const matchScore = item.matchScore;
             const isRecentlyActive = item.activityTs > 0 && Date.now() - item.activityTs <= 15 * 60 * 1000;
+            const popularTooltip = `Popularny profil • Wynik: ${popularity?.score || 0}/100 • Polubienia: ${popularity?.likesReceived || 0} • Znajomi: ${popularity?.acceptedFriendships || 0}`;
 
             return (
               <div
@@ -767,25 +769,25 @@ export default function NewHomeView() {
                     </div>
                     <div className="flex items-center gap-1.5">
                       {isPopular && (
-                        <div
-                          className="popular-bolt-badge"
-                          title={`Popularna: ${popularity?.score || 0}/100 • ${popularity?.likesReceived || 0} polubien • ${popularity?.acceptedFriendships || 0} znajomych`}
-                        >
-                          <Lightning size={13} weight="fill" className="popular-bolt-icon" />
-                        </div>
+                        <FloatingBadgeTooltip content={popularTooltip}>
+                          <div className="popular-bolt-badge">
+                            <Lightning size={13} weight="fill" className="popular-bolt-icon" />
+                          </div>
+                        </FloatingBadgeTooltip>
                       )}
                       {profile.isVerified && (
-                        <div className="relative group/verified w-[26px] h-[26px] rounded-full border border-cyan-400/50 bg-black/40 backdrop-blur-md inline-flex items-center justify-center cursor-default flex-shrink-0">
-                          <SealCheck size={13} weight="fill" className="text-cyan-400" />
-                          <div className="absolute top-full right-0 mt-2 px-2.5 py-1.5 bg-black/90 backdrop-blur-sm text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover/verified:opacity-100 transition-opacity pointer-events-none border border-cyan-500/40 font-normal">
-                            Profil zweryfikowany
+                        <FloatingBadgeTooltip content="Profil zweryfikowany">
+                          <div className="w-[26px] h-[26px] rounded-full border border-cyan-400/50 bg-black/40 backdrop-blur-md inline-flex items-center justify-center cursor-default flex-shrink-0">
+                            <SealCheck size={13} weight="fill" className="text-cyan-400" />
                           </div>
-                        </div>
+                        </FloatingBadgeTooltip>
                       )}
                       {isRecentlyActive && (
-                        <div className="w-[26px] h-[26px] rounded-full border border-green-400/50 bg-black/40 backdrop-blur-md inline-flex items-center justify-center flex-shrink-0">
-                          <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                        </div>
+                        <FloatingBadgeTooltip content="Aktywny teraz (ostatnie 15 min)">
+                          <div className="w-[26px] h-[26px] rounded-full border border-green-400/50 bg-black/40 backdrop-blur-md inline-flex items-center justify-center flex-shrink-0">
+                            <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                          </div>
+                        </FloatingBadgeTooltip>
                       )}
                       {item.sharedInterests > 0 && (
                         <div className="bg-black/40 backdrop-blur-md px-2.5 py-1 rounded-full border border-cyan-500/30 text-[10px] font-semibold text-cyan-200">
