@@ -1356,6 +1356,9 @@ export default function NewMyProfileView() {
           <p className="text-amber-100/75 mt-2 text-sm">
             Wysylasz selfie, system liczy score SI i przekazuje wniosek do akceptacji admina.
           </p>
+          <p className="text-amber-100/60 mt-1 text-xs">
+            Po wyslaniu selfie uzytkownik nie moze go sam usunac. W razie potrzeby usuniecia skontaktuj sie z administratorem.
+          </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">

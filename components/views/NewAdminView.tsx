@@ -56,11 +56,17 @@ interface VerificationQueueItem {
   createdAt: string;
 }
 
+interface VerificationSubmissionItem extends VerificationQueueItem {
+  adminNote: string | null;
+  reviewedAt: string | null;
+}
+
 export default function NewAdminView() {
   const router = useRouter();
   const [users, setUsers] = useState<User[]>([]);
   const [reports, setReports] = useState<CommentReport[]>([]);
   const [verificationQueue, setVerificationQueue] = useState<VerificationQueueItem[]>([]);
+  const [verificationSubmissions, setVerificationSubmissions] = useState<VerificationSubmissionItem[]>([]);
   const [selectedSelfiePreview, setSelectedSelfiePreview] = useState<{
     src: string;
     profileName: string;
@@ -68,7 +74,10 @@ export default function NewAdminView() {
   const [loading, setLoading] = useState(true);
   const [busyUserId, setBusyUserId] = useState<string | null>(null);
   const [verificationBusyId, setVerificationBusyId] = useState<string | null>(null);
+  const [verificationDeleteBusyId, setVerificationDeleteBusyId] = useState<string | null>(null);
   const [verificationError, setVerificationError] = useState<string | null>(null);
+  const [verificationSubmissionsError, setVerificationSubmissionsError] = useState<string | null>(null);
+  const [verificationSubmissionsLoading, setVerificationSubmissionsLoading] = useState(false);
   const [verificationAdminNotes, setVerificationAdminNotes] = useState<Record<string, string>>({});
 
   // Token grant
@@ -151,6 +160,45 @@ export default function NewAdminView() {
     }
   };
 
+  const loadVerificationSubmissions = async () => {
+    setVerificationSubmissionsLoading(true);
+    try {
+      const token = await getAdminAccessToken();
+      if (!token) {
+        setVerificationSubmissions([]);
+        setVerificationSubmissionsError('Brak aktywnej sesji admina.');
+        return;
+      }
+
+      const response = await fetch('/api/admin/verification/submissions', {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const payload = (await response.json().catch(() => ({}))) as {
+        error?: string;
+        submissions?: VerificationSubmissionItem[];
+      };
+
+      if (!response.ok) {
+        setVerificationSubmissions([]);
+        setVerificationSubmissionsError(payload.error || 'Nie udalo sie pobrac historii selfie.');
+        return;
+      }
+
+      setVerificationSubmissions(payload.submissions || []);
+      setVerificationSubmissionsError(null);
+    } catch (error) {
+      console.error('Error loading verification submissions:', error);
+      setVerificationSubmissions([]);
+      setVerificationSubmissionsError('Nie udalo sie pobrac historii selfie.');
+    } finally {
+      setVerificationSubmissionsLoading(false);
+    }
+  };
+
   const handleReviewVerification = async (requestId: string, decision: 'approve' | 'reject') => {
     if (verificationBusyId) return;
 
@@ -183,7 +231,22 @@ export default function NewAdminView() {
         : 'Selfie zostalo odrzucone.';
       alert(payload.message || fallbackMessage);
 
+      const targetStatus = decision === 'approve' ? 'approved' : 'rejected';
+      const reviewedAtIso = new Date().toISOString();
+
       setVerificationQueue((prev) => prev.filter((item) => item.id !== requestId));
+      setVerificationSubmissions((prev) =>
+        prev.map((item) =>
+          item.id === requestId
+            ? {
+                ...item,
+                status: targetStatus,
+                reviewedAt: reviewedAtIso,
+                adminNote: note || null,
+              }
+            : item,
+        ),
+      );
       setStats((prev) => ({
         ...prev,
         pendingVerifications: Math.max(0, prev.pendingVerifications - 1),
@@ -364,6 +427,7 @@ export default function NewAdminView() {
       setReports(mappedReports);
 
       const pendingVerifications = await loadVerificationQueue();
+      await loadVerificationSubmissions();
 
       const totalUsers = usersData?.length || 0;
       const activeNow = Math.floor(totalUsers * 0.15);
@@ -620,6 +684,72 @@ export default function NewAdminView() {
       setGrantResult({ ok: false, message: 'Błąd połączenia.' });
     } finally {
       setGrantBusy(false);
+    }
+  };
+
+  const handleDeleteVerificationSubmission = async (requestId: string) => {
+    if (verificationDeleteBusyId) return;
+
+    const targetSubmission = verificationSubmissions.find((item) => item.id === requestId);
+    const targetName = targetSubmission?.profileName || 'tego uzytkownika';
+    const confirmed = window.confirm(
+      `Czy na pewno chcesz usunac selfie zgloszone przez ${targetName}? Tej operacji nie da sie cofnac.`,
+    );
+    if (!confirmed) return;
+
+    setVerificationDeleteBusyId(requestId);
+    try {
+      const token = await getAdminAccessToken();
+      if (!token) {
+        alert('Brak sesji admina. Odswiez strone i zaloguj sie ponownie.');
+        return;
+      }
+
+      const response = await fetch('/api/admin/verification/delete', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ requestId }),
+      });
+
+      const payload = (await response.json().catch(() => ({}))) as {
+        error?: string;
+        message?: string;
+        storageWarning?: string | null;
+      };
+
+      if (!response.ok) {
+        alert(payload.error || 'Nie udalo sie usunac selfie.');
+        return;
+      }
+
+      const wasPending =
+        targetSubmission?.status === 'pending_ai'
+        || targetSubmission?.status === 'pending_admin';
+
+      setVerificationSubmissions((prev) => prev.filter((item) => item.id !== requestId));
+      setVerificationQueue((prev) => prev.filter((item) => item.id !== requestId));
+
+      if (wasPending) {
+        setStats((prev) => ({
+          ...prev,
+          pendingVerifications: Math.max(0, prev.pendingVerifications - 1),
+        }));
+      }
+
+      const message = payload.message || 'Selfie zostalo usuniete.';
+      if (payload.storageWarning) {
+        alert(`${message} Uwaga: ${payload.storageWarning}`);
+      } else {
+        alert(message);
+      }
+    } catch (error) {
+      console.error('Error deleting verification submission:', error);
+      alert('Nie udalo sie usunac selfie.');
+    } finally {
+      setVerificationDeleteBusyId(null);
     }
   };
 
@@ -1111,6 +1241,125 @@ export default function NewAdminView() {
                       title="Podglad profilu"
                     >
                       <Camera size={14} />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      <div className="mt-8 glass rounded-2xl p-6 border border-cyan-500/25">
+        <h2 className="text-2xl font-light text-white mb-4 flex items-center gap-2">
+          <Camera size={20} className="text-cyan-300" />
+          Wszystkie zgłoszone selfie
+        </h2>
+
+        <p className="text-sm text-cyan-100/70 mb-4">
+          Archiwum zawiera każde selfie wysłane do weryfikacji. Użytkownik nie może sam usunąć selfie, ale administrator może je usunąć tutaj.
+        </p>
+
+        {verificationSubmissionsError && (
+          <div className="mb-4 rounded-xl border border-red-500/35 bg-red-500/10 px-4 py-3 text-sm text-red-100">
+            {verificationSubmissionsError}
+          </div>
+        )}
+
+        {verificationSubmissionsLoading ? (
+          <div className="text-center text-cyan-400/60 py-8">Ladowanie archiwum selfie...</div>
+        ) : verificationSubmissions.length === 0 ? (
+          <div className="text-center text-cyan-400/50 py-10 border border-white/10 rounded-xl bg-white/[0.02]">
+            <Camera size={30} className="mx-auto mb-2 opacity-40" />
+            <p className="text-sm">Brak zapisanych zgłoszeń selfie.</p>
+          </div>
+        ) : (
+          <div className="space-y-3 max-h-[520px] overflow-y-auto pr-1">
+            {verificationSubmissions.map((item) => {
+              const isDeleting = verificationDeleteBusyId === item.id;
+              const selfieSrc =
+                item.selfiePreviewUrl
+                || item.profileImage
+                || 'https://ui-avatars.com/api/?name=Selfie&background=111827&color=e5e7eb&size=200';
+
+              const statusClass =
+                item.status === 'approved'
+                  ? 'bg-emerald-500/15 border-emerald-500/35 text-emerald-200'
+                  : item.status === 'rejected'
+                  ? 'bg-red-500/15 border-red-500/35 text-red-200'
+                  : 'bg-amber-500/15 border-amber-500/35 text-amber-200';
+
+              const statusLabel =
+                item.status === 'approved'
+                  ? 'Zaakceptowane'
+                  : item.status === 'rejected'
+                  ? 'Odrzucone'
+                  : 'Oczekuje';
+
+              return (
+                <div
+                  key={item.id}
+                  className="rounded-xl border border-cyan-500/20 bg-black/20 p-4"
+                >
+                  <div className="flex flex-col lg:flex-row lg:items-center gap-4">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedSelfiePreview({ src: selfieSrc, profileName: item.profileName })}
+                      className="relative shrink-0 overflow-hidden rounded-xl border border-cyan-500/30 group/selfie"
+                      title="Kliknij, aby powiekszyc selfie"
+                    >
+                      <img
+                        src={selfieSrc}
+                        alt={`Selfie ${item.profileName}`}
+                        className="w-20 h-20 object-cover transition-transform duration-300 group-hover/selfie:scale-105"
+                      />
+                    </button>
+
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <button
+                          onClick={() => handleOpenProfilePreview(item.profileId)}
+                          className="text-white font-medium hover:text-cyan-200 transition-colors"
+                        >
+                          {item.profileName}
+                        </button>
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full border ${statusClass}`}>
+                          {statusLabel}
+                        </span>
+                        {item.profileVerified && (
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-500/35 text-emerald-200">
+                            Konto zweryfikowane
+                          </span>
+                        )}
+                      </div>
+
+                      <p className="text-xs text-cyan-200/70 mt-1">
+                        {item.profileCity || 'Brak miasta'}
+                        {typeof item.profileAge === 'number' ? ` • ${item.profileAge} lat` : ''}
+                      </p>
+
+                      <p className="text-xs text-white/60 mt-1">
+                        Dodano: {new Date(item.createdAt).toLocaleString('pl-PL')}
+                        {item.reviewedAt ? ` • Decyzja: ${new Date(item.reviewedAt).toLocaleString('pl-PL')}` : ''}
+                      </p>
+
+                      {item.aiReason && (
+                        <p className="text-xs text-white/70 mt-1">Ocena SI: {item.aiReason}</p>
+                      )}
+
+                      {item.adminNote && (
+                        <p className="text-xs text-cyan-200/80 mt-1">Notatka moderatora: {item.adminNote}</p>
+                      )}
+                    </div>
+
+                    <button
+                      onClick={() => void handleDeleteVerificationSubmission(item.id)}
+                      disabled={isDeleting}
+                      className="rounded-lg bg-red-500/15 border border-red-500/35 text-red-100 px-4 py-2 text-sm hover:bg-red-500/25 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
+                      title="Usuń selfie i wpis weryfikacyjny"
+                    >
+                      <Trash2 size={14} />
+                      {isDeleting ? 'Usuwanie...' : 'Usuń selfie'}
                     </button>
                   </div>
                 </div>

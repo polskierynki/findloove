@@ -176,6 +176,7 @@ export default function BottomNav({ currentView, onNavigate, isLoggedIn = false,
     if (path.startsWith('/discover')) return 'discover';
     if (path.startsWith('/search')) return 'search';
     if (path.startsWith('/messages')) return 'messages';
+    if (path.startsWith('/wallet')) return 'wallet';
     if (path.startsWith('/friends') || path.startsWith('/likes')) return 'friends';
     if (path.startsWith('/myprofile')) return 'myprofile';
     // /profile/[id] (cudze profile) nie podświetlają żadnej zakładki

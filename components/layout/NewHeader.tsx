@@ -5,7 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { resolveProfileIdForAuthUser } from '@/lib/profileAuth';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
-import { Bell, MessageCircle, Shield, Menu, X, Gift, Heart, BadgeCheck, LogIn, LogOut, UserPlus, Eye, Users, Check, Trash2 } from 'lucide-react';
+import { Bell, MessageCircle, Shield, Menu, X, Gift, Heart, BadgeCheck, LogIn, LogOut, UserPlus, Eye, Users, Check, Trash2, Coins } from 'lucide-react';
 import { useNotifications, type NotificationItem } from '@/lib/hooks/useNotifications';
 import { useFriends } from '@/lib/hooks/useFriends';
 
@@ -66,6 +66,7 @@ export default function NewHeader() {
     if (path === '/') return 'home';
     if (path.startsWith('/search')) return 'search';
     if (path.startsWith('/messages')) return 'messages';
+    if (path.startsWith('/wallet')) return 'wallet';
     if (path.startsWith('/friends') || path.startsWith('/likes')) return 'friends';
     if (path.startsWith('/myprofile')) return 'profile';
     return null;
@@ -391,6 +392,15 @@ export default function NewHeader() {
             Wiadomości
           </button>
           <button
+            onClick={() => router.push('/wallet')}
+            className={`nav-item relative text-gray-300 hover:text-white font-medium transition-colors pb-1 flex items-center gap-1.5 whitespace-nowrap ${
+              activeNav === 'wallet' ? 'active' : ''
+            }`}
+          >
+            <Coins size={16} className="text-amber-400" />
+            Portfel
+          </button>
+          <button
             onClick={() => router.push('/friends')}
             className={`nav-item relative text-gray-300 hover:text-white font-medium transition-colors pb-1 flex items-center gap-1.5 whitespace-nowrap ${
               activeNav === 'friends' ? 'active' : ''
@@ -442,6 +452,18 @@ export default function NewHeader() {
               Wiadomości
             </span>
           </div>
+
+          {/* Wallet / Top-up */}
+          {!isAdmin && (
+            <button
+              onClick={() => router.push('/wallet')}
+              title="Portfel i doladowanie"
+              className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-amber-500/35 bg-amber-500/10 px-3 py-1.5 text-xs font-semibold text-amber-200 hover:bg-amber-500/20 hover:border-amber-400/50 transition-colors"
+            >
+              <Coins size={14} className="text-amber-300" />
+              Doładuj
+            </button>
+          )}
 
           {/* Notifications */}
           <div className="relative group" id="notification-wrapper">
@@ -719,6 +741,20 @@ export default function NewHeader() {
               }`}
             >
               Wiadomości
+            </button>
+            <button
+              onClick={() => {
+                router.push('/wallet');
+                setMobileMenuOpen(false);
+              }}
+              className={`text-left px-4 py-2 rounded-lg transition-colors flex items-center gap-2 ${
+                activeNav === 'wallet'
+                  ? 'text-amber-200 bg-amber-500/15 font-medium'
+                  : 'text-amber-200/70 hover:text-amber-200 hover:bg-amber-500/10'
+              }`}
+            >
+              <Coins size={16} className="text-amber-300" />
+              Portfel i doładowanie
             </button>
             <button
               onClick={() => {
