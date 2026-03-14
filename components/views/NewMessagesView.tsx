@@ -70,7 +70,22 @@ export default function NewMessagesView() {
     const readTargetFromLocation = () => {
       const params = new URLSearchParams(window.location.search);
       const rawTarget = params.get('user');
-      setTargetProfileId(rawTarget ? rawTarget.trim() : null);
+      if (!rawTarget) {
+        setTargetProfileId(null);
+        return;
+      }
+
+      const trimmed = rawTarget.trim();
+      if (!trimmed) {
+        setTargetProfileId(null);
+        return;
+      }
+
+      try {
+        setTargetProfileId(decodeURIComponent(trimmed));
+      } catch {
+        setTargetProfileId(trimmed);
+      }
     };
 
     readTargetFromLocation();
@@ -294,19 +309,23 @@ export default function NewMessagesView() {
     }
 
     const loadTargetProfile = async () => {
-      const { data, error } = await supabase
+      const { data: profileRow, error: profileError } = await supabase
         .from('profiles')
-        .select('id, name, image_url, role, email, is_blocked')
+        .select('id, name, image_url, is_blocked')
         .eq('id', targetProfileId)
         .maybeSingle();
 
-      if (error || !data) return;
-      if ((data as { is_blocked?: boolean | null }).is_blocked) return;
+      if (profileError) {
+        console.error('Blad ladowania profilu docelowego rozmowy:', profileError.message);
+        return;
+      }
+      if (!profileRow) return;
+      if ((profileRow as { is_blocked?: boolean | null }).is_blocked) return;
 
       const directConversation: ConversationProfile = {
-        id: data.id as string,
-        name: (data as { name?: string | null }).name || 'User',
-        image_url: (data as { image_url?: string | null }).image_url || '',
+        id: profileRow.id as string,
+        name: (profileRow as { name?: string | null }).name || 'User',
+        image_url: (profileRow as { image_url?: string | null }).image_url || '',
         lastMessage: '',
         lastMessageTime: '',
       };

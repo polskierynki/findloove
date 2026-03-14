@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Users, Activity, AlertTriangle, TrendingUp, MessageCircle, Eye, Ban, Check, X, Flag, Trash2, Plus, Minus, BadgeCheck, Camera, Zap } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import FloatingBadgeTooltip from '@/components/ui/FloatingBadgeTooltip';
 
 interface User {
   id: string;
@@ -16,6 +17,7 @@ interface User {
   isBanned: boolean;
   isPopularOverride: boolean;
   isVerified: boolean;
+  verificationPending: boolean;
   isNew: boolean;
 }
 
@@ -225,6 +227,7 @@ export default function NewAdminView() {
         isBanned: u.status === 'banned',
         isPopularOverride: Boolean(u.is_popular_override),
         isVerified: Boolean(u.is_verified),
+        verificationPending: Boolean(u.verification_pending),
         isNew: now - Date.parse(u.created_at as string) < NEW_ACCOUNT_MS,
       }));
 
@@ -583,26 +586,63 @@ export default function NewAdminView() {
                       </div>
                     </td>
                     <td className="py-3 px-2 text-center">
-                      <div className="flex flex-col items-center gap-1">
-                        {user.isBanned ? (
-                          <span className="inline-flex items-center gap-1 bg-red-500/20 border border-red-500/40 text-red-400 text-xs px-2 py-1 rounded-full">
-                            Zbanowany
+                      <div className="flex items-center justify-center gap-1.5">
+                        <FloatingBadgeTooltip content={user.isBanned ? 'Konto zbanowane' : 'Konto aktywne'}>
+                          <span className={`w-7 h-7 rounded-full inline-flex items-center justify-center border ${
+                            user.isBanned
+                              ? 'bg-red-500/20 border-red-500/45 text-red-400'
+                              : 'bg-green-500/20 border-green-500/45 text-green-300'
+                          }`}>
+                            {user.isBanned ? <Ban size={13} /> : <Check size={13} />}
                           </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 bg-green-500/20 border border-green-500/40 text-green-400 text-xs px-2 py-1 rounded-full">
-                            Aktywny
+                        </FloatingBadgeTooltip>
+
+                        <FloatingBadgeTooltip
+                          content={
+                            user.isVerified
+                              ? 'Tozsamosc zweryfikowana'
+                              : user.verificationPending
+                              ? 'Selfie oczekuje na decyzje moderatora'
+                              : 'Brak weryfikacji selfie'
+                          }
+                        >
+                          <span className={`w-7 h-7 rounded-full inline-flex items-center justify-center border ${
+                            user.isVerified
+                              ? 'bg-green-500/20 border-green-500/45 text-emerald-300'
+                              : user.verificationPending
+                              ? 'bg-yellow-500/20 border-yellow-500/45 text-yellow-300'
+                              : 'bg-red-500/20 border-red-500/45 text-red-300'
+                          }`}>
+                            {user.isVerified ? <BadgeCheck size={13} /> : user.verificationPending ? <Camera size={13} /> : <X size={13} />}
                           </span>
-                        )}
-                        {user.isVerified && (
-                          <span className="inline-flex items-center gap-1 bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[10px] px-2 py-0.5 rounded-full">
-                            <BadgeCheck size={10} />
-                            Zweryfikowany
+                        </FloatingBadgeTooltip>
+
+                        <FloatingBadgeTooltip
+                          content={
+                            user.strikes >= 3
+                              ? `Krytyczny stan: ${user.strikes}/3 strajkow`
+                              : user.strikes > 0
+                              ? `Ostrzezenie: ${user.strikes}/3 strajkow`
+                              : 'Brak strajkow'
+                          }
+                        >
+                          <span className={`w-7 h-7 rounded-full inline-flex items-center justify-center border ${
+                            user.strikes >= 3
+                              ? 'bg-red-500/20 border-red-500/45 text-red-300'
+                              : user.strikes > 0
+                              ? 'bg-yellow-500/20 border-yellow-500/45 text-yellow-300'
+                              : 'bg-green-500/20 border-green-500/45 text-green-300'
+                          }`}>
+                            <Flag size={13} />
                           </span>
-                        )}
+                        </FloatingBadgeTooltip>
+
                         {user.isNew && (
-                          <span className="inline-flex items-center gap-1 bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 text-[10px] px-2 py-0.5 rounded-full">
-                            Nowe konto
-                          </span>
+                          <FloatingBadgeTooltip content="Nowe konto (do 7 dni)">
+                            <span className="w-7 h-7 rounded-full inline-flex items-center justify-center border bg-yellow-500/20 border-yellow-500/45 text-yellow-300">
+                              <Users size={13} />
+                            </span>
+                          </FloatingBadgeTooltip>
                         )}
                       </div>
                     </td>
