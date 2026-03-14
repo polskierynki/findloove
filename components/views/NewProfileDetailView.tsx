@@ -1515,18 +1515,6 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
                   className={`gallery-item relative aspect-square rounded-2xl cursor-pointer overflow-hidden ${i === 0 ? 'col-span-2 row-span-2' : ''}`}
                 >
                   <img src={photo} alt={`Gallery ${i}`} className="w-full h-full object-cover" />
-                  <button
-                    type="button"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      openPhotoReportModal(photo, i);
-                    }}
-                    className="absolute left-2 top-2 z-20 w-7 h-7 rounded-full bg-black/55 border border-red-500/40 flex items-center justify-center text-red-300 hover:bg-red-500/20 hover:text-red-200 transition-colors"
-                    title="Zglos to zdjecie"
-                    aria-label="Zglos to zdjecie"
-                  >
-                    <Flag size={13} weight="fill" />
-                  </button>
                   <span className="absolute right-2 bottom-2 w-7 h-7 rounded-full bg-black/50 border border-white/20 flex items-center justify-center text-cyan-300">
                     <Quotes size={14} weight="fill" />
                   </span>

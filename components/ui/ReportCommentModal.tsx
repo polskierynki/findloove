@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Flag, X, CheckCircle } from '@phosphor-icons/react';
 import { supabase } from '@/lib/supabase';
 
@@ -36,18 +37,24 @@ export default function ReportCommentModal({
   contextLabel,
   reporterProfileId,
 }: Props) {
+  const [isMounted, setIsMounted] = useState(false);
   const [reason, setReason] = useState('');
   const [description, setDescription] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
+  useEffect(() => {
+    setIsMounted(true);
+    return () => setIsMounted(false);
+  }, []);
+
   const isPhotoContentReport = reportKind === 'photo-content';
   const reportTitle = isPhotoContentReport ? 'Zgłoś zdjęcie' : 'Zgłoś komentarz';
   const reportScopeLabel = isPhotoContentReport ? 'Zgłaszane zdjęcie' : 'Zgłaszany komentarz';
   const submitLabel = isPhotoContentReport ? 'Zgłoś zdjęcie' : 'Zgłoś komentarz';
 
-  if (!open) return null;
+  if (!open || !isMounted) return null;
 
   const handleSubmit = async () => {
     if (!reason || submitting) return;
@@ -98,9 +105,9 @@ export default function ReportCommentModal({
     onClose();
   };
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-[300] flex items-center justify-center p-4"
+      className="fixed inset-0 z-[500] flex items-center justify-center p-4"
       onClick={(e) => { if (e.target === e.currentTarget) handleClose(); }}
     >
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={handleClose} />
@@ -203,6 +210,7 @@ export default function ReportCommentModal({
           </>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
