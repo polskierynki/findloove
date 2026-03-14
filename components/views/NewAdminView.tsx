@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Users, Activity, AlertTriangle, TrendingUp, MessageCircle, Eye, Ban, Check, X, Flag, Trash2, Plus, Minus, BadgeCheck, Camera, Zap, Coins, Send } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { navigateToUserChat } from '@/lib/chatNavigation';
 import FloatingBadgeTooltip from '@/components/ui/FloatingBadgeTooltip';
 
 interface User {
@@ -501,7 +502,7 @@ export default function NewAdminView() {
   };
 
   const handleSendMessageToUser = (userId: string) => {
-    router.push(`/messages?user=${encodeURIComponent(userId)}`);
+    navigateToUserChat(router, userId);
   };
 
   const handleToggleUserBan = async (user: User) => {

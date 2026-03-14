@@ -6,6 +6,11 @@ import { MagnifyingGlass, Prohibit, Trash, Flag, PaperPlaneRight, ArrowLeft, Smi
 import { supabase } from '@/lib/supabase';
 import { resolveProfileIdForAuthUser } from '@/lib/profileAuth';
 import {
+  consumePendingChatTarget,
+  getChatTargetFromSearch,
+  persistPendingChatTarget,
+} from '@/lib/chatNavigation';
+import {
   applyEmojiSuggestionAtCursor,
   getEmojiSuggestionsAtCursor,
   processEmojiAssistInput,
@@ -78,24 +83,26 @@ export default function NewMessagesView() {
   // Read direct-chat target from URL without coupling hydration to search params.
   useEffect(() => {
     const readTargetFromLocation = () => {
-      const params = new URLSearchParams(window.location.search);
-      const rawTarget = params.get('user');
-      if (!rawTarget) {
-        setTargetProfileId(null);
+      const targetFromSearch = getChatTargetFromSearch(window.location.search);
+      if (targetFromSearch) {
+        setTargetProfileId(targetFromSearch);
+        persistPendingChatTarget(targetFromSearch);
         return;
       }
 
-      const trimmed = rawTarget.trim();
-      if (!trimmed) {
-        setTargetProfileId(null);
+      const pendingTarget = consumePendingChatTarget();
+      if (pendingTarget) {
+        setTargetProfileId(pendingTarget);
+
+        const nextParams = new URLSearchParams(window.location.search);
+        nextParams.set('user', pendingTarget);
+        const nextQuery = nextParams.toString();
+        const nextUrl = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ''}`;
+        window.history.replaceState(null, '', nextUrl);
         return;
       }
 
-      try {
-        setTargetProfileId(decodeURIComponent(trimmed));
-      } catch {
-        setTargetProfileId(trimmed);
-      }
+      setTargetProfileId(null);
     };
 
     readTargetFromLocation();

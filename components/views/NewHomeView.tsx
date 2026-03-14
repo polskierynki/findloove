@@ -10,6 +10,7 @@ import { Profile, SupabaseProfile, filterNonAdminProfiles, getLookingFor, mapSup
 import { MatchCursor, fetchRankedProfilesPage, isMissingMatchingRpc } from '@/lib/matching';
 import { LOOKING_FOR_OPTIONS } from './constants/profileFormOptions';
 import { useLikes } from '@/lib/hooks/useLikes';
+import { navigateToUserChat } from '@/lib/chatNavigation';
 import FloatingBadgeTooltip from '@/components/ui/FloatingBadgeTooltip';
 
 const HIDDEN_ADMIN_EMAILS = new Set([
@@ -894,7 +895,7 @@ export default function NewHomeView() {
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            router.push(`/messages?user=${encodeURIComponent(profile.id)}`);
+                            navigateToUserChat(router, profile.id);
                           }}
                           className="pointer-events-auto flex-1 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 shadow-[0_0_15px_rgba(0,255,255,0.3)] py-2.5 rounded-xl flex items-center justify-center gap-2 text-white transition-all"
                         >

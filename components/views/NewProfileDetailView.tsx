@@ -37,6 +37,7 @@ import { computeUnifiedCompatibility } from '@/lib/matching';
 import { Profile } from '@/lib/types';
 import { useLikes } from '@/lib/hooks/useLikes';
 import { useFriends, type FriendshipStatus, type Friend } from '@/lib/hooks/useFriends';
+import { navigateToUserChat } from '@/lib/chatNavigation';
 import { ALL_INTERESTS, ZODIAC_SIGNS } from './constants/profileFormOptions';
 import EmojiPopover from '@/components/ui/EmojiPopover';
 import EmojiKeywordSuggestions from '@/components/ui/EmojiKeywordSuggestions';
@@ -2003,7 +2004,7 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
 
             {/* Main CTA Button */}
             <button
-              onClick={() => router.push(`/messages?user=${encodeURIComponent(profileId)}`)}
+              onClick={() => navigateToUserChat(router, profileId)}
               className="cta-dock-btn flex flex-col items-center justify-center group relative z-50 -mt-14 w-20"
             >
               <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-cyan-600 to-blue-600 p-[2px] shadow-[0_10px_30px_rgba(0,255,255,0.4)] group-hover:shadow-[0_10px_40px_rgba(0,255,255,0.6)] transition-all transform group-hover:-translate-y-2">
