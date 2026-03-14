@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
@@ -41,6 +42,8 @@ function formatNotificationTime(timestamp: string): string {
     month: 'short',
   });
 }
+
+const HEADER_NOTIFICATION_AVATAR_SIZES = '40px';
 
 export default function NewHeader() {
   const adminEmail = 'lio1985lodz@gmail.com';
@@ -681,11 +684,15 @@ export default function NewHeader() {
                           )}
 
                           {notification.kind === 'comment' && notification.actorImageUrl && (
-                            <img
-                              src={notification.actorImageUrl}
-                              className="w-10 h-10 rounded-full object-cover border border-white/10 shrink-0"
-                              alt={notification.actorName || 'Komentarz'}
-                            />
+                            <div className="relative w-10 h-10 rounded-full overflow-hidden border border-white/10 shrink-0">
+                              <Image
+                                src={notification.actorImageUrl}
+                                alt={notification.actorName || 'Komentarz'}
+                                fill
+                                sizes={HEADER_NOTIFICATION_AVATAR_SIZES}
+                                className="object-cover"
+                              />
+                            </div>
                           )}
 
                           {notification.kind === 'comment' && !notification.actorImageUrl && (
@@ -701,12 +708,14 @@ export default function NewHeader() {
                                 openInviterProfile(notification);
                               }}
                               title="Zobacz profil osoby zapraszajacej"
-                              className="shrink-0 rounded-full"
+                              className="relative h-10 w-10 shrink-0 rounded-full overflow-hidden"
                             >
-                              <img
+                              <Image
                                 src={notification.actorImageUrl}
-                                className="w-10 h-10 rounded-full object-cover border border-green-500/30 shadow-[0_0_8px_rgba(34,197,94,0.2)]"
                                 alt={notification.actorName || 'Zaproszenie'}
+                                fill
+                                sizes={HEADER_NOTIFICATION_AVATAR_SIZES}
+                                className="rounded-full border border-green-500/30 object-cover shadow-[0_0_8px_rgba(34,197,94,0.2)]"
                               />
                             </button>
                           )}
@@ -725,11 +734,15 @@ export default function NewHeader() {
                           )}
 
                           {notification.kind === 'profile_view' && notification.actorImageUrl && (
-                            <img
-                              src={notification.actorImageUrl}
-                              className="w-10 h-10 rounded-full object-cover border border-indigo-500/30 shrink-0 shadow-[0_0_8px_rgba(99,102,241,0.2)]"
-                              alt={notification.actorName || 'Odwiedziny profilu'}
-                            />
+                            <div className="relative w-10 h-10 rounded-full overflow-hidden border border-indigo-500/30 shrink-0 shadow-[0_0_8px_rgba(99,102,241,0.2)]">
+                              <Image
+                                src={notification.actorImageUrl}
+                                alt={notification.actorName || 'Odwiedziny profilu'}
+                                fill
+                                sizes={HEADER_NOTIFICATION_AVATAR_SIZES}
+                                className="object-cover"
+                              />
+                            </div>
                           )}
 
                           {notification.kind === 'profile_view' && !notification.actorImageUrl && (

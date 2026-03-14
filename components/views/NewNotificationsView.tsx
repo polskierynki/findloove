@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, BadgeCheck, Bell, Check, Eye, Gift, Heart, MessageCircle, RefreshCw, Trash2, UserPlus, X } from 'lucide-react';
@@ -17,6 +18,8 @@ type NotificationProfile = {
 interface NewNotificationsViewProps {
   isAdmin?: boolean;
 }
+
+const NOTIFICATION_AVATAR_SIZES = '44px';
 
 export default function NewNotificationsView({ isAdmin: isAdminFromApp = false }: NewNotificationsViewProps) {
   const router = useRouter();
@@ -237,7 +240,47 @@ export default function NewNotificationsView({ isAdmin: isAdminFromApp = false }
   }, [notificationTargets, refresh, userId]);
 
   if (authLoading) {
-    return <div className="pt-28 text-center text-cyan-400">Ładowanie powiadomień...</div>;
+    return (
+      <div className="relative z-10 pt-28 pb-16 px-6 lg:px-12 max-w-[1600px] mx-auto flex flex-col gap-8">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div className="space-y-3">
+            <div className="h-10 w-32 rounded-full bg-white/10 animate-pulse" />
+            <div className="space-y-3">
+              <div className="h-10 w-72 max-w-full rounded-full bg-white/10 animate-pulse" />
+              <div className="h-4 w-[32rem] max-w-full rounded-full bg-white/5 animate-pulse" />
+            </div>
+          </div>
+          <div className="h-12 w-32 rounded-full bg-white/10 animate-pulse" />
+        </div>
+
+        <section className="grid grid-cols-2 lg:grid-cols-7 gap-4">
+          {Array.from({ length: 7 }).map((_, index) => (
+            <div key={index} className="glass rounded-2xl p-4 border border-white/10 space-y-3">
+              <div className="h-3 w-20 rounded-full bg-white/10 animate-pulse" />
+              <div className="h-8 w-12 rounded-full bg-white/5 animate-pulse" />
+            </div>
+          ))}
+        </section>
+
+        <section className="glass rounded-[2rem] border border-white/10 overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.45)]">
+          <div className="p-5 border-b border-white/10 bg-black/20 flex items-center justify-between gap-4">
+            <div className="h-6 w-48 rounded-full bg-white/10 animate-pulse" />
+            <div className="h-4 w-16 rounded-full bg-white/5 animate-pulse" />
+          </div>
+          <div className="p-5 space-y-4">
+            {Array.from({ length: 5 }).map((_, index) => (
+              <div key={index} className="flex items-start gap-4 rounded-2xl border border-white/5 bg-white/[0.03] p-4">
+                <div className="h-11 w-11 shrink-0 rounded-full bg-white/10 animate-pulse" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-4 w-4/5 rounded-full bg-white/10 animate-pulse" />
+                  <div className="h-3 w-24 rounded-full bg-white/5 animate-pulse" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      </div>
+    );
   }
 
   if (!userId) {
@@ -323,7 +366,17 @@ export default function NewNotificationsView({ isAdmin: isAdminFromApp = false }
 
         <div className="max-h-[900px] overflow-y-auto custom-scrollbar">
           {loading ? (
-            <div className="p-10 text-center text-cyan-300/80">Ładowanie powiadomień...</div>
+            <div className="p-6 space-y-4">
+              {Array.from({ length: 5 }).map((_, index) => (
+                <div key={index} className="flex items-start gap-4 rounded-2xl border border-white/5 bg-white/[0.03] p-4">
+                  <div className="h-11 w-11 shrink-0 rounded-full bg-white/10 animate-pulse" />
+                  <div className="flex-1 space-y-2">
+                    <div className="h-4 w-4/5 rounded-full bg-white/10 animate-pulse" />
+                    <div className="h-3 w-24 rounded-full bg-white/5 animate-pulse" />
+                  </div>
+                </div>
+              ))}
+            </div>
           ) : notifications.length === 0 ? (
             <div className="p-10 text-center text-white/60">Brak powiadomień.</div>
           ) : (
@@ -361,11 +414,15 @@ export default function NewNotificationsView({ isAdmin: isAdminFromApp = false }
                   )}
 
                   {notification.kind === 'comment' && notification.actorImageUrl && (
-                    <img
-                      src={notification.actorImageUrl}
-                      className="w-11 h-11 rounded-full object-cover border border-white/10 shrink-0"
-                      alt={notification.actorName || 'Komentarz'}
-                    />
+                    <div className="relative w-11 h-11 rounded-full overflow-hidden border border-white/10 shrink-0">
+                      <Image
+                        src={notification.actorImageUrl}
+                        alt={notification.actorName || 'Komentarz'}
+                        fill
+                        sizes={NOTIFICATION_AVATAR_SIZES}
+                        className="object-cover"
+                      />
+                    </div>
                   )}
 
                   {notification.kind === 'comment' && !notification.actorImageUrl && (
@@ -381,12 +438,14 @@ export default function NewNotificationsView({ isAdmin: isAdminFromApp = false }
                         openInviterProfile(notification);
                       }}
                       title="Zobacz profil osoby zapraszajacej"
-                      className="shrink-0 rounded-full"
+                      className="relative h-11 w-11 shrink-0 rounded-full overflow-hidden"
                     >
-                      <img
+                      <Image
                         src={notification.actorImageUrl}
-                        className="w-11 h-11 rounded-full object-cover border border-green-500/30 shadow-[0_0_10px_rgba(34,197,94,0.2)]"
                         alt={notification.actorName || 'Zaproszenie'}
+                        fill
+                        sizes={NOTIFICATION_AVATAR_SIZES}
+                        className="rounded-full border border-green-500/30 object-cover shadow-[0_0_10px_rgba(34,197,94,0.2)]"
                       />
                     </button>
                   )}
@@ -405,11 +464,15 @@ export default function NewNotificationsView({ isAdmin: isAdminFromApp = false }
                   )}
 
                   {notification.kind === 'profile_view' && notification.actorImageUrl && (
-                    <img
-                      src={notification.actorImageUrl}
-                      className="w-11 h-11 rounded-full object-cover border border-indigo-500/30 shrink-0 shadow-[0_0_10px_rgba(99,102,241,0.2)]"
-                      alt={notification.actorName || 'Odwiedziny profilu'}
-                    />
+                    <div className="relative w-11 h-11 rounded-full overflow-hidden border border-indigo-500/30 shrink-0 shadow-[0_0_10px_rgba(99,102,241,0.2)]">
+                      <Image
+                        src={notification.actorImageUrl}
+                        alt={notification.actorName || 'Odwiedziny profilu'}
+                        fill
+                        sizes={NOTIFICATION_AVATAR_SIZES}
+                        className="object-cover"
+                      />
+                    </div>
                   )}
 
                   {notification.kind === 'profile_view' && !notification.actorImageUrl && (

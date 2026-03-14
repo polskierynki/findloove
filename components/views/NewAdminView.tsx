@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Users, Activity, AlertTriangle, TrendingUp, MessageCircle, Eye, Ban, Check, X, Flag, Trash2, Plus, Minus, BadgeCheck, Camera, Zap, Coins, Send } from 'lucide-react';
@@ -60,6 +61,13 @@ interface VerificationSubmissionItem extends VerificationQueueItem {
   adminNote: string | null;
   reviewedAt: string | null;
 }
+
+const ADMIN_USER_FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&q=80';
+const ADMIN_SELFIE_FALLBACK_IMAGE = 'https://ui-avatars.com/api/?name=Selfie&background=111827&color=e5e7eb&size=200';
+const ADMIN_USER_AVATAR_SIZES = '(max-width: 768px) 44px, 40px';
+const ADMIN_REPORT_AVATAR_SIZES = '20px';
+const ADMIN_SELFIE_THUMB_SIZES = '80px';
+const ADMIN_SELFIE_MODAL_SIZES = '(max-width: 1024px) calc(100vw - 2rem), 64rem';
 
 export default function NewAdminView() {
   const router = useRouter();
@@ -779,7 +787,47 @@ export default function NewAdminView() {
   };
 
   if (loading) {
-    return <div className="pt-28 text-center text-cyan-400">Ładowanie panelu admina...</div>;
+    return (
+      <div className="relative z-10 pt-24 md:pt-28 pb-24 md:pb-16 px-4 md:px-6 lg:px-12 max-w-[2200px] mx-auto">
+        <div className="mb-8 h-10 w-72 max-w-full rounded-full bg-white/10 animate-pulse" />
+
+        <div className="grid grid-cols-2 md:grid-cols-2 xl:grid-cols-5 gap-3 md:gap-6 mb-8">
+          {Array.from({ length: 5 }).map((_, index) => (
+            <div key={index} className="glass rounded-2xl p-4 md:p-6 border border-white/10 space-y-3">
+              <div className="h-4 w-24 rounded-full bg-white/10 animate-pulse" />
+              <div className="h-8 w-20 rounded-full bg-white/5 animate-pulse" />
+              <div className="h-3 w-16 rounded-full bg-white/[0.04] animate-pulse" />
+            </div>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+          <div className="xl:col-span-2 glass rounded-2xl p-6 space-y-4">
+            <div className="h-8 w-40 rounded-full bg-white/10 animate-pulse" />
+            {Array.from({ length: 4 }).map((_, index) => (
+              <div key={index} className="flex items-center gap-3 rounded-xl border border-white/5 bg-white/[0.03] p-4">
+                <div className="h-11 w-11 rounded-full bg-white/10 animate-pulse" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-4 w-32 rounded-full bg-white/10 animate-pulse" />
+                  <div className="h-3 w-24 rounded-full bg-white/5 animate-pulse" />
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="glass rounded-2xl p-6 space-y-4">
+            <div className="h-8 w-32 rounded-full bg-white/10 animate-pulse" />
+            {Array.from({ length: 3 }).map((_, index) => (
+              <div key={index} className="rounded-xl border border-white/5 bg-white/[0.03] p-4 space-y-3">
+                <div className="h-3 w-20 rounded-full bg-white/10 animate-pulse" />
+                <div className="h-4 w-full rounded-full bg-white/5 animate-pulse" />
+                <div className="h-8 w-full rounded-xl bg-white/[0.04] animate-pulse" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -848,11 +896,15 @@ export default function NewAdminView() {
             {users.map((user) => (
               <div key={user.id} className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
                 <div className="flex items-start gap-3">
-                  <img
-                    src={user.image_url || 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&q=80'}
-                    alt={user.name}
-                    className={`w-11 h-11 rounded-full object-cover border border-white/10 ${user.isBanned ? 'grayscale' : ''}`}
-                  />
+                  <div className="relative w-11 h-11 shrink-0 overflow-hidden rounded-full border border-white/10">
+                    <Image
+                      src={user.image_url || ADMIN_USER_FALLBACK_IMAGE}
+                      alt={user.name}
+                      fill
+                      sizes={ADMIN_USER_AVATAR_SIZES}
+                      className={`object-cover ${user.isBanned ? 'grayscale' : ''}`}
+                    />
+                  </div>
                   <div className="min-w-0 flex-1">
                     <p className={`text-white text-sm font-medium truncate ${user.isBanned ? 'line-through opacity-60' : ''}`}>
                       {user.name || 'Bez nazwy'}
@@ -953,13 +1005,15 @@ export default function NewAdminView() {
                   <tr key={user.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
                     <td className="py-3 px-2">
                       <div className="flex items-center gap-3">
-                        <img
-                          src={user.image_url || 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&q=80'}
-                          alt={user.name}
-                          className={`w-10 h-10 rounded-full object-cover border border-white/10 ${
-                            user.isBanned ? 'grayscale' : ''
-                          }`}
-                        />
+                        <div className="relative w-10 h-10 shrink-0 overflow-hidden rounded-full border border-white/10">
+                          <Image
+                            src={user.image_url || ADMIN_USER_FALLBACK_IMAGE}
+                            alt={user.name}
+                            fill
+                            sizes={ADMIN_USER_AVATAR_SIZES}
+                            className={`object-cover ${user.isBanned ? 'grayscale' : ''}`}
+                          />
+                        </div>
                         <div>
                           <p className={`text-white text-sm font-medium ${user.isBanned ? 'line-through opacity-60' : ''}`}>
                             {user.name || 'Bez nazwy'}
@@ -1143,11 +1197,15 @@ export default function NewAdminView() {
 
                   {/* Author */}
                   <div className="flex items-center gap-2 mb-1">
-                    <img
-                      src={report.author_image || 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=50&q=60'}
-                      alt={report.author_name}
-                      className="w-5 h-5 rounded-full object-cover border border-white/10"
-                    />
+                    <div className="relative w-5 h-5 shrink-0 overflow-hidden rounded-full border border-white/10">
+                      <Image
+                        src={report.author_image || ADMIN_USER_FALLBACK_IMAGE}
+                        alt={report.author_name}
+                        fill
+                        sizes={ADMIN_REPORT_AVATAR_SIZES}
+                        className="object-cover"
+                      />
+                    </div>
                     <span className="text-xs text-white/80 font-medium">{report.author_name}</span>
                     <span className={`text-[10px] px-1.5 py-0.5 rounded-full ml-auto ${report.author_strikes >= 2 ? 'bg-red-500/20 text-red-400' : report.author_strikes >= 1 ? 'bg-orange-500/20 text-orange-400' : 'bg-white/5 text-white/30'}`}>
                       {report.author_strikes} / 3 strajków
@@ -1229,7 +1287,7 @@ export default function NewAdminView() {
               const selfieSrc =
                 item.selfiePreviewUrl
                 || item.profileImage
-                || 'https://ui-avatars.com/api/?name=Selfie&background=111827&color=e5e7eb&size=200';
+                || ADMIN_SELFIE_FALLBACK_IMAGE;
 
               return (
                 <div
@@ -1244,10 +1302,13 @@ export default function NewAdminView() {
                       title="Kliknij, aby powiekszyc selfie"
                       aria-label={`Powieksz selfie ${item.profileName}`}
                     >
-                      <img
+                      <Image
                         src={selfieSrc}
                         alt={`Selfie ${item.profileName}`}
-                        className="w-20 h-20 object-cover transition-transform duration-300 group-hover/selfie:scale-105"
+                        width={80}
+                        height={80}
+                        sizes={ADMIN_SELFIE_THUMB_SIZES}
+                        className="h-20 w-20 object-cover transition-transform duration-300 group-hover/selfie:scale-105"
                       />
                       <div className="absolute inset-0 flex items-center justify-center bg-black/10 opacity-0 transition-opacity duration-300 group-hover/selfie:opacity-100">
                         <span className="rounded-full bg-black/70 px-2 py-1 text-[10px] text-white flex items-center gap-1">
@@ -1373,7 +1434,7 @@ export default function NewAdminView() {
               const selfieSrc =
                 item.selfiePreviewUrl
                 || item.profileImage
-                || 'https://ui-avatars.com/api/?name=Selfie&background=111827&color=e5e7eb&size=200';
+                || ADMIN_SELFIE_FALLBACK_IMAGE;
 
               const statusClass =
                 item.status === 'approved'
@@ -1401,10 +1462,13 @@ export default function NewAdminView() {
                       className="relative shrink-0 overflow-hidden rounded-xl border border-cyan-500/30 group/selfie"
                       title="Kliknij, aby powiekszyc selfie"
                     >
-                      <img
+                      <Image
                         src={selfieSrc}
                         alt={`Selfie ${item.profileName}`}
-                        className="w-20 h-20 object-cover transition-transform duration-300 group-hover/selfie:scale-105"
+                        width={80}
+                        height={80}
+                        sizes={ADMIN_SELFIE_THUMB_SIZES}
+                        className="h-20 w-20 object-cover transition-transform duration-300 group-hover/selfie:scale-105"
                       />
                     </button>
 
@@ -1588,10 +1652,13 @@ export default function NewAdminView() {
             </button>
 
             <div className="overflow-hidden rounded-[2rem] border border-white/10 bg-black/70 shadow-[0_20px_80px_rgba(0,0,0,0.45)]">
-              <img
+              <Image
                 src={selectedSelfiePreview.src}
                 alt={`Selfie ${selectedSelfiePreview.profileName}`}
-                className="w-full max-h-[85vh] object-contain bg-black"
+                width={1200}
+                height={1600}
+                sizes={ADMIN_SELFIE_MODAL_SIZES}
+                className="h-auto w-full max-h-[85vh] object-contain bg-black"
               />
             </div>
 

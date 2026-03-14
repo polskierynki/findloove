@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { MagnifyingGlass, Prohibit, Trash, Flag, PaperPlaneRight, ArrowLeft, Smiley } from '@phosphor-icons/react';
 import { supabase } from '@/lib/supabase';
@@ -37,6 +38,10 @@ function mergeMessagesUnique(rows: Message[]): Message[] {
   });
   return Array.from(merged.values());
 }
+
+const MESSAGE_AVATAR_FALLBACK = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&q=80';
+const MESSAGE_LIST_AVATAR_SIZES = '48px';
+const MESSAGE_HEADER_AVATAR_SIZES = '40px';
 
 export default function NewMessagesView() {
   const [targetProfileId, setTargetProfileId] = useState<string | null>(null);
@@ -719,8 +724,26 @@ export default function NewMessagesView() {
   if (loading) {
     return (
       <div className="relative z-10 pt-24 pb-6 px-6 lg:px-12 max-w-[1800px] mx-auto">
-        <div className="glass rounded-[2rem] p-12 text-center">
-          <p className="text-cyan-400">Ładowanie czatu...</p>
+        <div className="glass rounded-[2rem] w-full chat-height flex overflow-hidden border border-white/10 shadow-[0_0_40px_rgba(0,0,0,0.5)]">
+          <div className="w-full md:w-80 lg:w-96 border-r border-white/5 bg-black/20 p-4 md:p-6 space-y-4">
+            <div className="h-10 rounded-full bg-white/10 animate-pulse" />
+            <div className="space-y-3">
+              {Array.from({ length: 5 }).map((_, index) => (
+                <div key={index} className="flex items-center gap-4 rounded-2xl border border-white/5 bg-white/[0.03] p-3">
+                  <div className="h-12 w-12 rounded-full bg-white/10 animate-pulse" />
+                  <div className="min-w-0 flex-1 space-y-2">
+                    <div className="h-4 w-24 rounded-full bg-white/10 animate-pulse" />
+                    <div className="h-3 w-32 rounded-full bg-white/5 animate-pulse" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="hidden md:flex flex-1 flex-col bg-black/10 p-8">
+            <div className="h-16 rounded-2xl border border-white/5 bg-white/[0.04] animate-pulse" />
+            <div className="mt-6 flex-1 rounded-[2rem] border border-white/5 bg-white/[0.03] animate-pulse" />
+            <div className="mt-6 h-16 rounded-[1.5rem] border border-white/5 bg-white/[0.04] animate-pulse" />
+          </div>
         </div>
       </div>
     );
@@ -771,10 +794,12 @@ export default function NewMessagesView() {
                   }`}
                 >
                   <div className={`relative w-12 h-12 rounded-full p-[2px] ${selectedProfile?.id === conv.id ? 'bg-gradient-to-tr from-cyan-400 to-fuchsia-500' : 'bg-white/20'}`}>
-                    <img 
-                      src={conv.image_url || `https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&q=80`} 
-                      className="w-full h-full rounded-full object-cover border border-black" 
-                      alt={conv.name} 
+                    <Image
+                      src={conv.image_url || MESSAGE_AVATAR_FALLBACK}
+                      alt={conv.name}
+                      fill
+                      sizes={MESSAGE_LIST_AVATAR_SIZES}
+                      className="rounded-full object-cover border border-black"
                     />
                   </div>
                   <div className="flex-1 min-w-0">
@@ -808,11 +833,13 @@ export default function NewMessagesView() {
                   >
                     <ArrowLeft size={18} weight="bold" />
                   </button>
-                  <div className="w-10 h-10 rounded-full overflow-hidden border border-cyan-500/20">
-                    <img 
-                      src={selectedProfile.image_url || `https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&q=80`} 
-                      alt={selectedProfile.name} 
-                      className="w-full h-full object-cover" 
+                  <div className="relative w-10 h-10 rounded-full overflow-hidden border border-cyan-500/20">
+                    <Image
+                      src={selectedProfile.image_url || MESSAGE_AVATAR_FALLBACK}
+                      alt={selectedProfile.name}
+                      fill
+                      sizes={MESSAGE_HEADER_AVATAR_SIZES}
+                      className="object-cover"
                     />
                   </div>
                   <div>
