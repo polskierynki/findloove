@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef, type CSSProperties } from 'react';
 import { useRouter } from 'next/navigation';
-import { Heart, ChatCircle, Sparkle, MapPin, Lightning, Sliders, MagnifyingGlass, X } from '@phosphor-icons/react';
+import { Heart, ChatCircle, Sparkle, MapPin, Lightning, Sliders, MagnifyingGlass, X, SealCheck } from '@phosphor-icons/react';
 import { 
   LOOKING_FOR_OPTIONS, 
   SEXUAL_ORIENTATION_OPTIONS, 
@@ -110,6 +110,7 @@ type SearchProfile = {
   recommendedScore?: number;
   isNearby?: boolean;
   sortValue?: number;
+  is_verified?: boolean;
 };
 
 type HeartBurstParticle = {
@@ -420,7 +421,7 @@ export default function NewSearchView() {
   const loadFallbackProfiles = useCallback(async () => {
     let query = supabase
       .from('profiles')
-      .select('id, name, age, city, image_url, looking_for, interests, drinking, pets, sexual_orientation, created_at, is_blocked, role, email')
+      .select('id, name, age, city, image_url, looking_for, interests, drinking, pets, sexual_orientation, created_at, is_blocked, role, email, is_verified')
       .order('created_at', { ascending: false });
 
     query = query.gte('age', ageMin).lte('age', ageMax);
@@ -526,6 +527,7 @@ export default function NewSearchView() {
             recommendedScore: item.recommendedScore,
             isNearby: item.isNearby,
             sortValue: item.sortValue,
+            is_verified: profile.isVerified ?? false,
           } satisfies SearchProfile;
         })
         .filter((profile) => !isHiddenAdminProfile(profile));
@@ -938,9 +940,14 @@ export default function NewSearchView() {
                       <div className="absolute bottom-0 left-0 w-full pb-1 px-5 pt-2 z-10 transform transition-transform duration-300 ease-out group-hover:-translate-y-6">
                         <div className="card-meta flex flex-col gap-2.5 relative z-10">
                           <div>
-                            <h2 className="text-3xl font-medium text-white">
-                              {profile.name}, {profile.age} lat
-                            </h2>
+                            <div className="flex items-center gap-2">
+                              <h2 className="text-3xl font-medium text-white">
+                                {profile.name}, {profile.age} lat
+                              </h2>
+                              {profile.is_verified && (
+                                <SealCheck size={22} weight="fill" className="text-cyan-400 drop-shadow-[0_0_6px_rgba(0,255,255,0.8)] flex-shrink-0" />
+                              )}
+                            </div>
                             <div className="flex items-center gap-1.5 text-cyan-300/70 text-sm font-light">
                               <MapPin size={14} weight="fill" className="text-cyan-400" />
                               <span>{profile.city}</span>

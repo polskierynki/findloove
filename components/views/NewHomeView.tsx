@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useRouter } from 'next/navigation';
-import { Heart, ChatCircle, Sparkle, MapPin, Lightning } from '@phosphor-icons/react';
+import { Heart, ChatCircle, Sparkle, MapPin, Lightning, SealCheck } from '@phosphor-icons/react';
 import { supabase } from '@/lib/supabase';
 import { resolveProfileIdForAuthUser } from '@/lib/profileAuth';
 import { Profile, SupabaseProfile, filterNonAdminProfiles, getLookingFor, mapSupabaseProfile } from '@/lib/types';
@@ -810,6 +810,9 @@ export default function NewHomeView() {
                             {profile.name || 'User'},{' '}
                             {typeof profile.age === 'number' ? `${profile.age} lat` : '? lat'}
                           </h2>
+                          {profile.isVerified && (
+                            <SealCheck size={22} weight="fill" className="text-cyan-400 drop-shadow-[0_0_6px_rgba(0,255,255,0.8)] flex-shrink-0" />
+                          )}
                         </div>
                         <div className="flex items-center gap-1.5 text-cyan-300/70 text-sm font-light">
                           <MapPin size={14} weight="fill" className="text-cyan-400" />

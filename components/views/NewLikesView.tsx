@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Heart, ChatCircle, Sparkle, MapPin, HeartBreak } from '@phosphor-icons/react';
+import { Heart, ChatCircle, Sparkle, MapPin, HeartBreak, SealCheck } from '@phosphor-icons/react';
 import { supabase } from '@/lib/supabase';
 import { resolveProfileIdForAuthUser } from '@/lib/profileAuth';
-import { Profile } from '@/lib/types';
+import { Profile, mapSupabaseProfile, SupabaseProfile } from '@/lib/types';
 import { LOOKING_FOR_OPTIONS } from './constants/profileFormOptions';
 
 export default function NewLikesView() {
@@ -60,7 +60,7 @@ export default function NewLikesView() {
 
         if (profilesError) throw profilesError;
 
-        setLikedProfiles((profiles as Profile[]) || []);
+        setLikedProfiles((profiles || []).map((p) => mapSupabaseProfile(p as unknown as SupabaseProfile)));
       } catch (error) {
         console.error('Error loading liked profiles:', error);
       } finally {
@@ -180,6 +180,9 @@ export default function NewLikesView() {
                             {profile.name || 'User'},{' '}
                             {typeof profile.age === 'number' ? `${profile.age} lat` : '? lat'}
                           </h2>
+                          {profile.isVerified && (
+                            <SealCheck size={22} weight="fill" className="text-cyan-400 drop-shadow-[0_0_6px_rgba(0,255,255,0.8)] flex-shrink-0" />
+                          )}
                         </div>
                         <div className="flex items-center gap-1.5 text-cyan-300/70 text-sm font-light">
                           <MapPin size={14} weight="fill" className="text-cyan-400" />
