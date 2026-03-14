@@ -13,12 +13,6 @@ import {
   Images,
   MapPin,
   SealCheck,
-  Briefcase,
-  Star,
-  Cigarette,
-  Wine,
-  PawPrint,
-  GenderIntersex,
   HeartStraight,
   Quotes,
   X,
@@ -42,7 +36,7 @@ import { computeUnifiedCompatibility } from '@/lib/matching';
 import { Profile } from '@/lib/types';
 import { useLikes } from '@/lib/hooks/useLikes';
 import { useFriends, type FriendshipStatus, type Friend } from '@/lib/hooks/useFriends';
-import { ALL_INTERESTS } from './constants/profileFormOptions';
+import { ALL_INTERESTS, ZODIAC_SIGNS } from './constants/profileFormOptions';
 import EmojiPopover from '@/components/ui/EmojiPopover';
 import EmojiKeywordSuggestions from '@/components/ui/EmojiKeywordSuggestions';
 import FloatingBadgeTooltip from '@/components/ui/FloatingBadgeTooltip';
@@ -1448,7 +1442,17 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
       ? 'Mężczyźni'
       : '';
 
+  const zodiacOption = zodiacLabel
+    ? ZODIAC_SIGNS.find((item) => item.value.toLowerCase() === zodiacLabel.toLowerCase())
+    : undefined;
+  const zodiacDisplayValue = zodiacOption?.value || zodiacLabel;
+  const zodiacSymbol = (zodiacOption?.label || zodiacLabel).match(/[\u2648-\u2653]/u)?.[0] || '✦';
+  const zodiacColorClass = zodiacOption?.color || 'text-yellow-300';
+
   const hasSeekingAgeRange = typeof profile.seeking_age_min === 'number' && typeof profile.seeking_age_max === 'number';
+  const hasBasicsTraits = Boolean(genderLabel || orientationLabel || occupationLabel || zodiacLabel);
+  const hasLifestyleTraits = Boolean(smokingLabel || drinkingLabel || petsLabel || childrenLabel);
+  const hasLookingForTraits = Boolean(seekingGenderLabel || hasSeekingAgeRange || rawLookingFor);
   const hasProfileTraits = Boolean(
     occupationLabel ||
     zodiacLabel ||
@@ -2005,84 +2009,112 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
 
             {hasProfileTraits && (
               <>
-                <h3 className="text-sm font-medium text-cyan-400 uppercase tracking-widest mb-4">Cechy profilu</h3>
+                <h3 className="text-sm font-medium text-cyan-400 uppercase tracking-widest mb-4">Styl i preferencje</h3>
 
-                <div className="flex flex-wrap gap-3 mb-8">
-                  {occupationLabel && (
-                    <span className="px-4 py-2 rounded-xl text-sm font-medium text-white flex items-center gap-2 border border-white/20 bg-black/25 backdrop-blur-md">
-                      <Briefcase size={16} weight="duotone" className="text-cyan-400" /> Zawód: {occupationLabel}
-                    </span>
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 mb-8">
+                  {hasBasicsTraits && (
+                    <div className="rounded-2xl border border-cyan-500/25 bg-black/30 backdrop-blur-md p-4">
+                      <h4 className="text-[11px] uppercase tracking-[0.18em] text-cyan-300/80 mb-3">Podstawowe informacje</h4>
+                      <div className="space-y-2.5">
+                        {genderLabel && (
+                          <div className="flex items-center justify-between gap-3 text-sm">
+                            <span className="text-white/65">Płeć</span>
+                            <span className="text-white font-medium">{genderLabel}</span>
+                          </div>
+                        )}
+                        {orientationLabel && (
+                          <div className="flex items-center justify-between gap-3 text-sm">
+                            <span className="text-white/65">Orientacja</span>
+                            <span className="text-white font-medium text-right">{orientationLabel}</span>
+                          </div>
+                        )}
+                        {occupationLabel && (
+                          <div className="flex items-center justify-between gap-3 text-sm">
+                            <span className="text-white/65">Zawód</span>
+                            <span className="text-white font-medium text-right">{occupationLabel}</span>
+                          </div>
+                        )}
+                        {zodiacLabel && (
+                          <div className="flex items-center justify-between gap-3 text-sm">
+                            <span className="text-white/65">Zodiak</span>
+                            <span className="text-white font-medium inline-flex items-center gap-2">
+                              <span className="inline-flex items-center justify-center w-6 h-6 rounded-full border border-white/20 bg-black/45">
+                                <span className={zodiacColorClass}>{zodiacSymbol}</span>
+                              </span>
+                              {zodiacDisplayValue}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   )}
-                  {zodiacLabel && (
-                    <span className="px-4 py-2 rounded-xl text-sm font-medium text-white flex items-center gap-2 border border-white/20 bg-black/25 backdrop-blur-md">
-                      <Star size={16} weight="fill" className="text-yellow-400" /> Zodiak: {zodiacLabel}
-                    </span>
+
+                  {hasLifestyleTraits && (
+                    <div className="rounded-2xl border border-fuchsia-500/25 bg-black/30 backdrop-blur-md p-4">
+                      <h4 className="text-[11px] uppercase tracking-[0.18em] text-fuchsia-300/80 mb-3">Styl życia</h4>
+                      <div className="space-y-2.5">
+                        {smokingLabel && (
+                          <div className="flex items-center justify-between gap-3 text-sm">
+                            <span className="text-white/65">Palenie</span>
+                            <span className="text-white font-medium text-right">{smokingLabel}</span>
+                          </div>
+                        )}
+                        {drinkingLabel && (
+                          <div className="flex items-center justify-between gap-3 text-sm">
+                            <span className="text-white/65">Alkohol</span>
+                            <span className="text-white font-medium text-right">{drinkingLabel}</span>
+                          </div>
+                        )}
+                        {petsLabel && (
+                          <div className="flex items-center justify-between gap-3 text-sm">
+                            <span className="text-white/65">Zwierzęta</span>
+                            <span className="text-white font-medium text-right">{petsLabel}</span>
+                          </div>
+                        )}
+                        {childrenLabel && (
+                          <div className="flex items-center justify-between gap-3 text-sm">
+                            <span className="text-white/65">Dzieci</span>
+                            <span className="text-white font-medium text-right">{childrenLabel}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   )}
-                  {smokingLabel && (
-                    <span className="px-4 py-2 rounded-xl text-sm font-medium text-white flex items-center gap-2 border border-white/20 bg-black/25 backdrop-blur-md">
-                      <Cigarette size={16} weight="duotone" className="text-gray-400" /> Palenie: {smokingLabel}
-                    </span>
-                  )}
-                  {drinkingLabel && (
-                    <span className="px-4 py-2 rounded-xl text-sm font-medium text-white flex items-center gap-2 border border-white/20 bg-black/25 backdrop-blur-md">
-                      <Wine size={16} weight="duotone" className="text-purple-400" /> Alkohol: {drinkingLabel}
-                    </span>
-                  )}
-                  {petsLabel && (
-                    <span className="px-4 py-2 rounded-xl text-sm font-medium text-white flex items-center gap-2 border border-white/20 bg-black/25 backdrop-blur-md">
-                      <PawPrint size={16} weight="fill" className="text-amber-400" /> Zwierzęta: {petsLabel}
-                    </span>
-                  )}
-                  {childrenLabel && (
-                    <span className="px-4 py-2 rounded-xl text-sm font-medium text-white flex items-center gap-2 border border-white/20 bg-black/25 backdrop-blur-md">
-                      <UserPlus size={16} weight="duotone" className="text-cyan-300" /> Dzieci: {childrenLabel}
-                    </span>
-                  )}
-                  {orientationLabel && (
-                    <span className="px-4 py-2 rounded-xl text-sm font-medium text-white flex items-center gap-2 border border-white/20 bg-black/25 backdrop-blur-md">
-                      <GenderIntersex size={16} weight="duotone" className="text-purple-400" /> Orientacja: {orientationLabel}
-                    </span>
-                  )}
-                  {genderLabel && (
-                    <span className="px-4 py-2 rounded-xl text-sm font-medium text-white flex items-center gap-2 border border-white/20 bg-black/25 backdrop-blur-md">
-                      <GenderIntersex size={16} weight="duotone" className="text-cyan-300" /> Płeć: {genderLabel}
-                    </span>
-                  )}
-                  {seekingGenderLabel && (
-                    <span className="px-4 py-2 rounded-xl text-sm font-medium text-white flex items-center gap-2 border border-white/20 bg-black/25 backdrop-blur-md">
-                      <HeartStraight size={16} weight="fill" className="text-fuchsia-400" /> Szuka: {seekingGenderLabel}
-                    </span>
-                  )}
-                  {hasSeekingAgeRange && (
-                    <span className="px-4 py-2 rounded-xl text-sm font-medium text-white flex items-center gap-2 border border-white/20 bg-black/25 backdrop-blur-md">
-                      <UserPlus size={16} weight="duotone" className="text-green-300" /> Wiek szukanej osoby: {profile.seeking_age_min} - {profile.seeking_age_max}
-                    </span>
-                  )}
-                  {rawLookingFor && (
-                    <span className={`px-4 py-2 rounded-xl text-sm font-medium text-white flex items-center gap-2 border backdrop-blur-md ${
-                      normalizedLookingFor === 'miłość' || normalizedLookingFor === 'milosc'
-                        ? 'border-pink-500/50 bg-pink-500/10'
-                        : normalizedLookingFor === 'przygoda'
-                        ? 'border-cyan-500/50 bg-cyan-500/10'
-                        : normalizedLookingFor === 'przyjaźń' || normalizedLookingFor === 'przyjazn'
-                        ? 'border-blue-500/50 bg-blue-500/10'
-                        : 'border-white/20 bg-black/25'
-                    }`}>
-                      <HeartStraight
-                        size={16}
-                        weight="fill"
-                        className={`${
-                          normalizedLookingFor === 'miłość' || normalizedLookingFor === 'milosc'
-                            ? 'text-pink-400'
-                            : normalizedLookingFor === 'przygoda'
-                            ? 'text-cyan-400'
-                            : normalizedLookingFor === 'przyjaźń' || normalizedLookingFor === 'przyjazn'
-                            ? 'text-blue-400'
-                            : 'text-gray-400'
-                        }`}
-                      />
-                      Szuka: {lookingForLabel}
-                    </span>
+
+                  {hasLookingForTraits && (
+                    <div className="rounded-2xl border border-emerald-500/25 bg-black/30 backdrop-blur-md p-4">
+                      <h4 className="text-[11px] uppercase tracking-[0.18em] text-emerald-300/80 mb-3">Kogo szuka</h4>
+                      <div className="space-y-2.5">
+                        {seekingGenderLabel && (
+                          <div className="flex items-center justify-between gap-3 text-sm">
+                            <span className="text-white/65">Płeć partnera</span>
+                            <span className="text-white font-medium text-right">{seekingGenderLabel}</span>
+                          </div>
+                        )}
+                        {hasSeekingAgeRange && (
+                          <div className="flex items-center justify-between gap-3 text-sm">
+                            <span className="text-white/65">Zakres wieku</span>
+                            <span className="text-white font-medium text-right">{profile.seeking_age_min} - {profile.seeking_age_max}</span>
+                          </div>
+                        )}
+                        {rawLookingFor && (
+                          <div className="flex items-center justify-between gap-3 text-sm">
+                            <span className="text-white/65">Relacja</span>
+                            <span className={`font-medium text-right ${
+                              normalizedLookingFor === 'miłość' || normalizedLookingFor === 'milosc'
+                                ? 'text-pink-300'
+                                : normalizedLookingFor === 'przygoda'
+                                ? 'text-cyan-300'
+                                : normalizedLookingFor === 'przyjaźń' || normalizedLookingFor === 'przyjazn'
+                                ? 'text-blue-300'
+                                : 'text-white'
+                            }`}>
+                              {lookingForLabel}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   )}
                 </div>
               </>
