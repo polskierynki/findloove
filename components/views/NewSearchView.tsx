@@ -811,7 +811,7 @@ export default function NewSearchView() {
                       </div>
 
                       {/* Profile Info */}
-                      <div className="absolute bottom-0 left-0 w-full p-6 z-10">
+                      <div className="absolute bottom-0 left-0 w-full px-6 pt-4 pb-3 z-10">
                         <div className="card-meta flex flex-col gap-2">
                           <h2 className="text-2xl font-medium text-white">
                             {profile.name}, {profile.age} lat
@@ -828,7 +828,7 @@ export default function NewSearchView() {
                           </p>
 
                           {/* Actions */}
-                          <div className="card-actions flex gap-3 mt-3 relative z-30">
+                          <div className="card-actions flex gap-3 mt-2 relative z-30">
                             <button
                               onClick={(e) => void toggleLike(e, profile.id)}
                               className={`pointer-events-auto flex-1 backdrop-blur-md border py-2.5 rounded-xl flex items-center justify-center gap-2 transition-all ${

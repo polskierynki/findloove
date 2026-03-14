@@ -4,6 +4,13 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { MagnifyingGlass, Prohibit, Trash, Flag, PaperPlaneRight, ArrowLeft, Smiley } from '@phosphor-icons/react';
 import { supabase } from '@/lib/supabase';
 import { resolveProfileIdForAuthUser } from '@/lib/profileAuth';
+import {
+  applyEmojiSuggestionAtCursor,
+  getEmojiSuggestionsAtCursor,
+  processEmojiAssistInput,
+  type EmojiKeywordSuggestion,
+} from '@/lib/emojiAssist';
+import EmojiKeywordSuggestions from '@/components/ui/EmojiKeywordSuggestions';
 import EmojiPopover from '@/components/ui/EmojiPopover';
 import HoverHintIconButton from '@/components/ui/HoverHintIconButton';
 
@@ -37,6 +44,7 @@ export default function NewMessagesView() {
   const [selectedProfile, setSelectedProfile] = useState<ConversationProfile | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [messageText, setMessageText] = useState('');
+  const [messageSuggestions, setMessageSuggestions] = useState<EmojiKeywordSuggestion[]>([]);
   const [authUserId, setAuthUserId] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -509,6 +517,7 @@ export default function NewMessagesView() {
       // Update UI
       setMessages(prev => [...prev, successfulInsert]);
       setMessageText('');
+      setMessageSuggestions([]);
       setShowMessageEmojiPicker(false);
       console.log('📤 Reloading conversations...');
       void loadConversations();
@@ -517,6 +526,33 @@ export default function NewMessagesView() {
       setChatError(`Exception: ${(error as Error).message}`);
     }
   };
+
+  const updateMessageInputWithEmojiAssist = useCallback((rawValue: string, cursor: number | null) => {
+    const next = processEmojiAssistInput(rawValue, cursor);
+    setMessageText(next.value);
+    setMessageSuggestions(next.suggestions);
+
+    window.requestAnimationFrame(() => {
+      const input = messageInputRef.current;
+      if (!input || document.activeElement !== input) return;
+      input.setSelectionRange(next.cursor, next.cursor);
+    });
+  }, []);
+
+  const handlePickMessageSuggestion = useCallback((suggestion: EmojiKeywordSuggestion) => {
+    const input = messageInputRef.current;
+    const cursor = input?.selectionStart ?? messageText.length;
+    const next = applyEmojiSuggestionAtCursor(messageText, cursor, suggestion);
+
+    setMessageText(next.value);
+    setMessageSuggestions(getEmojiSuggestionsAtCursor(next.value, next.cursor));
+
+    window.requestAnimationFrame(() => {
+      if (!input) return;
+      input.focus();
+      input.setSelectionRange(next.cursor, next.cursor);
+    });
+  }, [messageText]);
 
   const insertEmojiToMessage = useCallback((emoji: string) => {
     const input = messageInputRef.current;
@@ -534,6 +570,8 @@ export default function NewMessagesView() {
       const safeEnd = Math.min(selectionEnd, prev.length);
       return `${prev.slice(0, safeStart)}${emoji}${prev.slice(safeEnd)}`;
     });
+
+    setMessageSuggestions([]);
 
     window.requestAnimationFrame(() => {
       const caretPosition = selectionStart + emoji.length;
@@ -805,17 +843,25 @@ export default function NewMessagesView() {
                   <p className="mb-3 text-sm text-red-300">{chatError}</p>
                 )}
                 <div className="relative flex items-center bg-black/40 border border-cyan-500/20 rounded-full px-2 py-2 border-glow-magenta transition-all focus-within:bg-black/60">
+                  <EmojiKeywordSuggestions
+                    suggestions={messageSuggestions}
+                    onSelect={handlePickMessageSuggestion}
+                    className="absolute left-2 right-2 bottom-full mb-2"
+                  />
                   <input
                     ref={messageInputRef}
                     type="text"
                     placeholder="Napisz wiadomość..."
                     value={messageText}
-                    onChange={(e) => setMessageText(e.target.value)}
+                    onChange={(e) => updateMessageInputWithEmojiAssist(e.target.value, e.target.selectionStart)}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
                         e.preventDefault();
                         void sendMessage();
                       }
+                    }}
+                    onBlur={() => {
+                      window.setTimeout(() => setMessageSuggestions([]), 120);
                     }}
                     className="flex-1 bg-transparent border-none text-white text-sm px-4 outline-none"
                   />

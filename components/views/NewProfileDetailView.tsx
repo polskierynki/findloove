@@ -31,12 +31,19 @@ import {
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { resolveProfileIdForAuthUser } from '@/lib/profileAuth';
+import {
+  applyEmojiSuggestionAtCursor,
+  getEmojiSuggestionsAtCursor,
+  processEmojiAssistInput,
+  type EmojiKeywordSuggestion,
+} from '@/lib/emojiAssist';
 import { computeUnifiedCompatibility } from '@/lib/matching';
 import { Profile } from '@/lib/types';
 import { useLikes } from '@/lib/hooks/useLikes';
 import { useFriends, type FriendshipStatus, type Friend } from '@/lib/hooks/useFriends';
 import { ALL_INTERESTS } from './constants/profileFormOptions';
 import EmojiPopover from '@/components/ui/EmojiPopover';
+import EmojiKeywordSuggestions from '@/components/ui/EmojiKeywordSuggestions';
 import HoverHintIconButton from '@/components/ui/HoverHintIconButton';
 import ReportCommentModal from '@/components/ui/ReportCommentModal';
 import GiftModal, { type GiftSelectionPayload } from '@/components/modals/GiftModal';
@@ -175,6 +182,8 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
   const [loading, setLoading] = useState(true);
   const [commentText, setCommentText] = useState('');
   const [photoCommentText, setPhotoCommentText] = useState('');
+  const [generalCommentSuggestions, setGeneralCommentSuggestions] = useState<EmojiKeywordSuggestion[]>([]);
+  const [photoCommentSuggestions, setPhotoCommentSuggestions] = useState<EmojiKeywordSuggestion[]>([]);
   const [isLiked, setIsLiked] = useState(false);
   const [authorProfileId, setAuthorProfileId] = useState<string | null>(null);
   const [viewerProfile, setViewerProfile] = useState<CompatibilityProfile | null>(null);
@@ -732,6 +741,7 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
       }
 
       setCommentText('');
+      setGeneralCommentSuggestions([]);
       setShowGeneralCommentEmojiPicker(false);
       await loadGeneralComments();
     } catch (error) {
@@ -780,6 +790,7 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
       }
 
       setPhotoCommentText('');
+      setPhotoCommentSuggestions([]);
       setShowPhotoCommentEmojiPicker(false);
       await loadPhotoComments(activePhotoIndex);
       photoCommentInputRef.current?.focus();
@@ -886,11 +897,66 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
     }
   }, [activePhotoIndex, canDeleteComment, loadPhotoComments, photoCommentsTableAvailable]);
 
+  const updateGeneralCommentWithEmojiAssist = useCallback((rawValue: string, cursor: number | null) => {
+    const next = processEmojiAssistInput(rawValue, cursor);
+    setCommentText(next.value);
+    setGeneralCommentSuggestions(next.suggestions);
+
+    window.requestAnimationFrame(() => {
+      const input = generalCommentInputRef.current;
+      if (!input || document.activeElement !== input) return;
+      input.setSelectionRange(next.cursor, next.cursor);
+    });
+  }, []);
+
+  const updatePhotoCommentWithEmojiAssist = useCallback((rawValue: string, cursor: number | null) => {
+    const next = processEmojiAssistInput(rawValue, cursor);
+    setPhotoCommentText(next.value);
+    setPhotoCommentSuggestions(next.suggestions);
+
+    window.requestAnimationFrame(() => {
+      const input = photoCommentInputRef.current;
+      if (!input || document.activeElement !== input) return;
+      input.setSelectionRange(next.cursor, next.cursor);
+    });
+  }, []);
+
+  const handlePickGeneralCommentSuggestion = useCallback((suggestion: EmojiKeywordSuggestion) => {
+    const input = generalCommentInputRef.current;
+    const cursor = input?.selectionStart ?? commentText.length;
+    const next = applyEmojiSuggestionAtCursor(commentText, cursor, suggestion);
+
+    setCommentText(next.value);
+    setGeneralCommentSuggestions(getEmojiSuggestionsAtCursor(next.value, next.cursor));
+
+    window.requestAnimationFrame(() => {
+      if (!input) return;
+      input.focus();
+      input.setSelectionRange(next.cursor, next.cursor);
+    });
+  }, [commentText]);
+
+  const handlePickPhotoCommentSuggestion = useCallback((suggestion: EmojiKeywordSuggestion) => {
+    const input = photoCommentInputRef.current;
+    const cursor = input?.selectionStart ?? photoCommentText.length;
+    const next = applyEmojiSuggestionAtCursor(photoCommentText, cursor, suggestion);
+
+    setPhotoCommentText(next.value);
+    setPhotoCommentSuggestions(getEmojiSuggestionsAtCursor(next.value, next.cursor));
+
+    window.requestAnimationFrame(() => {
+      if (!input) return;
+      input.focus();
+      input.setSelectionRange(next.cursor, next.cursor);
+    });
+  }, [photoCommentText]);
+
   const insertEmojiToGeneralComment = useCallback((emoji: string) => {
     const input = generalCommentInputRef.current;
 
     if (!input) {
       setCommentText((prev) => `${prev}${emoji}`);
+      setGeneralCommentSuggestions([]);
       return;
     }
 
@@ -902,6 +968,8 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
       const safeEnd = Math.min(selectionEnd, prev.length);
       return `${prev.slice(0, safeStart)}${emoji}${prev.slice(safeEnd)}`;
     });
+
+    setGeneralCommentSuggestions([]);
 
     window.requestAnimationFrame(() => {
       const caretPosition = selectionStart + emoji.length;
@@ -915,6 +983,7 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
 
     if (!input) {
       setPhotoCommentText((prev) => `${prev}${emoji}`);
+      setPhotoCommentSuggestions([]);
       return;
     }
 
@@ -927,6 +996,8 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
       return `${prev.slice(0, safeStart)}${emoji}${prev.slice(safeEnd)}`;
     });
 
+    setPhotoCommentSuggestions([]);
+
     window.requestAnimationFrame(() => {
       const caretPosition = selectionStart + emoji.length;
       input.focus();
@@ -938,6 +1009,7 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
     setActivePhotoIndex(photoIndex);
     setIsPhotoModalOpen(true);
     setPhotoCommentText('');
+    setPhotoCommentSuggestions([]);
     setCommentsError(null);
     setShowGeneralCommentEmojiPicker(false);
     setShowPhotoCommentEmojiPicker(false);
@@ -945,6 +1017,7 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
 
   const closePhotoCommentModal = useCallback(() => {
     setIsPhotoModalOpen(false);
+    setPhotoCommentSuggestions([]);
     setShowGeneralCommentEmojiPicker(false);
     setShowPhotoCommentEmojiPicker(false);
   }, []);
@@ -1451,17 +1524,25 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
                 <p className="text-sm text-red-300 mb-3">{commentsError}</p>
               )}
               <div className="relative group border-glow-cyan rounded-full transition-all">
+                <EmojiKeywordSuggestions
+                  suggestions={generalCommentSuggestions}
+                  onSelect={handlePickGeneralCommentSuggestion}
+                  className="absolute left-2 right-2 bottom-full mb-2"
+                />
                 <input
                   ref={generalCommentInputRef}
                   type="text"
                   placeholder="Dodaj komentarz..."
                   value={commentText}
-                  onChange={(e) => setCommentText(e.target.value)}
+                  onChange={(e) => updateGeneralCommentWithEmojiAssist(e.target.value, e.target.selectionStart)}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') {
                       e.preventDefault();
                       void handleAddGeneralComment();
                     }
+                  }}
+                  onBlur={() => {
+                    window.setTimeout(() => setGeneralCommentSuggestions([]), 120);
                   }}
                   className="w-full bg-black/40 border border-cyan-500/20 rounded-full py-3.5 pl-6 pr-24 text-base text-white placeholder-cyan-400/40 outline-none backdrop-blur-md transition-all focus:bg-black/60 focus:border-cyan-500/50 shadow-[inset_0_0_10px_rgba(0,255,255,0.05)]"
                 />
@@ -1922,17 +2003,25 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
 
               <div className="pt-4 mt-4 border-t border-cyan-500/20">
                 <div className="relative border-glow-cyan rounded-full transition-all">
+                  <EmojiKeywordSuggestions
+                    suggestions={photoCommentSuggestions}
+                    onSelect={handlePickPhotoCommentSuggestion}
+                    className="absolute left-2 right-2 bottom-full mb-2"
+                  />
                   <input
                     ref={photoCommentInputRef}
                     type="text"
                     placeholder="Dodaj komentarz do zdjęcia..."
                     value={photoCommentText}
-                    onChange={(e) => setPhotoCommentText(e.target.value)}
+                    onChange={(e) => updatePhotoCommentWithEmojiAssist(e.target.value, e.target.selectionStart)}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
                         e.preventDefault();
                         void handleAddPhotoComment();
                       }
+                    }}
+                    onBlur={() => {
+                      window.setTimeout(() => setPhotoCommentSuggestions([]), 120);
                     }}
                     disabled={!photoCommentsTableAvailable}
                     className="w-full bg-black/40 border border-cyan-500/20 rounded-full py-3 pl-5 pr-20 text-sm text-white placeholder-cyan-400/40 outline-none focus:border-cyan-500/50 transition-all disabled:opacity-50"
