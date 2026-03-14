@@ -52,7 +52,7 @@ export default function RootLayout({
   return (
     <html lang="pl">
       <head>
-        {supabaseOrigin && <link rel="preconnect" href={supabaseOrigin} crossOrigin="anonymous" />}
+        {supabaseOrigin && <link rel="preconnect" href={supabaseOrigin} />}
         {supabaseOrigin && <link rel="dns-prefetch" href={supabaseOrigin} />}
       </head>
       <body className={`${outfit.variable} antialiased selection:bg-fuchsia-500/30 selection:text-fuchsia-100`}>

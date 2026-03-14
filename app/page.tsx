@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import { supabase } from '@/lib/supabase';
 import type { Session } from '@supabase/supabase-js';
 
@@ -15,27 +16,29 @@ import { LegalProvider } from '@/lib/context/LegalContext';
 import BottomNav from '@/components/layout/BottomNav';
 import Footer from '@/components/layout/Footer';
 import Notification from '@/components/layout/Notification';
-import AIAssistant from '@/components/layout/AIAssistant';
-import GuestModal from '@/components/layout/GuestModal';
-import GuestBanner from '@/components/layout/GuestBanner';
-import ProfileCompletionModal from '@/components/layout/ProfileCompletionModal';
-
 import HomeView from '@/components/views/HomeView';
-import AdminDashboard from '@/components/views/AdminDashboard';
-import DiscoverView from '@/components/views/DiscoverView';
-import ProfileDetailView from '@/components/views/ProfileDetailView';
-import MessagesView from '@/components/views/MessagesView';
-import SafetyView from '@/components/views/SafetyView';
-import NewFriendsView from '@/components/views/NewFriendsView';
-import NewNotificationsView from '@/components/views/NewNotificationsView';
-import SearchView from '@/components/views/SearchView';
-import AuthView from '@/components/views/AuthView';
-import RegisterView from '@/components/views/RegisterView';
-import PremiumView from '@/components/views/PremiumView';
-import TermsView from '@/components/views/TermsView';
-import PrivacyView from '@/components/views/PrivacyView';
-import CookiesView from '@/components/views/CookiesView';
-import WalletView from '@/components/views/WalletView';
+
+// Heavy components — loaded on demand to reduce initial bundle
+const AIAssistant = dynamic(() => import('@/components/layout/AIAssistant'), { ssr: false });
+const GuestModal = dynamic(() => import('@/components/layout/GuestModal'), { ssr: false });
+const GuestBanner = dynamic(() => import('@/components/layout/GuestBanner'), { ssr: false });
+const ProfileCompletionModal = dynamic(() => import('@/components/layout/ProfileCompletionModal'), { ssr: false });
+
+const AdminDashboard = dynamic(() => import('@/components/views/AdminDashboard'), { ssr: false });
+const DiscoverView = dynamic(() => import('@/components/views/DiscoverView'), { ssr: false });
+const ProfileDetailView = dynamic(() => import('@/components/views/ProfileDetailView'), { ssr: false });
+const MessagesView = dynamic(() => import('@/components/views/MessagesView'), { ssr: false });
+const SafetyView = dynamic(() => import('@/components/views/SafetyView'), { ssr: false });
+const NewFriendsView = dynamic(() => import('@/components/views/NewFriendsView'), { ssr: false });
+const NewNotificationsView = dynamic(() => import('@/components/views/NewNotificationsView'), { ssr: false });
+const SearchView = dynamic(() => import('@/components/views/SearchView'), { ssr: false });
+const AuthView = dynamic(() => import('@/components/views/AuthView'), { ssr: false });
+const RegisterView = dynamic(() => import('@/components/views/RegisterView'), { ssr: false });
+const PremiumView = dynamic(() => import('@/components/views/PremiumView'), { ssr: false });
+const TermsView = dynamic(() => import('@/components/views/TermsView'), { ssr: false });
+const PrivacyView = dynamic(() => import('@/components/views/PrivacyView'), { ssr: false });
+const CookiesView = dynamic(() => import('@/components/views/CookiesView'), { ssr: false });
+const WalletView = dynamic(() => import('@/components/views/WalletView'), { ssr: false });
 
 const PREMIUM_LOCAL_STORAGE_KEY = 'zl_premium_demo';
 const PREMIUM_DEMO_DAYS = 30;
