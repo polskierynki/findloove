@@ -18,42 +18,62 @@ const REPORT_REASONS = [
 interface Props {
   open: boolean;
   onClose: () => void;
-  commentId: string;
-  commentType: 'wall' | 'photo';
-  commentContent: string;
-  commentAuthorId: string;
+  reportKind: 'wall-comment' | 'photo-comment' | 'photo-content';
+  targetId?: string | null;
+  targetContent: string;
+  targetAuthorId: string;
+  contextLabel?: string;
   reporterProfileId: string | null;
 }
 
 export default function ReportCommentModal({
   open,
   onClose,
-  commentId,
-  commentType,
-  commentContent,
-  commentAuthorId,
+  reportKind,
+  targetId,
+  targetContent,
+  targetAuthorId,
+  contextLabel,
   reporterProfileId,
 }: Props) {
   const [reason, setReason] = useState('');
+  const [description, setDescription] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+
+  const isPhotoContentReport = reportKind === 'photo-content';
+  const reportTitle = isPhotoContentReport ? 'Zgłoś zdjęcie' : 'Zgłoś komentarz';
+  const reportScopeLabel = isPhotoContentReport ? 'Zgłaszane zdjęcie' : 'Zgłaszany komentarz';
+  const submitLabel = isPhotoContentReport ? 'Zgłoś zdjęcie' : 'Zgłoś komentarz';
 
   if (!open) return null;
 
   const handleSubmit = async () => {
     if (!reason || submitting) return;
+
+    const trimmedDescription = description.trim();
+    if (reason === 'Inne' && trimmedDescription.length < 6) {
+      setSubmitError('Dla opcji "Inne" wpisz krótki opis (min. 6 znaków).');
+      return;
+    }
+
     setSubmitting(true);
     setSubmitError(null);
+
+    const finalReason = trimmedDescription
+      ? `${reason} | Opis: ${trimmedDescription}`
+      : reason;
+
     try {
       const { error } = await supabase.from('comment_reports').insert({
-        comment_id: commentType === 'wall' ? commentId : null,
-        photo_comment_id: commentType === 'photo' ? commentId : null,
-        comment_type: commentType,
-        comment_content: commentContent,
-        comment_author_id: commentAuthorId || null,
+        comment_id: reportKind === 'wall-comment' ? targetId || null : null,
+        photo_comment_id: reportKind === 'photo-comment' ? targetId || null : null,
+        comment_type: reportKind === 'wall-comment' ? 'wall' : 'photo',
+        comment_content: targetContent,
+        comment_author_id: targetAuthorId || null,
         reporter_id: reporterProfileId || null,
-        reason,
+        reason: finalReason,
         status: 'pending',
       });
       if (error) {
@@ -72,6 +92,7 @@ export default function ReportCommentModal({
 
   const handleClose = () => {
     setReason('');
+    setDescription('');
     setSubmitted(false);
     setSubmitError(null);
     onClose();
@@ -119,15 +140,18 @@ export default function ReportCommentModal({
                 <Flag size={18} weight="fill" className="text-red-400" />
               </div>
               <div>
-                <h3 className="text-base font-semibold text-white">Zgłoś komentarz</h3>
+                <h3 className="text-base font-semibold text-white">{reportTitle}</h3>
                 <p className="text-xs text-cyan-400/55 mt-0.5">Pomóż nam utrzymać bezpieczną przestrzeń</p>
               </div>
             </div>
 
-            {/* Podgląd zgłaszanego komentarza */}
+            {/* Podgląd zgłaszanego elementu */}
             <div className="bg-white/[0.04] border border-white/10 rounded-xl px-4 py-3 mb-5">
-              <p className="text-[10px] text-cyan-400/50 uppercase tracking-wider mb-1">Zgłaszany komentarz</p>
-              <p className="text-sm text-white/75 italic line-clamp-3">„{commentContent}"</p>
+              <p className="text-[10px] text-cyan-400/50 uppercase tracking-wider mb-1">{reportScopeLabel}</p>
+              {contextLabel ? (
+                <p className="text-[11px] text-cyan-300/70 mb-1">{contextLabel}</p>
+              ) : null}
+              <p className="text-sm text-white/75 italic line-clamp-3">„{targetContent}"</p>
             </div>
 
             {/* Wybór powodu */}
@@ -148,6 +172,23 @@ export default function ReportCommentModal({
               <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-cyan-400/50 text-xs">▾</span>
             </div>
 
+            {/* Opis zgłoszenia */}
+            <label className="block text-[11px] text-cyan-400/60 uppercase tracking-wider mb-2">
+              Dodatkowy opis (opcjonalnie)
+            </label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={3}
+              placeholder="Napisz krotko co jest nie tak (co najmniej 6 znakow dla opcji Inne)"
+              className="w-full mb-4 bg-black/50 border border-cyan-500/20 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-cyan-400/50 resize-none transition-colors"
+            />
+
+            <div className="mb-5 rounded-xl border border-cyan-500/20 bg-cyan-500/5 px-4 py-3 text-xs text-cyan-100/80 leading-relaxed">
+              <p className="font-medium text-cyan-200 mb-1">Jak działamy po zgłoszeniu</p>
+              <p>Moderator sprawdza treść, może nadać ostrzeżenie (strike), usunąć naruszającą treść i przy powtarzalnych naruszeniach zablokować konto.</p>
+            </div>
+
             {/* Submit */}
             {submitError && (
               <p className="text-xs text-red-400 mb-3 text-center">{submitError}</p>
@@ -157,7 +198,7 @@ export default function ReportCommentModal({
               disabled={!reason || submitting}
               className="w-full py-3 rounded-full text-sm font-medium transition-all bg-red-500/80 hover:bg-red-500 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed text-white shadow-[0_0_20px_rgba(239,68,68,0.25)]"
             >
-              {submitting ? 'Wysyłanie...' : 'Zgłoś komentarz'}
+              {submitting ? 'Wysyłanie...' : submitLabel}
             </button>
           </>
         )}

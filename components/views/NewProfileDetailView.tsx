@@ -237,10 +237,11 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
   const [showGeneralCommentEmojiPicker, setShowGeneralCommentEmojiPicker] = useState(false);
   const [showPhotoCommentEmojiPicker, setShowPhotoCommentEmojiPicker] = useState(false);
   const [reportModal, setReportModal] = useState<{
-    commentId: string;
-    type: 'wall' | 'photo';
+    kind: 'wall-comment' | 'photo-comment' | 'photo-content';
+    targetId?: string | null;
     content: string;
     authorId: string;
+    contextLabel?: string;
   } | null>(null);
   const generalCommentInputRef = useRef<HTMLInputElement>(null);
   const photoCommentInputRef = useRef<HTMLInputElement>(null);
@@ -1107,6 +1108,19 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
     setShowPhotoCommentEmojiPicker(false);
   }, []);
 
+  const openPhotoReportModal = useCallback((photoUrl: string, photoIndex: number) => {
+    const profileLabel = profile?.name || 'User';
+    const snapshot = `Niestosowne zdjecie nr ${photoIndex + 1} z profilu ${profileLabel} (${profileId}). URL: ${photoUrl}`;
+
+    setReportModal({
+      kind: 'photo-content',
+      targetId: null,
+      content: snapshot,
+      authorId: profileId,
+      contextLabel: `Zdjecie ${photoIndex + 1}`,
+    });
+  }, [profile?.name, profileId]);
+
   const closePhotoCommentModal = useCallback(() => {
     setIsPhotoModalOpen(false);
     setPhotoCommentSuggestions([]);
@@ -1448,16 +1462,36 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
             </h3>
             <div className="grid grid-cols-3 gap-3">
               {allPhotos.length > 0 ? allPhotos.slice(0, 6).map((photo, i) => (
-                <button
+                <div
                   key={`${photo}-${i}`}
                   onClick={() => openPhotoCommentModal(i)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      openPhotoCommentModal(i);
+                    }
+                  }}
+                  role="button"
+                  tabIndex={0}
                   className={`gallery-item relative aspect-square rounded-2xl cursor-pointer overflow-hidden ${i === 0 ? 'col-span-2 row-span-2' : ''}`}
                 >
                   <img src={photo} alt={`Gallery ${i}`} className="w-full h-full object-cover" />
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      openPhotoReportModal(photo, i);
+                    }}
+                    className="absolute left-2 top-2 z-20 w-7 h-7 rounded-full bg-black/55 border border-red-500/40 flex items-center justify-center text-red-300 hover:bg-red-500/20 hover:text-red-200 transition-colors"
+                    title="Zglos to zdjecie"
+                    aria-label="Zglos to zdjecie"
+                  >
+                    <Flag size={13} weight="fill" />
+                  </button>
                   <span className="absolute right-2 bottom-2 w-7 h-7 rounded-full bg-black/50 border border-white/20 flex items-center justify-center text-cyan-300">
                     <Quotes size={14} weight="fill" />
                   </span>
-                </button>
+                </div>
               )) : (
                 <>
                   {[...Array(6)].map((_, i) => (
@@ -1590,7 +1624,13 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
                                 )}
                                 {canReport && (
                                   <button
-                                    onClick={() => setReportModal({ commentId: comment.id, type: 'wall', content: comment.content, authorId: comment.author_profile_id })}
+                                    onClick={() => setReportModal({
+                                      kind: 'wall-comment',
+                                      targetId: comment.id,
+                                      content: comment.content,
+                                      authorId: comment.author_profile_id,
+                                      contextLabel: 'Komentarz na tablicy',
+                                    })}
                                     className="inline-flex items-center gap-1 text-[11px] text-white/35 hover:text-red-300 transition-colors p-0.5 rounded"
                                     title="Zgłoś komentarz"
                                   >
@@ -2031,6 +2071,20 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
           >
             <div className="photo-modal-media relative bg-black/45 flex items-center justify-center p-3 md:p-6 lg:p-8">
               <button
+                type="button"
+                onClick={() => {
+                  const activePhotoUrl = allPhotos[activePhotoIndex] || profile.image_url || '';
+                  if (!activePhotoUrl) return;
+                  openPhotoReportModal(activePhotoUrl, activePhotoIndex);
+                }}
+                className="absolute top-3 left-3 md:top-4 md:left-4 z-20 w-10 h-10 rounded-full bg-black/60 border border-red-500/35 flex items-center justify-center text-red-300 hover:bg-red-500/20 hover:text-red-200 transition-colors"
+                title="Zglos to zdjecie"
+                aria-label="Zglos to zdjecie"
+              >
+                <Flag size={16} weight="fill" />
+              </button>
+
+              <button
                 onClick={closePhotoCommentModal}
                 className="absolute top-3 right-3 md:top-4 md:right-4 z-20 w-10 h-10 rounded-full bg-black/60 border border-white/15 flex items-center justify-center text-white hover:text-cyan-300 transition-colors"
               >
@@ -2111,7 +2165,13 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
                               )}
                               {canReport && (
                                 <button
-                                  onClick={() => setReportModal({ commentId: comment.id, type: 'photo', content: comment.content, authorId: comment.author_profile_id })}
+                                  onClick={() => setReportModal({
+                                    kind: 'photo-comment',
+                                    targetId: comment.id,
+                                    content: comment.content,
+                                    authorId: comment.author_profile_id,
+                                    contextLabel: `Komentarz pod zdjeciem ${activePhotoIndex + 1}`,
+                                  })}
                                   className="inline-flex items-center gap-1 text-[11px] text-white/35 hover:text-red-300 transition-colors p-0.5 rounded"
                                   title="Zgłoś komentarz"
                                 >
@@ -2216,10 +2276,11 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
       <ReportCommentModal
         open={true}
         onClose={() => setReportModal(null)}
-        commentId={reportModal.commentId}
-        commentType={reportModal.type}
-        commentContent={reportModal.content}
-        commentAuthorId={reportModal.authorId}
+        reportKind={reportModal.kind}
+        targetId={reportModal.targetId}
+        targetContent={reportModal.content}
+        targetAuthorId={reportModal.authorId}
+        contextLabel={reportModal.contextLabel}
         reporterProfileId={authorProfileId}
       />
     )}
