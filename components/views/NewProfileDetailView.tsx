@@ -2009,7 +2009,10 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
 
             {hasProfileTraits && (
               <>
-                <h3 className="text-sm font-medium text-cyan-400 uppercase tracking-widest mb-4">Styl i preferencje</h3>
+                <div className="flex items-center gap-3 mb-5">
+                  <span className="text-xs font-semibold uppercase tracking-[0.2em] text-white/40">Kim jestem</span>
+                  <div className="h-px flex-1 bg-gradient-to-r from-white/15 to-transparent"></div>
+                </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 mb-8">
                   {hasBasicsTraits && (
@@ -2083,7 +2086,7 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
 
                   {hasLookingForTraits && (
                     <div className="rounded-2xl border border-emerald-500/25 bg-black/30 backdrop-blur-md p-4">
-                      <h4 className="text-[11px] uppercase tracking-[0.18em] text-emerald-300/80 mb-3">Kogo szuka</h4>
+                      <h4 className="text-[11px] uppercase tracking-[0.18em] text-emerald-300/80 mb-3">Kogo szukam</h4>
                       <div className="space-y-2.5">
                         {seekingGenderLabel && (
                           <div className="flex items-center justify-between gap-3 text-sm">
