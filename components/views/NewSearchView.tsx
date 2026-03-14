@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef, type CSSProperties } from 'react';
 import { useRouter } from 'next/navigation';
-import { Heart, ChatCircle, Sparkle, MapPin, Sliders, MagnifyingGlass, X } from '@phosphor-icons/react';
+import { Heart, ChatCircle, Sparkle, MapPin, Lightning, Sliders, MagnifyingGlass, X } from '@phosphor-icons/react';
 import { 
   LOOKING_FOR_OPTIONS, 
   SEXUAL_ORIENTATION_OPTIONS, 
@@ -203,6 +203,7 @@ export default function NewSearchView() {
   const [likePopTicks, setLikePopTicks] = useState<Record<string, number>>({});
   const [burstingLikeIds, setBurstingLikeIds] = useState<Set<string>>(new Set());
   const [poppingLikeIds, setPoppingLikeIds] = useState<Set<string>>(new Set());
+  const [overrideSet, setOverrideSet] = useState<Set<string>>(new Set());
   const [viewerProfileId, setViewerProfileId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -340,6 +341,17 @@ export default function NewSearchView() {
   useEffect(() => {
     getLikedProfileIds().then((ids) => setLikedIds(new Set(ids)));
   }, [getLikedProfileIds]);
+
+  // Pre-load popular override IDs
+  useEffect(() => {
+    supabase
+      .from('profiles')
+      .select('id')
+      .eq('is_popular_override', true)
+      .then(({ data }) => {
+        if (data) setOverrideSet(new Set(data.map((r: { id: string }) => r.id)));
+      });
+  }, []);
 
   // Try to get precise user location once (fallback to selected city when unavailable)
   useEffect(() => {
@@ -869,6 +881,7 @@ export default function NewSearchView() {
               {profiles.map((profile) => {
                 const distFromBase = profile.distanceKm ?? null;
                 const isLiked = likedIds.has(profile.id);
+                const isPopular = overrideSet.has(profile.id);
                 const isLikeBursting = burstingLikeIds.has(profile.id);
                 const isLikePopping = poppingLikeIds.has(profile.id);
                 const likeBurstTick = likeBurstTicks[profile.id] ?? 0;
@@ -877,7 +890,7 @@ export default function NewSearchView() {
                   <div
                     key={profile.id}
                     onClick={() => router.push(`/profile/${profile.id}`)}
-                    className="profile-card glass rounded-[2rem] overflow-hidden relative group cursor-pointer"
+                    className={`profile-card glass rounded-[2rem] overflow-hidden relative group cursor-pointer ${isPopular ? 'popular-profile-card' : ''}`}
                   >
                     <div className="aspect-[3/4] w-full relative">
                       <img
@@ -886,6 +899,12 @@ export default function NewSearchView() {
                         className="w-full h-full object-cover"
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-[#07050f] via-[#07050f]/40 to-transparent"></div>
+                      {isPopular && (
+                        <>
+                          <div className="popular-profile-frame absolute inset-0 pointer-events-none z-[5]"></div>
+                          <div className="popular-profile-sheen absolute inset-0 pointer-events-none z-[4]"></div>
+                        </>
+                      )}
 
                       {/* Top badges */}
                       <div className="absolute top-4 left-4 right-4 flex justify-between items-center z-10">
@@ -893,7 +912,13 @@ export default function NewSearchView() {
                           <Sparkle className="text-fuchsia-400" size={14} weight="fill" />
                           <span className="text-xs font-semibold text-white">{profile.matchScore || 0}% Match</span>
                         </div>
-                        {profile.looking_for && (
+                        <div className="flex items-center gap-2">
+                          {isPopular && (
+                            <div className="popular-bolt-badge" title="Popularny profil">
+                              <Lightning size={13} weight="fill" className="popular-bolt-icon" />
+                            </div>
+                          )}
+                          {profile.looking_for && (
                           <div className={`bg-black/40 backdrop-blur-md px-3 py-1 rounded-full border flex items-center gap-1.5 ${
                             profile.looking_for === 'miłość'
                               ? 'border-pink-500/30 shadow-[0_0_10px_rgba(236,72,153,0.2)]'
@@ -905,35 +930,34 @@ export default function NewSearchView() {
                               {LOOKING_FOR_OPTIONS.find(opt => opt.value === profile.looking_for)?.label}
                             </span>
                           </div>
-                        )}
+                          )}
+                        </div>
                       </div>
 
-                      {/* Profile Info */}
-                      <div className="absolute bottom-0 left-0 w-full px-6 pt-4 pb-2 z-10">
-                        <div className="card-meta flex flex-col gap-2">
-                          <h2 className="text-2xl font-medium text-white">
-                            {profile.name}, {profile.age} lat
-                          </h2>
-                          <p className="text-sm text-cyan-400 flex items-center gap-1">
-                            <MapPin size={14} weight="fill" />
-                            {profile.city}
-                            {(baseCity || geoCoords) && distFromBase !== null && (
-                              <span className="text-cyan-400/60"> • {distFromBase} km stąd</span>
-                            )}
-                            {baseCity && profile.city === baseCity && (
-                              <span className="text-green-400/80"> • to miasto</span>
-                            )}
-                          </p>
+                      {/* Profile Info - slides up on hover */}
+                      <div className="absolute bottom-0 left-0 w-full pb-1 px-5 pt-2 z-10 transform transition-transform duration-300 ease-out group-hover:-translate-y-6">
+                        <div className="card-meta flex flex-col gap-2.5 relative z-10">
+                          <div>
+                            <h2 className="text-3xl font-medium text-white">
+                              {profile.name}, {profile.age} lat
+                            </h2>
+                            <div className="flex items-center gap-1.5 text-cyan-300/70 text-sm font-light">
+                              <MapPin size={14} weight="fill" className="text-cyan-400" />
+                              <span>{profile.city}</span>
+                              {(baseCity || geoCoords) && distFromBase !== null && (
+                                <span className="text-cyan-300/40"> • {distFromBase} km stąd</span>
+                              )}
+                              {baseCity && profile.city === baseCity && (
+                                <span className="text-green-400/70"> • to miasto</span>
+                              )}
+                            </div>
+                          </div>
 
-                          {/* Actions */}
-                          <div className="card-actions flex gap-3 mt-2 relative z-30">
+                          {/* Actions - hidden until hover */}
+                          <div className="card-actions flex gap-3 relative z-30 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                             <button
                               onClick={(e) => void toggleLike(e, profile.id)}
-                              className={`pointer-events-auto flex-1 backdrop-blur-md border py-2.5 rounded-xl flex items-center justify-center gap-2 transition-all ${
-                                isLiked
-                                  ? 'bg-red-500/20 border-red-400/50 text-red-400'
-                                  : 'bg-white/10 border-cyan-500/20 text-white hover:border-red-400/50 hover:text-red-400'
-                              }`}
+                              className="pointer-events-auto flex-1 bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 py-2.5 rounded-xl flex items-center justify-center gap-2 text-white transition-all hover:border-red-400/50 hover:text-red-400 group/btn"
                             >
                               <div className="relative inline-flex h-6 w-6 items-center justify-center overflow-visible">
                                 {isLikeBursting && (
@@ -958,7 +982,7 @@ export default function NewSearchView() {
                                   key={`search-heart-${profile.id}-${likePopTick}-${isLiked ? 'liked' : 'idle'}`}
                                   size={20}
                                   weight={isLiked ? 'fill' : 'regular'}
-                                  className={isLikePopping ? 'like-heart-core-pop' : ''}
+                                  className={`${isLiked ? 'text-red-400' : ''} ${isLikePopping ? 'like-heart-core-pop' : ''} group-hover/btn:scale-110 transition-transform`}
                                 />
                               </div>
                             </button>
