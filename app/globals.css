@@ -199,22 +199,22 @@ html, body {
 
 .card-actions { 
   opacity: 0; 
-  transform: translateY(14px); 
+  transform: translateY(16px); 
   transition: all 0.4s ease; 
 }
 
 .card-meta {
-  transform: translateY(14px);
+  transform: translateY(16px);
   transition: transform 0.4s ease;
 }
 
 .profile-card:hover .card-actions { 
   opacity: 1; 
-  transform: translateY(4px); 
+  transform: translateY(6px); 
 }
 
 .profile-card:hover .card-meta {
-  transform: translateY(-4px);
+  transform: translateY(-2px);
 }
 
 /* Gallery Hover Effects */

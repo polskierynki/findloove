@@ -811,7 +811,7 @@ export default function NewSearchView() {
                       </div>
 
                       {/* Profile Info */}
-                      <div className="absolute bottom-0 left-0 w-full px-6 pt-4 pb-3 z-10">
+                      <div className="absolute bottom-0 left-0 w-full px-6 pt-4 pb-2 z-10">
                         <div className="card-meta flex flex-col gap-2">
                           <h2 className="text-2xl font-medium text-white">
                             {profile.name}, {profile.age} lat
