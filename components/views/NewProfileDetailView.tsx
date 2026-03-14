@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 import {
@@ -92,6 +93,11 @@ const HEART_BURST_PARTICLES: HeartBurstParticle[] = [
   { x: -28, y: -2, delayMs: 50, sizePx: 10 },
   { x: -20, y: -20, delayMs: 20, sizePx: 11 },
 ];
+
+const DETAIL_HERO_IMAGE_SIZES = '(max-width: 1023px) calc(100vw - 3rem), 68vw';
+const DETAIL_GALLERY_FEATURED_SIZES = '(max-width: 1023px) 66vw, 24vw';
+const DETAIL_GALLERY_THUMB_SIZES = '(max-width: 1023px) 33vw, 12vw';
+const DETAIL_MODAL_IMAGE_SIZES = '100vw';
 
 function formatRelativeTime(timestamp: string): string {
   const ts = Date.parse(timestamp);
@@ -1370,7 +1376,23 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
   }, [isClient, isPhotoModalOpen]);
 
   if (loading) {
-    return <div className="pt-28 text-center text-cyan-400">Ładowanie profilu...</div>;
+    return (
+      <div className="relative z-10 pt-28 pb-16 px-6 lg:px-12 max-w-[2200px] mx-auto animate-pulse">
+        <div className="h-12 w-40 rounded-full bg-white/8 mb-8" />
+        <div className="grid lg:grid-cols-10 gap-8">
+          <aside className="lg:col-span-3 space-y-6">
+            <div className="glass rounded-[2rem] h-80 border border-white/10 bg-white/5" />
+            <div className="glass rounded-[2rem] h-72 border border-white/10 bg-white/5" />
+            <div className="glass rounded-[2rem] h-64 border border-white/10 bg-white/5" />
+          </aside>
+          <section className="lg:col-span-7 space-y-8">
+            <div className="glass rounded-[3rem] aspect-[3/4] md:aspect-[4/5] border border-white/10 bg-white/5" />
+            <div className="glass-panel mx-auto h-20 w-full max-w-lg rounded-full border border-white/10 bg-white/5" />
+            <div className="glass rounded-[2rem] h-72 border border-white/10 bg-white/5" />
+          </section>
+        </div>
+      </div>
+    );
   }
 
   if (!profile) {
@@ -1559,7 +1581,14 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
                   tabIndex={0}
                   className={`gallery-item relative aspect-square rounded-2xl cursor-pointer overflow-hidden ${i === 0 ? 'col-span-2 row-span-2' : ''}`}
                 >
-                  <img src={photo} alt={`Gallery ${i}`} className="w-full h-full object-cover" />
+                  <Image
+                    src={photo}
+                    alt={`${profile.name} - galeria ${i + 1}`}
+                    fill
+                    sizes={i === 0 ? DETAIL_GALLERY_FEATURED_SIZES : DETAIL_GALLERY_THUMB_SIZES}
+                    quality={70}
+                    className="object-cover"
+                  />
                   <span className="absolute right-2 bottom-2 w-7 h-7 rounded-full bg-black/50 border border-white/20 flex items-center justify-center text-cyan-300">
                     <Quotes size={14} weight="fill" />
                   </span>
@@ -1618,9 +1647,13 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
                         onClick={() => router.push(`/profile/${encodeURIComponent(friend.id)}`)}
                         className="w-full flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5 hover:bg-white/[0.06] hover:border-cyan-500/30 transition-colors text-left"
                       >
-                        <img
+                        <Image
                           src={friend.image_url || 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&q=80'}
                           alt={friend.name}
+                          width={36}
+                          height={36}
+                          sizes="36px"
+                          quality={64}
                           className="w-9 h-9 rounded-full object-cover border border-white/15 shrink-0"
                         />
                         <div className="min-w-0">
@@ -1672,9 +1705,13 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
                       </div>
                       {/* Avatar + content */}
                       <div className="flex gap-3 flex-1">
-                        <img
+                        <Image
                           src={comment.author.image || 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&q=80'}
                           alt={comment.author.name}
+                          width={32}
+                          height={32}
+                          sizes="32px"
+                          quality={64}
                           className="w-8 h-8 rounded-full object-cover shrink-0 border border-cyan-500/20 shadow-[0_0_6px_rgba(0,255,255,0.15)]"
                         />
                         <div className="flex-1 bg-white/[0.04] backdrop-blur-sm rounded-2xl rounded-tl-none px-4 py-2.5 border border-white/[0.07]">
@@ -1787,10 +1824,15 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
         <section className="lg:col-span-7 flex flex-col gap-8 relative">
           {/* Main Photo */}
           <div className={`relative w-full aspect-[3/4] md:aspect-[4/5] rounded-[3rem] p-1 bg-gradient-to-br ${isDetailPopular ? 'from-yellow-400/60 via-yellow-300/20 to-yellow-400/60' : 'from-cyan-500/40 via-white/5 to-fuchsia-500/40'} double-glow z-10 group overflow-hidden`}>
-            <img
+            <Image
               src={profile.image_url || 'https://images.unsplash.com/photo-1515372039744-b8f02a3ae446?w=1400&q=80'}
               alt={profile.name}
-              className="w-full h-full object-cover rounded-[2.8rem] shadow-inner relative z-10 transform transition-transform duration-1000 group-hover:scale-105"
+              fill
+              priority
+              fetchPriority="high"
+              sizes={DETAIL_HERO_IMAGE_SIZES}
+              quality={74}
+              className="object-cover rounded-[2.8rem] shadow-inner relative z-10 transform transition-transform duration-1000 group-hover:scale-105"
               onClick={() => openPhotoCommentModal(0)}
             />
             <div className="absolute inset-1 bg-gradient-to-t from-[#07050f] via-transparent to-transparent rounded-[2.8rem] z-20 pointer-events-none opacity-90 transition-opacity group-hover:opacity-70"></div>
@@ -2245,12 +2287,17 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
                 </>
               )}
 
-              <img
-                src={allPhotos[activePhotoIndex] || profile.image_url || 'https://images.unsplash.com/photo-1515372039744-b8f02a3ae446?w=1400&q=80'}
-                alt={`${profile.name} - foto ${activePhotoIndex + 1}`}
-                className="photo-modal-image max-h-full max-w-full object-contain rounded-2xl shadow-[0_20px_80px_rgba(0,0,0,0.7)]"
-                onClick={() => photoCommentInputRef.current?.focus()}
-              />
+              <div className="relative h-full w-full max-h-full max-w-full">
+                <Image
+                  src={allPhotos[activePhotoIndex] || profile.image_url || 'https://images.unsplash.com/photo-1515372039744-b8f02a3ae446?w=1400&q=80'}
+                  alt={`${profile.name} - foto ${activePhotoIndex + 1}`}
+                  fill
+                  sizes={DETAIL_MODAL_IMAGE_SIZES}
+                  quality={76}
+                  className="object-contain rounded-2xl shadow-[0_20px_80px_rgba(0,0,0,0.7)]"
+                  onClick={() => photoCommentInputRef.current?.focus()}
+                />
+              </div>
 
               <div className="absolute bottom-2 md:bottom-4 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-black/60 border border-white/15 text-xs text-white">
                 Zdjęcie {Math.min(activePhotoIndex + 1, Math.max(allPhotos.length, 1))} / {Math.max(allPhotos.length, 1)}
@@ -2278,9 +2325,13 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
 
                     return (
                     <div key={comment.id} className="flex gap-3">
-                      <img
+                      <Image
                         src={comment.author.image || 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&q=80'}
                         alt={comment.author.name}
+                        width={32}
+                        height={32}
+                        sizes="32px"
+                        quality={64}
                         className="w-8 h-8 rounded-full object-cover shrink-0 border border-white/10"
                       />
                       <div className="min-w-0 flex-1">
