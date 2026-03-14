@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Users, Activity, AlertTriangle, TrendingUp, MessageCircle, Eye, Ban, Check, X, Flag, Trash2, Plus, Minus, BadgeCheck, Camera, Zap } from 'lucide-react';
+import { Users, Activity, AlertTriangle, TrendingUp, MessageCircle, Eye, Ban, Check, X, Flag, Trash2, Plus, Minus, BadgeCheck, Camera, Zap, Coins, Send } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import FloatingBadgeTooltip from '@/components/ui/FloatingBadgeTooltip';
 
@@ -70,6 +70,13 @@ export default function NewAdminView() {
   const [verificationBusyId, setVerificationBusyId] = useState<string | null>(null);
   const [verificationError, setVerificationError] = useState<string | null>(null);
   const [verificationAdminNotes, setVerificationAdminNotes] = useState<Record<string, string>>({});
+
+  // Token grant
+  const [grantTargetId, setGrantTargetId] = useState('');
+  const [grantAmount, setGrantAmount] = useState('100');
+  const [grantReason, setGrantReason] = useState('');
+  const [grantBusy, setGrantBusy] = useState(false);
+  const [grantResult, setGrantResult] = useState<{ ok: boolean; message: string } | null>(null);
 
   // Stats
   const [stats, setStats] = useState({
@@ -555,6 +562,64 @@ export default function NewAdminView() {
       setStats((prev) => ({ ...prev, newReports: prev.newReports - 1 }));
     } catch (err) {
       console.error('Error dismissing report:', err);
+    }
+  };
+
+  const handleGrantTokens = async () => {
+    const targetId = grantTargetId.trim();
+    const amount = parseInt(grantAmount, 10);
+    const reason = grantReason.trim();
+
+    if (!targetId) {
+      setGrantResult({ ok: false, message: 'Wpisz ID profilu odbiorcy.' });
+      return;
+    }
+    if (!Number.isInteger(amount) || amount <= 0 || amount > 100000) {
+      setGrantResult({ ok: false, message: 'Kwota musi być liczbą całkowitą od 1 do 100 000.' });
+      return;
+    }
+
+    setGrantBusy(true);
+    setGrantResult(null);
+
+    try {
+      const token = await getAdminAccessToken();
+      if (!token) {
+        setGrantResult({ ok: false, message: 'Brak sesji admina.' });
+        return;
+      }
+
+      const response = await fetch('/api/admin/tokens/grant', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targetProfileId: targetId, amount, reason: reason || 'Doładowanie od admina' }),
+      });
+
+      const data = (await response.json().catch(() => ({}))) as {
+        ok?: boolean;
+        newBalance?: number;
+        tokensAdded?: number;
+        profileName?: string;
+        error?: string;
+      };
+
+      if (!response.ok || !data.ok) {
+        setGrantResult({ ok: false, message: data.error ?? 'Błąd wysyłania tokenów.' });
+        return;
+      }
+
+      setGrantResult({
+        ok: true,
+        message: `✅ Wysłano ${data.tokensAdded} tokenów do "${data.profileName ?? targetId}". Nowe saldo: ${data.newBalance}.`,
+      });
+      setGrantTargetId('');
+      setGrantAmount('100');
+      setGrantReason('');
+    } catch (err) {
+      console.error('Grant tokens error:', err);
+      setGrantResult({ ok: false, message: 'Błąd połączenia.' });
+    } finally {
+      setGrantBusy(false);
     }
   };
 
@@ -1053,6 +1118,113 @@ export default function NewAdminView() {
             })}
           </div>
         )}
+      </div>
+
+      {/* Token Grant Section */}
+      <div className="mt-8 glass rounded-2xl p-6 border border-fuchsia-500/25">
+        <h2 className="text-2xl font-light text-white mb-4 flex items-center gap-2">
+          <Coins size={20} className="text-fuchsia-400" />
+          Wyślij tokeny użytkownikowi
+        </h2>
+
+        <p className="text-sm text-white/50 mb-5">
+          Wpisz ID profilu odbiorcy, liczbę tokenów i powód. Operacja zostanie zalogowana i pojawi się w historii transakcji użytkownika.
+        </p>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+          <div className="md:col-span-1">
+            <label className="text-xs text-fuchsia-300/70 uppercase tracking-wider mb-1.5 block">ID profilu odbiorcy</label>
+            <input
+              type="text"
+              placeholder="uuid profilu..."
+              value={grantTargetId}
+              onChange={(e) => setGrantTargetId(e.target.value)}
+              className="w-full bg-black/30 border border-white/10 focus:border-fuchsia-400/50 rounded-xl px-4 py-2.5 text-sm text-white outline-none transition-all font-mono"
+              disabled={grantBusy}
+            />
+          </div>
+          <div>
+            <label className="text-xs text-fuchsia-300/70 uppercase tracking-wider mb-1.5 block">Liczba tokenów</label>
+            <div className="flex items-center gap-2">
+              {[50, 100, 500, 1000].map((preset) => (
+                <button
+                  key={preset}
+                  onClick={() => setGrantAmount(String(preset))}
+                  className={`text-xs px-2.5 py-1 rounded-lg border transition-colors ${
+                    grantAmount === String(preset)
+                      ? 'bg-fuchsia-500/30 border-fuchsia-500/50 text-fuchsia-200'
+                      : 'bg-white/5 border-white/10 text-white/50 hover:bg-white/10'
+                  }`}
+                  disabled={grantBusy}
+                >
+                  {preset}
+                </button>
+              ))}
+              <input
+                type="number"
+                min={1}
+                max={100000}
+                value={grantAmount}
+                onChange={(e) => setGrantAmount(e.target.value)}
+                className="w-24 bg-black/30 border border-white/10 focus:border-fuchsia-400/50 rounded-xl px-3 py-2 text-sm text-white outline-none text-center"
+                disabled={grantBusy}
+              />
+            </div>
+          </div>
+          <div>
+            <label className="text-xs text-fuchsia-300/70 uppercase tracking-wider mb-1.5 block">Powód / opis</label>
+            <input
+              type="text"
+              placeholder="np. Nagroda za aktywność"
+              value={grantReason}
+              onChange={(e) => setGrantReason(e.target.value)}
+              className="w-full bg-black/30 border border-white/10 focus:border-fuchsia-400/50 rounded-xl px-4 py-2.5 text-sm text-white outline-none transition-all"
+              disabled={grantBusy}
+            />
+          </div>
+        </div>
+
+        {grantResult && (
+          <div
+            className={`mb-4 rounded-xl px-4 py-2.5 text-sm border ${
+              grantResult.ok
+                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
+                : 'bg-red-500/10 border-red-500/30 text-red-300'
+            }`}
+          >
+            {grantResult.message}
+          </div>
+        )}
+
+        {/* User quick-pick from list */}
+        <div className="mb-4">
+          <p className="text-xs text-white/30 mb-2">Lub wybierz z listy użytkowników:</p>
+          <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
+            {users.slice(0, 20).map((u) => (
+              <button
+                key={u.id}
+                onClick={() => setGrantTargetId(u.id)}
+                className={`text-xs px-2.5 py-1 rounded-lg border transition-colors ${
+                  grantTargetId === u.id
+                    ? 'bg-fuchsia-500/30 border-fuchsia-500/50 text-fuchsia-200'
+                    : 'bg-white/5 border-white/10 text-white/60 hover:bg-white/10'
+                }`}
+                disabled={grantBusy}
+              >
+                {u.name || 'Bez nazwy'}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <button
+          onClick={() => void handleGrantTokens()}
+          disabled={grantBusy || !grantTargetId.trim()}
+          className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-fuchsia-500/20 border border-fuchsia-500/40 text-fuchsia-200 hover:bg-fuchsia-500/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium text-sm"
+        >
+          <Send size={15} />
+          {grantBusy ? 'Wysyłanie…' : `Wyślij ${grantAmount} tokenów`}
+        </button>
       </div>
 
       {selectedSelfiePreview && (

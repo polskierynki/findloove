@@ -35,6 +35,7 @@ import PremiumView from '@/components/views/PremiumView';
 import TermsView from '@/components/views/TermsView';
 import PrivacyView from '@/components/views/PrivacyView';
 import CookiesView from '@/components/views/CookiesView';
+import WalletView from '@/components/views/WalletView';
 
 const PREMIUM_LOCAL_STORAGE_KEY = 'zl_premium_demo';
 const PREMIUM_DEMO_DAYS = 30;
@@ -73,6 +74,7 @@ const ROUTABLE_APP_VIEWS: AppView[] = [
   'admin',
   'myprofile',
   'notifications',
+  'wallet',
 ];
 
 function isRoutableAppView(value: string | null): value is AppView {
@@ -95,6 +97,7 @@ const STATIC_PATH_TO_VIEW: Record<string, AppView> = {
   '/admin': 'admin',
   '/myprofile': 'myprofile',
   '/notifications': 'notifications',
+  '/wallet': 'wallet',
 };
 
 function normalizePathname(pathname: string): string {
@@ -888,6 +891,7 @@ export default function App() {
             {view === 'terms' && <TermsView onBack={() => setView('home')} />}
             {view === 'privacy' && <PrivacyView onBack={() => setView('home')} />}
             {view === 'cookies' && <CookiesView onBack={() => setView('home')} />}
+            {view === 'wallet' && <WalletView onNavigate={(v) => setView(v as AppView)} />}
           </>
         )}
       </section>

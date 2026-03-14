@@ -22,6 +22,7 @@ const HELP_TEXTS: Record<ViewType, string> = {
   terms: "Tu czytasz Regulamin portalu findloove.pl — zasady, które obowiązują wszystkich użytkowników. Ważne jest, aby je znać, aby korzystać bezpiecznie.",
   privacy: "To nasza Polityka Prywatności. Wyjaśniamy tutaj, jakie dane zbieramy, jak je chronimy i jakie masz prawa.",
   cookies: "Tutaj dowiesz się o cookies — małych plikach, które pomagają portalowi działać lepiej. Możesz zmienić swoje preferencje dotyczące cookies.",
+  wallet: "To Twój portfel z tokenami. Tutaj możesz sprawdzić saldo, kupić tokeny i przeglądać historię transakcji. Tokeny służą do wysyłania prezentów innym użytkownikom.",
 };
 
 export default function HelpOverlay({ currentView, onClose }: HelpOverlayProps) {

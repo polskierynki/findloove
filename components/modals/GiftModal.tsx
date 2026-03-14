@@ -30,6 +30,7 @@ interface GiftModalProps {
   gifts?: GiftOption[];
   sending?: boolean;
   errorMessage?: string | null;
+  onTopUp?: () => void;
 }
 
 const DEFAULT_GIFTS: GiftOption[] = VIRTUAL_GIFTS.map((gift) => ({
@@ -48,6 +49,7 @@ export default function GiftModal({
   gifts = DEFAULT_GIFTS,
   sending = false,
   errorMessage = null,
+  onTopUp,
 }: GiftModalProps) {
   const [selectedGift, setSelectedGift] = useState<string | null>(null);
   const [message, setMessage] = useState('');
@@ -164,10 +166,27 @@ export default function GiftModal({
             {/* Balance */}
             <div className="mb-5 flex items-center justify-between px-1">
               <span className="text-sm text-gray-400">Twoje saldo:</span>
-              <span className="flex items-center gap-1.5 font-medium text-white">
-                💰 {currentBalance.toLocaleString()}
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="flex items-center gap-1.5 font-medium text-white">
+                  💰 {currentBalance.toLocaleString()}
+                </span>
+                {onTopUp && (
+                  <button
+                    onClick={onTopUp}
+                    className="text-xs px-2.5 py-1 rounded-lg bg-amber-500/15 border border-amber-500/35 text-amber-300 hover:bg-amber-500/25 transition-colors"
+                  >
+                    + Doładuj
+                  </button>
+                )}
+              </div>
             </div>
+
+            {/* Low balance hint */}
+            {onTopUp && currentBalance < Math.min(...gifts.map((g) => g.price)) && (
+              <p className="mb-4 text-center text-xs text-amber-300/80">
+                Niewystarczające saldo. <button onClick={onTopUp} className="underline hover:text-amber-200 transition-colors">Doładuj konto</button>, aby wysłać prezent.
+              </p>
+            )}
 
             {errorMessage && (
               <p className="mb-4 text-center text-xs text-red-300">{errorMessage}</p>

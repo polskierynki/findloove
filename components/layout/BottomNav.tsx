@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Home, MessageCircle, HeartHandshake, User, Search, Users } from 'lucide-react';
+import { Home, MessageCircle, HeartHandshake, User, Search, Users, Coins } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { resolveProfileIdForAuthUser } from '@/lib/profileAuth';
@@ -19,6 +19,7 @@ const NAV_ITEMS: { id: ViewType | 'myprofile'; icon: React.ReactNode; label: str
   { id: 'discover', icon: <HeartHandshake size={22} />, label: 'Randki', path: '/discover' },
   { id: 'search', icon: <Search size={20} />, label: 'Szukaj', path: '/search' },
   { id: 'messages', icon: <MessageCircle size={22} />, label: 'Poczta', path: '/messages' },
+  { id: 'wallet', icon: <Coins size={20} />, label: 'Portfel', path: '/wallet' },
   { id: 'friends', icon: <Users size={20} />, label: 'Znajomi', path: '/friends' },
   { id: 'myprofile', icon: <User size={22} />, label: 'Profil', path: '/myprofile' },
 ];

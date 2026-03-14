@@ -189,6 +189,13 @@ export default function RegisterView({ onBack, onComplete }: RegisterViewProps) 
       if (profileError) {
         console.error('Nie udalo sie zapisac profilu po rejestracji:', profileError.message);
       }
+
+      // Grant welcome bonus tokens (idempotent RPC — safe to call again if already received)
+      try {
+        await supabase.rpc('grant_welcome_bonus', { p_profile_id: uid });
+      } catch (bonusErr) {
+        console.error('Nie udalo sie przyznac bonusu powitalnego:', bonusErr);
+      }
     }
 
     setLoading(false);

@@ -11,7 +11,8 @@ export type ViewType =
   | 'register'
   | 'terms'
   | 'privacy'
-  | 'cookies';
+  | 'cookies'
+  | 'wallet';
 
 // App-level views include internal/admin screens that are not part of public nav contracts.
 export type AppView = ViewType | 'admin' | 'myprofile' | 'notifications';

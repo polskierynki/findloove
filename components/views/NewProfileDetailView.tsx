@@ -2040,10 +2040,8 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
                         {zodiacLabel && (
                           <div className="flex items-center justify-between gap-3 text-sm">
                             <span className="text-white/65">Zodiak</span>
-                            <span className="text-white font-medium inline-flex items-center gap-2">
-                              <span className="inline-flex items-center justify-center w-6 h-6 rounded-full border border-white/20 bg-black/45">
-                                <span className={zodiacColorClass}>{zodiacSymbol}</span>
-                              </span>
+                            <span className="text-white font-medium inline-flex items-center gap-1.5">
+                              <span className={zodiacColorClass}>{zodiacSymbol}</span>
                               {zodiacDisplayValue}
                             </span>
                           </div>
@@ -2408,6 +2406,10 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
       currentBalance={giftBalance}
       sending={giftSending}
       errorMessage={giftError}
+      onTopUp={() => {
+        setIsGiftModalOpen(false);
+        router.push('/wallet');
+      }}
     />
 
     {/* Report Comment Modal */}
