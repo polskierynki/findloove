@@ -308,7 +308,7 @@ export default function NewHomeView() {
     const loadPopularitySignals = async () => {
       const windowStartIso = new Date(Date.now() - POPULARITY_WINDOW_DAYS * 86400000).toISOString();
 
-      const [likesResponse, requesterResponse, addresseeResponse] = await Promise.all([
+      const [likesResponse, requesterResponse, addresseeResponse, overrideResponse] = await Promise.all([
         supabase
           .from('likes')
           .select('to_profile_id')
@@ -326,6 +326,11 @@ export default function NewHomeView() {
           .eq('status', 'accepted')
           .in('addressee_id', profileIds)
           .gte('updated_at', windowStartIso),
+        supabase
+          .from('profiles')
+          .select('id')
+          .in('id', profileIds)
+          .eq('is_popular_override', true),
       ]);
 
       if (likesResponse.error || requesterResponse.error || addresseeResponse.error) {
@@ -335,6 +340,10 @@ export default function NewHomeView() {
         }
         return;
       }
+
+      const overrideSet = new Set<string>(
+        ((overrideResponse.data as { id: string }[] | null) || []).map((r) => r.id)
+      );
 
       const likesCount = new Map<string, number>();
       for (const row of ((likesResponse.data as LikePopularityRow[] | null) || [])) {
@@ -367,9 +376,10 @@ export default function NewHomeView() {
         });
 
         const isPopular =
-          score >= POPULARITY_SCORE_THRESHOLD
-          && likesReceived >= POPULARITY_MIN_LIKES
-          && acceptedFriendships >= POPULARITY_MIN_ACCEPTED_FRIENDSHIPS;
+          overrideSet.has(profileId)
+          || (score >= POPULARITY_SCORE_THRESHOLD
+            && likesReceived >= POPULARITY_MIN_LIKES
+            && acceptedFriendships >= POPULARITY_MIN_ACCEPTED_FRIENDSHIPS);
 
         nextPopularityMap[profileId] = {
           score,

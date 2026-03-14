@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Users, Activity, AlertTriangle, TrendingUp, MessageCircle, Eye, Ban, Check, X, Flag, Trash2, Plus, Minus, BadgeCheck, Camera } from 'lucide-react';
+import { Users, Activity, AlertTriangle, TrendingUp, MessageCircle, Eye, Ban, Check, X, Flag, Trash2, Plus, Minus, BadgeCheck, Camera, Zap } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
 interface User {
@@ -14,6 +14,7 @@ interface User {
   city: string;
   strikes: number;
   isBanned: boolean;
+  isPopularOverride: boolean;
 }
 
 interface CommentReport {
@@ -176,7 +177,7 @@ export default function NewAdminView() {
       // Fetch users
       const { data: usersData } = await supabase
         .from('profiles')
-        .select('id, name, image_url, created_at, status, city, strikes')
+        .select('id, name, image_url, created_at, status, city, strikes, is_popular_override')
         .order('created_at', { ascending: false })
         .limit(20);
 
@@ -189,6 +190,7 @@ export default function NewAdminView() {
         city: u.city,
         strikes: u.strikes ?? 0,
         isBanned: u.status === 'banned',
+        isPopularOverride: Boolean((u as { is_popular_override?: boolean | null }).is_popular_override),
       }));
 
       setUsers(mappedUsers);
@@ -329,6 +331,36 @@ export default function NewAdminView() {
     }
 
     await handleBanUser(user.id);
+  };
+
+  const handleTogglePopularOverride = async (userId: string) => {
+    const user = users.find((u) => u.id === userId);
+    if (!user) return;
+
+    const nextValue = !user.isPopularOverride;
+
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ is_popular_override: nextValue })
+        .eq('id', userId);
+
+      if (error) {
+        const lowerMsg = error.message.toLowerCase();
+        if (lowerMsg.includes('is_popular_override') || lowerMsg.includes('column')) {
+          alert('Brak kolumny is_popular_override. Uruchom migracje: supabase/popularity_override_migration.sql');
+        } else {
+          alert(`Blad: ${error.message}`);
+        }
+        return;
+      }
+
+      setUsers((prev) =>
+        prev.map((u) => (u.id === userId ? { ...u, isPopularOverride: nextValue } : u))
+      );
+    } catch (err) {
+      console.error('Error toggling popularity override:', err);
+    }
   };
 
   // Ręczna korekta liczby strajków (+1 lub -1)
@@ -571,6 +603,17 @@ export default function NewAdminView() {
                           className="w-8 h-8 rounded-lg bg-white/10 hover:bg-blue-500/20 flex items-center justify-center text-blue-400 transition-colors"
                         >
                           <Eye size={16} />
+                        </button>
+                        <button
+                          title={user.isPopularOverride ? 'Wylacz popularnosc' : 'Wlacz popularnosc (test)'}
+                          onClick={() => void handleTogglePopularOverride(user.id)}
+                          className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
+                            user.isPopularOverride
+                              ? 'bg-yellow-400/25 border border-yellow-400/50 text-yellow-300 hover:bg-yellow-400/35'
+                              : 'bg-white/10 hover:bg-yellow-400/20 border border-white/10 hover:border-yellow-400/40 text-white/30 hover:text-yellow-300'
+                          }`}
+                        >
+                          <Zap size={15} fill={user.isPopularOverride ? 'currentColor' : 'none'} />
                         </button>
                         {user.isBanned ? (
                           <button
