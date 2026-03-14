@@ -578,6 +578,7 @@ body.photo-modal-open nav[data-app-nav='bottom'] {
     background: rgba(4, 6, 16, 0.98);
     overflow: hidden;
     overscroll-behavior: none;
+    touch-action: pan-y;
   }
 
   @supports (height: 100dvh) {
@@ -589,6 +590,7 @@ body.photo-modal-open nav[data-app-nav='bottom'] {
   .mobile-chat-panel .mobile-chat-messages {
     overscroll-behavior: contain;
     -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
   }
 }
 

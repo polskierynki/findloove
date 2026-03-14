@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { supabase } from '@/lib/supabase';
 import type { Session } from '@supabase/supabase-js';
@@ -145,9 +145,10 @@ function getPathForView(view: AppView, profileId?: string | null): string {
 
 export default function App() {
   const router = useRouter();
+  const pathname = usePathname();
+  const initialPathname = normalizePathname(pathname || '/');
   const [view, setView] = useState<AppView>(() => {
-    if (typeof window === 'undefined') return 'home';
-    return getViewFromPathname(window.location.pathname) ?? 'home';
+    return getViewFromPathname(initialPathname) ?? 'home';
   });
   const [showAdminDashboard, setShowAdminDashboard] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -165,19 +166,21 @@ export default function App() {
   const adminProfileId = '00000000-0000-0000-0000-000000000001';
   const isAdminRef = useRef(false);
   const applyingUrlStateRef = useRef(false);
+  const locationReadyRef = useRef(false);
   const [discoverIndex, setDiscoverIndex] = useState(0);
   const [notification, setNotification] = useState<string | null>(null);
   const [chatOpen, setChatOpen] = useState(false);
   const [searchLookingFor, setSearchLookingFor] = useState<LookingForCategory | undefined>(undefined);
   const [showPremiumView, setShowPremiumView] = useState(false);
   const [showCompletionModal, setShowCompletionModal] = useState(false);
-  const [urlPathname, setUrlPathname] = useState('/');
-  const [urlSearch, setUrlSearch] = useState('');
+  const [urlPathname, setUrlPathname] = useState(initialPathname);
+  const [urlSearch, setUrlSearch] = useState(() => (typeof window === 'undefined' ? '' : window.location.search));
   const hideGuestModalOnAuthViews = view === 'auth' || view === 'register';
 
   // Track browser URL updates (initial load + back/forward).
   useEffect(() => {
     const syncLocation = () => {
+      locationReadyRef.current = true;
       setUrlPathname(normalizePathname(window.location.pathname));
       setUrlSearch(window.location.search);
     };
@@ -351,6 +354,8 @@ export default function App() {
 
   // Read URL state (path/query) and one-time actions (password reset success).
   useEffect(() => {
+    if (!locationReadyRef.current) return;
+
     const searchParams = new URLSearchParams(urlSearch);
     const legacyViewParam = searchParams.get('view');
     const legacyProfileIdParam = searchParams.get('id');
@@ -451,6 +456,8 @@ export default function App() {
 
   // Keep URL in sync with current in-app view so tabs/profiles are shareable.
   useEffect(() => {
+    if (!locationReadyRef.current) return;
+
     const viewFromPath = getViewFromPathname(urlPathname);
     const searchParams = new URLSearchParams(urlSearch);
     const viewFromQuery = searchParams.get('view');

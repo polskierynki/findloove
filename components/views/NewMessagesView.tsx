@@ -56,6 +56,7 @@ export default function NewMessagesView() {
   const [chatError, setChatError] = useState<string | null>(null);
   const [showMessageEmojiPicker, setShowMessageEmojiPicker] = useState(false);
   const [showMobileActionsMenu, setShowMobileActionsMenu] = useState(false);
+  const [mobileKeyboardOffset, setMobileKeyboardOffset] = useState(0);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messageInputRef = useRef<HTMLInputElement>(null);
@@ -149,6 +150,34 @@ export default function NewMessagesView() {
       body.style.width = prevBodyWidth;
       body.style.overscrollBehavior = prevBodyOverscroll;
       window.scrollTo(0, scrollY);
+    };
+  }, [isMobileChatOpen]);
+
+  // Move composer above virtual keyboard on mobile browsers.
+  useEffect(() => {
+    if (!isMobileChatOpen) {
+      setMobileKeyboardOffset(0);
+      return;
+    }
+    if (typeof window === 'undefined') return;
+    if (!window.matchMedia('(max-width: 767px)').matches) return;
+
+    const viewport = window.visualViewport;
+    if (!viewport) return;
+
+    const updateKeyboardOffset = () => {
+      const offset = Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop);
+      setMobileKeyboardOffset(Math.round(offset));
+    };
+
+    updateKeyboardOffset();
+    viewport.addEventListener('resize', updateKeyboardOffset);
+    viewport.addEventListener('scroll', updateKeyboardOffset);
+
+    return () => {
+      viewport.removeEventListener('resize', updateKeyboardOffset);
+      viewport.removeEventListener('scroll', updateKeyboardOffset);
+      setMobileKeyboardOffset(0);
     };
   }, [isMobileChatOpen]);
 
@@ -904,7 +933,7 @@ export default function NewMessagesView() {
         {/* Right Column: Chat Window */}
         <div
           className={`flex-1 flex-col bg-black/10 relative min-h-0 ${
-            selectedProfile ? 'flex mobile-chat-panel' : 'hidden md:flex'
+            selectedProfile ? 'flex mobile-chat-panel overflow-x-hidden' : 'hidden md:flex'
           }`}
         >
           {selectedProfile ? (
@@ -1014,7 +1043,7 @@ export default function NewMessagesView() {
               </div>
 
               {/* Messages */}
-              <div ref={messagesContainerRef} className="mobile-chat-messages flex-1 min-h-0 overflow-y-auto custom-scrollbar p-3 md:p-8 space-y-2 md:space-y-6">
+              <div ref={messagesContainerRef} className="mobile-chat-messages flex-1 min-h-0 overflow-y-auto overflow-x-hidden custom-scrollbar p-3 md:p-8 space-y-2 md:space-y-6">
                 {messages.length === 0 ? (
                   <div className="flex items-center justify-center h-full text-cyan-400/60">
                     <p>Brak wiadomości - napisz coś!</p>
@@ -1030,7 +1059,7 @@ export default function NewMessagesView() {
                     return (
                       <div key={msg.id} className={`flex ${isFromMe ? 'justify-end' : 'justify-start'}`}>
                         <div className={`max-w-[85%] md:max-w-[70%] px-3 py-2 md:p-4 rounded-2xl md:rounded-3xl text-sm ${isFromMe ? 'chat-bubble-me' : 'chat-bubble-them'} shadow-lg`}>
-                          <p className="text-white leading-relaxed">{msg.content}</p>
+                          <p className="text-white leading-relaxed break-words">{msg.content}</p>
                           <p className={`text-[10px] md:text-xs mt-1 ${isFromMe ? 'text-cyan-200/60' : 'text-white/60'}`}>
                             {msgTime}
                           </p>
@@ -1043,7 +1072,14 @@ export default function NewMessagesView() {
               </div>
 
               {/* Chat Input */}
-              <div className="shrink-0 px-3 pt-2 pb-safe md:p-6 border-t border-white/5 bg-black/20 backdrop-blur-sm">
+              <div
+                className="shrink-0 px-3 pt-2 pb-safe md:p-6 border-t border-white/5 bg-black/20 backdrop-blur-sm"
+                style={
+                  mobileKeyboardOffset > 0
+                    ? { paddingBottom: `calc(env(safe-area-inset-bottom, 0px) + ${mobileKeyboardOffset}px)` }
+                    : undefined
+                }
+              >
                 {chatError && (
                   <p className="mb-3 text-sm text-red-300">{chatError}</p>
                 )}
