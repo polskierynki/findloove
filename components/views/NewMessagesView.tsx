@@ -69,6 +69,7 @@ export default function NewMessagesView() {
     () => (identityIds.length > 0 ? identityIds.join('_') : 'none'),
     [identityIds],
   );
+  const isMobileChatOpen = Boolean(selectedProfile);
 
   // Read direct-chat target from URL without coupling hydration to search params.
   useEffect(() => {
@@ -104,6 +105,49 @@ export default function NewMessagesView() {
       window.removeEventListener('focus', readTargetFromLocation);
     };
   }, []);
+
+    // Lock background scroll on mobile while conversation panel is open.
+    useEffect(() => {
+      if (!isMobileChatOpen) return;
+      if (typeof window === 'undefined') return;
+      if (!window.matchMedia('(max-width: 767px)').matches) return;
+
+      const html = document.documentElement;
+      const body = document.body;
+      const scrollY = window.scrollY;
+
+      const prevHtmlOverflow = html.style.overflow;
+      const prevBodyOverflow = body.style.overflow;
+      const prevBodyPosition = body.style.position;
+      const prevBodyTop = body.style.top;
+      const prevBodyLeft = body.style.left;
+      const prevBodyRight = body.style.right;
+      const prevBodyWidth = body.style.width;
+      const prevBodyOverscroll = body.style.overscrollBehavior;
+
+      html.classList.add('mobile-chat-open');
+      html.style.overflow = 'hidden';
+      body.style.overflow = 'hidden';
+      body.style.position = 'fixed';
+      body.style.top = `-${scrollY}px`;
+      body.style.left = '0';
+      body.style.right = '0';
+      body.style.width = '100%';
+      body.style.overscrollBehavior = 'none';
+
+      return () => {
+        html.classList.remove('mobile-chat-open');
+        html.style.overflow = prevHtmlOverflow;
+        body.style.overflow = prevBodyOverflow;
+        body.style.position = prevBodyPosition;
+        body.style.top = prevBodyTop;
+        body.style.left = prevBodyLeft;
+        body.style.right = prevBodyRight;
+        body.style.width = prevBodyWidth;
+        body.style.overscrollBehavior = prevBodyOverscroll;
+        window.scrollTo(0, scrollY);
+      };
+    }, [isMobileChatOpen]);
 
   // Get current user
   useEffect(() => {
@@ -820,12 +864,16 @@ export default function NewMessagesView() {
         </div>
 
         {/* Right Column: Chat Window */}
-        <div className={`flex-1 flex-col bg-black/10 relative ${selectedProfile ? 'flex' : 'hidden md:flex'}`}>
+        <div
+          className={`flex-1 flex-col bg-black/10 relative min-h-0 ${
+            selectedProfile ? 'flex mobile-chat-panel' : 'hidden md:flex'
+          }`}
+        >
           {selectedProfile ? (
             <>
               {/* Chat Header with Action Icons */}
-              <div className="h-14 md:h-20 border-b border-white/5 flex items-center justify-between px-4 md:px-8 bg-black/20 backdrop-blur-sm z-10">
-                <div className="flex items-center gap-4">
+              <div className="h-14 md:h-20 shrink-0 pt-safe md:pt-0 border-b border-white/5 flex items-center justify-between px-4 md:px-8 bg-black/20 backdrop-blur-sm z-10">
+                <div className="flex items-center gap-3 md:gap-4 min-w-0">
                   <button
                     onClick={() => setSelectedProfile(null)}
                     className="md:hidden p-2 rounded-lg bg-white/5 border border-white/10 text-cyan-300 hover:bg-white/10"
@@ -842,14 +890,14 @@ export default function NewMessagesView() {
                       className="object-cover"
                     />
                   </div>
-                  <div>
-                    <h3 className="text-base md:text-lg font-medium text-white leading-tight">{selectedProfile.name}</h3>
+                  <div className="min-w-0">
+                    <h3 className="text-base md:text-lg font-medium text-white leading-tight truncate">{selectedProfile.name}</h3>
                     <p className="text-xs text-cyan-500/60 hidden md:block">Konwersacja</p>
                   </div>
                 </div>
 
                 {/* Action Icons */}
-                <div className="flex items-center gap-1 md:gap-2">
+                <div className="flex items-center gap-1 md:gap-2 shrink-0">
                   <button
                     onClick={handleReportUser}
                     title="Zgłoś użytkownika"
@@ -875,7 +923,7 @@ export default function NewMessagesView() {
               </div>
 
               {/* Messages */}
-              <div ref={messagesContainerRef} className="flex-1 overflow-y-auto custom-scrollbar p-3 md:p-8 space-y-2 md:space-y-6">
+              <div ref={messagesContainerRef} className="mobile-chat-messages flex-1 min-h-0 overflow-y-auto custom-scrollbar p-3 md:p-8 space-y-2 md:space-y-6">
                 {messages.length === 0 ? (
                   <div className="flex items-center justify-center h-full text-cyan-400/60">
                     <p>Brak wiadomości - napisz coś!</p>
@@ -904,7 +952,7 @@ export default function NewMessagesView() {
               </div>
 
               {/* Chat Input */}
-              <div className="p-3 md:p-6 border-t border-white/5 bg-black/20 backdrop-blur-sm pb-safe">
+              <div className="shrink-0 p-3 md:p-6 border-t border-white/5 bg-black/20 backdrop-blur-sm pb-safe">
                 {chatError && (
                   <p className="mb-3 text-sm text-red-300">{chatError}</p>
                 )}
@@ -928,6 +976,17 @@ export default function NewMessagesView() {
                     }}
                     onBlur={() => {
                       window.setTimeout(() => setMessageSuggestions([]), 120);
+                    }}
+                    onFocus={() => {
+                      window.setTimeout(() => {
+                        const container = messagesContainerRef.current;
+                        if (!container) return;
+
+                        container.scrollTo({
+                          top: container.scrollHeight,
+                          behavior: 'smooth',
+                        });
+                      }, 140);
                     }}
                     className="flex-1 bg-transparent border-none text-white text-sm px-4 outline-none"
                   />
