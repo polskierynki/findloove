@@ -24,6 +24,7 @@ import {
 import { supabase } from '@/lib/supabase';
 import { uploadProfilePhoto } from '@/lib/photoUpload';
 import { POLISH_CITIES, ZODIAC_SIGNS, ALL_INTERESTS, DRINKING_OPTIONS, PETS_OPTIONS, SEXUAL_ORIENTATION_OPTIONS, LOOKING_FOR_OPTIONS } from './constants/profileFormOptions';
+import { FaceVerificationModal } from './FaceVerificationModal';
 import type { Profile } from '@/lib/types';
 
 const MAX_GALLERY_PHOTOS = 9;
@@ -41,9 +42,23 @@ type EditableProfile = Profile & {
   sexual_orientation?: string | null;
   looking_for?: string | null;
   is_blocked?: boolean;
+  is_verified?: boolean;
+  verification_pending?: boolean;
   suspended_at?: string | null;
   deletion_requested_at?: string | null;
   deletion_scheduled_at?: string | null;
+};
+
+type VerificationRequestStatus = 'pending_ai' | 'pending_admin' | 'approved' | 'rejected';
+
+type VerificationSnapshot = {
+  id: string;
+  status: VerificationRequestStatus;
+  aiScore: number | null;
+  aiReason: string | null;
+  adminNote: string | null;
+  createdAt: string;
+  reviewedAt: string | null;
 };
 
 type PhotoCommentSyncRow = {
@@ -79,10 +94,99 @@ export default function NewMyProfileView() {
   const [lookingFor, setLookingFor] = useState('');
   const [interests, setInterests] = useState<string[]>([]);
   const [selectedInterest, setSelectedInterest] = useState('');
+  const [verificationModalOpen, setVerificationModalOpen] = useState(false);
+  const [verificationSubmitting, setVerificationSubmitting] = useState(false);
+  const [verificationFeedback, setVerificationFeedback] = useState<string | null>(null);
+  const [verificationError, setVerificationError] = useState<string | null>(null);
+  const [verificationSetupMessage, setVerificationSetupMessage] = useState<string | null>(null);
+  const [verificationSnapshot, setVerificationSnapshot] = useState<VerificationSnapshot | null>(null);
 
   useEffect(() => {
-    loadProfile();
+    void loadProfile();
   }, []);
+
+  const getAccessToken = async (): Promise<string | null> => {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    return session?.access_token || null;
+  };
+
+  const loadVerificationStatus = async (profileId: string) => {
+    try {
+      const token = await getAccessToken();
+      if (!token) {
+        setVerificationSetupMessage('Brak aktywnej sesji. Zaloguj sie ponownie.');
+        return;
+      }
+
+      const response = await fetch('/api/verification/status', {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const payload = (await response.json().catch(() => ({}))) as {
+        error?: string;
+        setupRequired?: boolean;
+        setupMessage?: string;
+        isVerified?: boolean;
+        verificationPending?: boolean;
+        request?: {
+          id: string;
+          status: VerificationRequestStatus;
+          aiScore: number | null;
+          aiReason: string | null;
+          adminNote: string | null;
+          createdAt: string;
+          reviewedAt: string | null;
+        } | null;
+      };
+
+      if (!response.ok) {
+        setVerificationError(payload.error || 'Nie udalo sie pobrac statusu weryfikacji.');
+        return;
+      }
+
+      if (payload.setupRequired) {
+        setVerificationSetupMessage(
+          payload.setupMessage || 'Weryfikacja selfie wymaga uruchomienia migracji SQL.',
+        );
+      } else {
+        setVerificationSetupMessage(null);
+      }
+
+      setVerificationSnapshot(payload.request || null);
+
+      if (typeof payload.isVerified === 'boolean' || typeof payload.verificationPending === 'boolean') {
+        setProfile((prev) => {
+          if (!prev || prev.id !== profileId) return prev;
+
+          const nextVerified =
+            typeof payload.isVerified === 'boolean'
+              ? payload.isVerified
+              : Boolean(prev.is_verified || prev.isVerified);
+          const nextPending =
+            typeof payload.verificationPending === 'boolean'
+              ? payload.verificationPending
+              : Boolean(prev.verification_pending || prev.verificationPending);
+
+          return {
+            ...prev,
+            is_verified: nextVerified,
+            verification_pending: nextPending,
+            isVerified: nextVerified,
+            verificationPending: nextPending,
+          };
+        });
+      }
+    } catch (error) {
+      console.error('Error loading verification status:', error);
+      setVerificationError('Nie udalo sie pobrac statusu weryfikacji selfie.');
+    }
+  };
 
   const loadProfile = async () => {
     try {
@@ -107,7 +211,19 @@ export default function NewMyProfileView() {
       }
 
       if (prof) {
-        setProfile(prof as EditableProfile);
+        const normalizedProfile = {
+          ...(prof as EditableProfile),
+          is_verified: Boolean((prof as { is_verified?: boolean | null }).is_verified),
+          verification_pending: Boolean(
+            (prof as { verification_pending?: boolean | null }).verification_pending,
+          ),
+          isVerified: Boolean((prof as { is_verified?: boolean | null }).is_verified),
+          verificationPending: Boolean(
+            (prof as { verification_pending?: boolean | null }).verification_pending,
+          ),
+        } as EditableProfile;
+
+        setProfile(normalizedProfile);
         setName(prof.name || '');
         setAge(prof.age || 18);
         setOccupation(prof.occupation || '');
@@ -120,6 +236,8 @@ export default function NewMyProfileView() {
         setSexualOrientation(prof.sexual_orientation || '');
         setLookingFor(prof.looking_for || '');
         setInterests(prof.interests || []);
+
+        await loadVerificationStatus(normalizedProfile.id);
       }
     } catch (err) {
       console.error('Error in loadProfile:', err);
@@ -674,7 +792,51 @@ export default function NewMyProfileView() {
   };
 
   const handleDiscard = () => {
-    loadProfile();
+    void loadProfile();
+  };
+
+  const handleSubmitVerificationSelfie = async (photoDataUrl: string) => {
+    if (!profile) {
+      throw new Error('Brak profilu do weryfikacji.');
+    }
+
+    setVerificationError(null);
+    setVerificationFeedback(null);
+    setVerificationSubmitting(true);
+
+    try {
+      const token = await getAccessToken();
+      if (!token) {
+        throw new Error('Brak aktywnej sesji. Zaloguj sie ponownie.');
+      }
+
+      const response = await fetch('/api/verification/submit', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ imageData: photoDataUrl }),
+      });
+
+      const payload = (await response.json().catch(() => ({}))) as {
+        error?: string;
+        message?: string;
+      };
+
+      if (!response.ok) {
+        throw new Error(payload.error || 'Nie udalo sie wyslac selfie do weryfikacji.');
+      }
+
+      setVerificationFeedback(payload.message || 'Selfie zostalo wyslane do weryfikacji.');
+      await loadVerificationStatus(profile.id);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Weryfikacja nie powiodla sie.';
+      setVerificationError(message);
+      throw error;
+    } finally {
+      setVerificationSubmitting(false);
+    }
   };
 
   if (loading) {
@@ -702,9 +864,24 @@ export default function NewMyProfileView() {
   const isBlocked = Boolean(profile.is_blocked);
   const isSuspendedOnly = isBlocked && !hasDeletionRequest;
   const isBusy = Boolean(accountActionLoading);
+  const isVerified = Boolean(profile.is_verified || profile.isVerified);
+  const isVerificationPending =
+    Boolean(profile.verification_pending || profile.verificationPending)
+    || verificationSnapshot?.status === 'pending_admin'
+    || verificationSnapshot?.status === 'pending_ai';
+  const canStartVerification = !isVerified && !isVerificationPending && !verificationSubmitting;
+
+  const verificationStatusLabel = isVerified
+    ? 'Zweryfikowany'
+    : isVerificationPending
+    ? 'Weryfikacja w toku'
+    : verificationSnapshot?.status === 'rejected'
+    ? 'Odrzucona'
+    : 'Niezweryfikowany';
 
   return (
-    <main className="relative z-10 pt-28 pb-16 px-6 lg:px-12 max-w-[2200px] mx-auto">
+    <>
+      <main className="relative z-10 pt-28 pb-16 px-6 lg:px-12 max-w-[2200px] mx-auto">
       <div className="mb-8 relative">
         <h1 className="text-4xl font-light text-white">
           Edycja <span className="text-gradient font-medium">Profilu</span>
@@ -1168,6 +1345,87 @@ export default function NewMyProfileView() {
         </div>
       </div>
 
+      <div className="mt-10 glass rounded-2xl p-6 border border-amber-500/30 flex flex-col gap-4">
+        <div>
+          <p className="text-xs uppercase tracking-wider text-amber-200/75 mb-1">Weryfikacja tozsamosci</p>
+          <h2 className="text-2xl text-white font-light">Selfie + decyzja moderatora</h2>
+          <p className="text-amber-100/75 mt-2 text-sm">
+            Wysylasz selfie, system liczy score SI i przekazuje wniosek do akceptacji admina.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+          <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2">
+            <p className="text-white/55">Status</p>
+            <p className="text-white mt-1">{verificationStatusLabel}</p>
+          </div>
+          <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2">
+            <p className="text-white/55">Score SI</p>
+            <p className="text-white mt-1">
+              {typeof verificationSnapshot?.aiScore === 'number'
+                ? `${Math.round(verificationSnapshot.aiScore * 100)} / 100`
+                : 'Brak danych'}
+            </p>
+          </div>
+          <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2">
+            <p className="text-white/55">Ostatnia decyzja</p>
+            <p className="text-white mt-1">
+              {verificationSnapshot?.reviewedAt
+                ? new Date(verificationSnapshot.reviewedAt).toLocaleString('pl-PL')
+                : 'Brak'}
+            </p>
+          </div>
+        </div>
+
+        {verificationSnapshot?.aiReason && (
+          <p className="text-xs text-amber-100/80 rounded-xl border border-amber-500/25 bg-amber-500/10 px-3 py-2">
+            Ocena SI: {verificationSnapshot.aiReason}
+          </p>
+        )}
+
+        {verificationSnapshot?.adminNote && (
+          <p className="text-xs text-cyan-100/80 rounded-xl border border-cyan-500/25 bg-cyan-500/10 px-3 py-2">
+            Notatka moderatora: {verificationSnapshot.adminNote}
+          </p>
+        )}
+
+        {verificationSetupMessage && (
+          <p className="text-xs text-rose-100/90 rounded-xl border border-rose-500/35 bg-rose-500/10 px-3 py-2">
+            {verificationSetupMessage}
+          </p>
+        )}
+
+        {verificationError && (
+          <p className="text-xs text-rose-100/90 rounded-xl border border-rose-500/35 bg-rose-500/10 px-3 py-2">
+            {verificationError}
+          </p>
+        )}
+
+        {verificationFeedback && (
+          <p className="text-xs text-emerald-100/90 rounded-xl border border-emerald-500/35 bg-emerald-500/10 px-3 py-2">
+            {verificationFeedback}
+          </p>
+        )}
+
+        <div className="flex flex-col sm:flex-row gap-3">
+          <button
+            onClick={() => setVerificationModalOpen(true)}
+            disabled={!canStartVerification || Boolean(verificationSetupMessage)}
+            className="rounded-xl border border-amber-500/40 bg-amber-500/15 px-5 py-2.5 text-amber-100 hover:bg-amber-500/25 transition-colors disabled:opacity-45 disabled:cursor-not-allowed"
+          >
+            {verificationSubmitting
+              ? 'Wysylanie selfie...'
+              : isVerified
+              ? 'Profil zweryfikowany'
+              : isVerificationPending
+              ? 'Weryfikacja oczekuje'
+              : verificationSnapshot?.status === 'rejected'
+              ? 'Sprobuj ponownie'
+              : 'Zweryfikuj konto przez selfie'}
+          </button>
+        </div>
+      </div>
+
       <div className="mt-10 glass rounded-2xl p-6 border border-red-500/25 flex flex-col gap-4">
         <div>
           <p className="text-xs uppercase tracking-wider text-red-200/70 mb-1">Zarzadzanie kontem</p>
@@ -1250,6 +1508,19 @@ export default function NewMyProfileView() {
           </button>
         </div>
       </div>
-    </main>
+      </main>
+
+      <FaceVerificationModal
+        isOpen={verificationModalOpen}
+        onClose={() => {
+          if (verificationSubmitting) return;
+          setVerificationModalOpen(false);
+        }}
+        onSuccess={async (imageData) => {
+          await handleSubmitVerificationSelfie(imageData);
+          setVerificationModalOpen(false);
+        }}
+      />
+    </>
   );
 }

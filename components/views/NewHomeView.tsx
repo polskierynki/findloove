@@ -1,8 +1,8 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useRouter } from 'next/navigation';
-import { Heart, ChatCircle, Sparkle, MapPin } from '@phosphor-icons/react';
+import { Heart, ChatCircle, Sparkle, MapPin, Lightning } from '@phosphor-icons/react';
 import { supabase } from '@/lib/supabase';
 import { resolveProfileIdForAuthUser } from '@/lib/profileAuth';
 import { Profile, SupabaseProfile, filterNonAdminProfiles, getLookingFor, mapSupabaseProfile } from '@/lib/types';
@@ -37,6 +37,48 @@ type RankedProfile = {
   sortValue?: number;
 };
 
+type HeartBurstParticle = {
+  x: number;
+  y: number;
+  delayMs: number;
+  sizePx: number;
+};
+
+type PopularityMetrics = {
+  score: number;
+  likesReceived: number;
+  acceptedFriendships: number;
+  isPopular: boolean;
+};
+
+type LikePopularityRow = {
+  to_profile_id: string;
+};
+
+type FriendshipRequesterPopularityRow = {
+  requester_id: string;
+};
+
+type FriendshipAddresseePopularityRow = {
+  addressee_id: string;
+};
+
+const HEART_BURST_PARTICLES: HeartBurstParticle[] = [
+  { x: 0, y: -26, delayMs: 0, sizePx: 9 },
+  { x: 16, y: -16, delayMs: 24, sizePx: 10 },
+  { x: 22, y: 0, delayMs: 48, sizePx: 9 },
+  { x: 14, y: 14, delayMs: 72, sizePx: 8 },
+  { x: 0, y: 20, delayMs: 36, sizePx: 8 },
+  { x: -14, y: 14, delayMs: 62, sizePx: 9 },
+  { x: -22, y: 0, delayMs: 46, sizePx: 9 },
+  { x: -16, y: -16, delayMs: 20, sizePx: 10 },
+];
+
+const POPULARITY_WINDOW_DAYS = 45;
+const POPULARITY_SCORE_THRESHOLD = 70;
+const POPULARITY_MIN_LIKES = 5;
+const POPULARITY_MIN_ACCEPTED_FRIENDSHIPS = 2;
+
 function normalizeText(value?: string | null): string {
   return (value || '').trim().toLowerCase();
 }
@@ -49,6 +91,30 @@ function toTimestamp(value?: string | null): number {
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
+}
+
+function computePopularityScore(params: {
+  likesReceived: number;
+  acceptedFriendships: number;
+  activityTs: number;
+  isVerified: boolean;
+}): number {
+  const likesScore = Math.min(50, params.likesReceived * 8);
+  const friendshipsScore = Math.min(40, params.acceptedFriendships * 12);
+
+  let activityScore = 0;
+  if (params.activityTs > 0) {
+    const daysAgo = (Date.now() - params.activityTs) / 86400000;
+    if (daysAgo <= 3) {
+      activityScore = 12;
+    } else if (daysAgo <= 10) {
+      activityScore = 6;
+    }
+  }
+
+  const verifiedScore = params.isVerified ? 4 : 0;
+
+  return clamp(Math.round(likesScore + friendshipsScore + activityScore + verifiedScore), 0, 100);
 }
 
 function getProfileLookingFor(profile: Profile): string | null {
@@ -147,6 +213,11 @@ export default function NewHomeView() {
   const router = useRouter();
   const [rankedProfiles, setRankedProfiles] = useState<RankedProfile[]>([]);
   const [likedProfiles, setLikedProfiles] = useState<Set<string>>(new Set());
+  const [popularityByProfileId, setPopularityByProfileId] = useState<Record<string, PopularityMetrics>>({});
+  const [likeBurstTicks, setLikeBurstTicks] = useState<Record<string, number>>({});
+  const [likePopTicks, setLikePopTicks] = useState<Record<string, number>>({});
+  const [burstingLikeIds, setBurstingLikeIds] = useState<Set<string>>(new Set());
+  const [poppingLikeIds, setPoppingLikeIds] = useState<Set<string>>(new Set());
   const [discoveryMode, setDiscoveryMode] = useState<DiscoveryMode>('recommended');
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -156,7 +227,169 @@ export default function NewHomeView() {
   const [viewerResolved, setViewerResolved] = useState(false);
   const [currentProfileId, setCurrentProfileId] = useState<string | null>(null);
   const [currentProfile, setCurrentProfile] = useState<Profile | null>(null);
+  const likeBurstTimeoutsRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  const likePopTimeoutsRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const { likeProfile, unlikeProfile, getLikedProfileIds } = useLikes();
+
+  const triggerLikeFx = useCallback((profileId: string) => {
+    setLikeBurstTicks((prev) => ({
+      ...prev,
+      [profileId]: (prev[profileId] ?? 0) + 1,
+    }));
+    setLikePopTicks((prev) => ({
+      ...prev,
+      [profileId]: (prev[profileId] ?? 0) + 1,
+    }));
+
+    setBurstingLikeIds((prev) => {
+      const next = new Set(prev);
+      next.add(profileId);
+      return next;
+    });
+    setPoppingLikeIds((prev) => {
+      const next = new Set(prev);
+      next.add(profileId);
+      return next;
+    });
+
+    const existingBurstTimeout = likeBurstTimeoutsRef.current.get(profileId);
+    if (existingBurstTimeout) {
+      clearTimeout(existingBurstTimeout);
+    }
+
+    const existingPopTimeout = likePopTimeoutsRef.current.get(profileId);
+    if (existingPopTimeout) {
+      clearTimeout(existingPopTimeout);
+    }
+
+    likeBurstTimeoutsRef.current.set(
+      profileId,
+      setTimeout(() => {
+        setBurstingLikeIds((prev) => {
+          const next = new Set(prev);
+          next.delete(profileId);
+          return next;
+        });
+        likeBurstTimeoutsRef.current.delete(profileId);
+      }, 700),
+    );
+
+    likePopTimeoutsRef.current.set(
+      profileId,
+      setTimeout(() => {
+        setPoppingLikeIds((prev) => {
+          const next = new Set(prev);
+          next.delete(profileId);
+          return next;
+        });
+        likePopTimeoutsRef.current.delete(profileId);
+      }, 280),
+    );
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      likeBurstTimeoutsRef.current.forEach((timeoutId) => clearTimeout(timeoutId));
+      likeBurstTimeoutsRef.current.clear();
+      likePopTimeoutsRef.current.forEach((timeoutId) => clearTimeout(timeoutId));
+      likePopTimeoutsRef.current.clear();
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    const profileIds = Array.from(new Set(rankedProfiles.map((item) => item.profile.id).filter(Boolean)));
+    if (profileIds.length === 0) {
+      setPopularityByProfileId({});
+      return;
+    }
+
+    const loadPopularitySignals = async () => {
+      const windowStartIso = new Date(Date.now() - POPULARITY_WINDOW_DAYS * 86400000).toISOString();
+
+      const [likesResponse, requesterResponse, addresseeResponse] = await Promise.all([
+        supabase
+          .from('likes')
+          .select('to_profile_id')
+          .in('to_profile_id', profileIds)
+          .gte('created_at', windowStartIso),
+        supabase
+          .from('friendships')
+          .select('requester_id')
+          .eq('status', 'accepted')
+          .in('requester_id', profileIds)
+          .gte('updated_at', windowStartIso),
+        supabase
+          .from('friendships')
+          .select('addressee_id')
+          .eq('status', 'accepted')
+          .in('addressee_id', profileIds)
+          .gte('updated_at', windowStartIso),
+      ]);
+
+      if (likesResponse.error || requesterResponse.error || addresseeResponse.error) {
+        console.error('Error loading popularity signals:', likesResponse.error || requesterResponse.error || addresseeResponse.error);
+        if (active) {
+          setPopularityByProfileId({});
+        }
+        return;
+      }
+
+      const likesCount = new Map<string, number>();
+      for (const row of ((likesResponse.data as LikePopularityRow[] | null) || [])) {
+        likesCount.set(row.to_profile_id, (likesCount.get(row.to_profile_id) ?? 0) + 1);
+      }
+
+      const friendshipsCount = new Map<string, number>();
+      for (const row of ((requesterResponse.data as FriendshipRequesterPopularityRow[] | null) || [])) {
+        friendshipsCount.set(row.requester_id, (friendshipsCount.get(row.requester_id) ?? 0) + 1);
+      }
+      for (const row of ((addresseeResponse.data as FriendshipAddresseePopularityRow[] | null) || [])) {
+        friendshipsCount.set(row.addressee_id, (friendshipsCount.get(row.addressee_id) ?? 0) + 1);
+      }
+
+      const rankedById = new Map(rankedProfiles.map((item) => [item.profile.id, item]));
+      const nextPopularityMap: Record<string, PopularityMetrics> = {};
+
+      for (const profileId of profileIds) {
+        const rankedItem = rankedById.get(profileId);
+        if (!rankedItem) continue;
+
+        const likesReceived = likesCount.get(profileId) ?? 0;
+        const acceptedFriendships = friendshipsCount.get(profileId) ?? 0;
+
+        const score = computePopularityScore({
+          likesReceived,
+          acceptedFriendships,
+          activityTs: rankedItem.activityTs,
+          isVerified: Boolean(rankedItem.profile.isVerified),
+        });
+
+        const isPopular =
+          score >= POPULARITY_SCORE_THRESHOLD
+          && likesReceived >= POPULARITY_MIN_LIKES
+          && acceptedFriendships >= POPULARITY_MIN_ACCEPTED_FRIENDSHIPS;
+
+        nextPopularityMap[profileId] = {
+          score,
+          likesReceived,
+          acceptedFriendships,
+          isPopular,
+        };
+      }
+
+      if (active) {
+        setPopularityByProfileId(nextPopularityMap);
+      }
+    };
+
+    void loadPopularitySignals();
+
+    return () => {
+      active = false;
+    };
+  }, [rankedProfiles]);
 
   useEffect(() => {
     let active = true;
@@ -379,6 +612,10 @@ export default function NewHomeView() {
   const toggleLike = async (profileId: string) => {
     const wasLiked = likedProfiles.has(profileId);
 
+    if (!wasLiked) {
+      triggerLikeFx(profileId);
+    }
+
     setLikedProfiles((prev) => {
       const newSet = new Set(prev);
       if (newSet.has(profileId)) {
@@ -481,6 +718,12 @@ export default function NewHomeView() {
           displayProfiles.map((item, idx) => {
             const profile = item.profile;
             const isLiked = likedProfiles.has(profile.id);
+            const popularity = popularityByProfileId[profile.id];
+            const isPopular = Boolean(popularity?.isPopular);
+            const isLikeBursting = burstingLikeIds.has(profile.id);
+            const isLikePopping = poppingLikeIds.has(profile.id);
+            const likeBurstTick = likeBurstTicks[profile.id] ?? 0;
+            const likePopTick = likePopTicks[profile.id] ?? 0;
             const matchScore = item.matchScore;
             const isRecentlyActive = item.activityTs > 0 && Date.now() - item.activityTs <= 24 * 3600000;
 
@@ -488,7 +731,9 @@ export default function NewHomeView() {
               <div
                 key={profile.id}
                 onClick={() => router.push(`/profile/${profile.id}`)}
-                className="profile-card glass rounded-[2rem] overflow-hidden relative group cursor-pointer"
+                className={`profile-card glass rounded-[2rem] overflow-hidden relative group cursor-pointer ${
+                  isPopular ? 'popular-profile-card' : ''
+                }`}
               >
                 <div className="aspect-[3/4] w-full relative">
                   <img
@@ -500,6 +745,12 @@ export default function NewHomeView() {
                     className="w-full h-full object-cover"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-[#07050f] via-[#07050f]/40 to-transparent"></div>
+                  {isPopular && (
+                    <>
+                      <div className="popular-profile-frame absolute inset-0 pointer-events-none z-[5]"></div>
+                      <div className="popular-profile-sheen absolute inset-0 pointer-events-none z-[4]"></div>
+                    </>
+                  )}
 
                   {/* Match Badge */}
                   <div className="absolute top-4 left-4 right-4 flex justify-between items-center z-10">
@@ -508,6 +759,14 @@ export default function NewHomeView() {
                       <span className="text-xs font-semibold text-white">{matchScore}% Match</span>
                     </div>
                     <div className="flex items-center gap-2">
+                      {isPopular && (
+                        <div
+                          className="popular-bolt-badge"
+                          title={`Popularna: ${popularity?.score || 0}/100 • ${popularity?.likesReceived || 0} polubien • ${popularity?.acceptedFriendships || 0} znajomych`}
+                        >
+                          <Lightning size={13} weight="fill" className="popular-bolt-icon" />
+                        </div>
+                      )}
                       {profile.details?.looking_for && (
                         <div className={`bg-black/40 backdrop-blur-md px-3 py-1 rounded-full border flex items-center gap-1.5 ${
                           profile.details.looking_for === 'miłość' 
@@ -557,13 +816,34 @@ export default function NewHomeView() {
                           }}
                           className="pointer-events-auto flex-1 bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 py-2.5 rounded-xl flex items-center justify-center gap-2 text-white transition-all hover:border-red-400/50 hover:text-red-400 group/btn"
                         >
+                          <div className="relative inline-flex h-6 w-6 items-center justify-center overflow-visible">
+                            {isLikeBursting && (
+                              <div key={`home-like-burst-${profile.id}-${likeBurstTick}`} className="like-heart-burst" aria-hidden="true">
+                                {HEART_BURST_PARTICLES.map((particle, index) => {
+                                  const style: CSSProperties = {
+                                    fontSize: `${particle.sizePx}px`,
+                                    animationDelay: `${particle.delayMs}ms`,
+                                    ['--burst-x' as string]: `${particle.x}px`,
+                                    ['--burst-y' as string]: `${particle.y}px`,
+                                  };
+
+                                  return (
+                                    <span key={`home-particle-${profile.id}-${likeBurstTick}-${index}`} className="like-heart-particle" style={style}>
+                                      ❤
+                                    </span>
+                                  );
+                                })}
+                              </div>
+                            )}
                           <Heart
+                            key={`home-heart-${profile.id}-${likePopTick}-${isLiked ? 'liked' : 'idle'}`}
                             size={20}
                             weight={isLiked ? 'fill' : 'regular'}
                             className={`${
                               isLiked ? 'text-red-400' : ''
-                            } group-hover/btn:scale-110 transition-transform`}
+                            } ${isLikePopping ? 'like-heart-core-pop' : ''} group-hover/btn:scale-110 transition-transform`}
                           />
+                          </div>
                         </button>
                         <button
                           onClick={(e) => {

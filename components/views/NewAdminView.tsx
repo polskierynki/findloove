@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Users, Activity, AlertTriangle, TrendingUp, MessageCircle, Eye, Ban, Check, X, Flag, Trash2, Plus, Minus } from 'lucide-react';
+import { Users, Activity, AlertTriangle, TrendingUp, MessageCircle, Eye, Ban, Check, X, Flag, Trash2, Plus, Minus, BadgeCheck, Camera } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
 interface User {
@@ -34,24 +34,142 @@ interface CommentReport {
   author_strikes: number;
 }
 
+interface VerificationQueueItem {
+  id: string;
+  profileId: string;
+  profileName: string;
+  profileImage: string | null;
+  profileCity: string | null;
+  profileAge: number | null;
+  profileVerified: boolean;
+  status: 'pending_ai' | 'pending_admin' | 'approved' | 'rejected';
+  aiScore: number | null;
+  aiReason: string | null;
+  selfiePreviewUrl: string | null;
+  createdAt: string;
+}
+
 export default function NewAdminView() {
   const router = useRouter();
   const [users, setUsers] = useState<User[]>([]);
   const [reports, setReports] = useState<CommentReport[]>([]);
+  const [verificationQueue, setVerificationQueue] = useState<VerificationQueueItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyUserId, setBusyUserId] = useState<string | null>(null);
+  const [verificationBusyId, setVerificationBusyId] = useState<string | null>(null);
+  const [verificationError, setVerificationError] = useState<string | null>(null);
+  const [verificationAdminNotes, setVerificationAdminNotes] = useState<Record<string, string>>({});
 
   // Stats
   const [stats, setStats] = useState({
     totalUsers: 0,
     activeNow: 0,
     newReports: 0,
+    pendingVerifications: 0,
     revenue24h: 0,
   });
 
   useEffect(() => {
-    loadData();
+    void loadData();
   }, []);
+
+  const getAdminAccessToken = async (): Promise<string | null> => {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    return session?.access_token || null;
+  };
+
+  const loadVerificationQueue = async (): Promise<number> => {
+    try {
+      const token = await getAdminAccessToken();
+      if (!token) {
+        setVerificationQueue([]);
+        setVerificationError('Brak aktywnej sesji admina.');
+        return 0;
+      }
+
+      const response = await fetch('/api/admin/verification/requests', {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const payload = (await response.json().catch(() => ({}))) as {
+        error?: string;
+        queue?: VerificationQueueItem[];
+      };
+
+      if (!response.ok) {
+        setVerificationQueue([]);
+        setVerificationError(payload.error || 'Nie udalo sie pobrac kolejki selfie.');
+        return 0;
+      }
+
+      const queue = payload.queue || [];
+      setVerificationQueue(queue);
+      setVerificationError(null);
+      return queue.length;
+    } catch (error) {
+      console.error('Error loading verification queue:', error);
+      setVerificationQueue([]);
+      setVerificationError('Nie udalo sie pobrac kolejki selfie.');
+      return 0;
+    }
+  };
+
+  const handleReviewVerification = async (requestId: string, decision: 'approve' | 'reject') => {
+    if (verificationBusyId) return;
+
+    setVerificationBusyId(requestId);
+    try {
+      const token = await getAdminAccessToken();
+      if (!token) {
+        alert('Brak sesji admina. Odswiez strone i zaloguj sie ponownie.');
+        return;
+      }
+
+      const note = (verificationAdminNotes[requestId] || '').trim();
+      const response = await fetch('/api/admin/verification/review', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ requestId, decision, note }),
+      });
+
+      const payload = (await response.json().catch(() => ({}))) as { error?: string; message?: string };
+      if (!response.ok) {
+        alert(payload.error || 'Nie udalo sie zapisac decyzji.');
+        return;
+      }
+
+      const fallbackMessage = decision === 'approve'
+        ? 'Selfie zostalo zaakceptowane.'
+        : 'Selfie zostalo odrzucone.';
+      alert(payload.message || fallbackMessage);
+
+      setVerificationQueue((prev) => prev.filter((item) => item.id !== requestId));
+      setStats((prev) => ({
+        ...prev,
+        pendingVerifications: Math.max(0, prev.pendingVerifications - 1),
+      }));
+      setVerificationAdminNotes((prev) => {
+        if (!(requestId in prev)) return prev;
+        const next = { ...prev };
+        delete next[requestId];
+        return next;
+      });
+    } catch (error) {
+      console.error('Error reviewing verification request:', error);
+      alert('Nie udalo sie zapisac decyzji moderatora.');
+    } finally {
+      setVerificationBusyId(null);
+    }
+  };
 
   const loadData = async () => {
     try {
@@ -128,12 +246,14 @@ export default function NewAdminView() {
 
       setReports(mappedReports);
 
+      const pendingVerifications = await loadVerificationQueue();
+
       const totalUsers = usersData?.length || 0;
       const activeNow = Math.floor(totalUsers * 0.15);
       const newReports = mappedReports.length;
       const revenue24h = 12450;
 
-      setStats({ totalUsers, activeNow, newReports, revenue24h });
+      setStats({ totalUsers, activeNow, newReports, pendingVerifications, revenue24h });
     } catch (err) {
       console.error('Error loading admin data:', err);
     } finally {
@@ -309,7 +429,7 @@ export default function NewAdminView() {
       </h1>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-6 mb-8">
         <div className="glass rounded-2xl p-6 border border-cyan-500/20">
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-cyan-400 text-sm font-medium uppercase tracking-wider">Użytkownicy</h3>
@@ -335,6 +455,15 @@ export default function NewAdminView() {
           </div>
           <p className="text-4xl font-light text-white">{stats.newReports}</p>
           <p className="text-xs text-red-400/60 mt-1">Nowe</p>
+        </div>
+
+        <div className="glass rounded-2xl p-6 border border-amber-500/20">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-amber-400 text-sm font-medium uppercase tracking-wider">Selfie</h3>
+            <BadgeCheck className="text-amber-400" size={24} />
+          </div>
+          <p className="text-4xl font-light text-white">{stats.pendingVerifications}</p>
+          <p className="text-xs text-amber-400/60 mt-1">Do akceptacji</p>
         </div>
 
         <div className="glass rounded-2xl p-6 border border-amber-500/20">
@@ -550,6 +679,130 @@ export default function NewAdminView() {
             )}
           </div>
         </div>
+      </div>
+
+      <div className="mt-8 glass rounded-2xl p-6 border border-amber-500/25">
+        <h2 className="text-2xl font-light text-white mb-4 flex items-center gap-2">
+          <BadgeCheck size={20} className="text-amber-400" />
+          Weryfikacja selfie
+        </h2>
+
+        <p className="text-sm text-amber-100/70 mb-4">
+          Kolejka selfie do akceptacji moderatora. Score SI pomaga podjac decyzje.
+        </p>
+
+        {verificationError && (
+          <div className="mb-4 rounded-xl border border-red-500/35 bg-red-500/10 px-4 py-3 text-sm text-red-100">
+            {verificationError}
+          </div>
+        )}
+
+        {verificationQueue.length === 0 ? (
+          <div className="text-center text-cyan-400/50 py-10 border border-white/10 rounded-xl bg-white/[0.02]">
+            <BadgeCheck size={30} className="mx-auto mb-2 opacity-40" />
+            <p className="text-sm">Brak selfie oczekujacych na review.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {verificationQueue.map((item) => {
+              const isBusy = verificationBusyId === item.id;
+
+              return (
+                <div
+                  key={item.id}
+                  className="rounded-xl border border-amber-500/20 bg-black/20 p-4 flex flex-col gap-3"
+                >
+                  <div className="flex items-start gap-3">
+                    <img
+                      src={item.selfiePreviewUrl || item.profileImage || 'https://ui-avatars.com/api/?name=Selfie&background=111827&color=e5e7eb&size=200'}
+                      alt={`Selfie ${item.profileName}`}
+                      className="w-20 h-20 rounded-xl object-cover border border-amber-500/30"
+                    />
+
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleOpenProfilePreview(item.profileId)}
+                          className="text-white font-medium hover:text-cyan-200 transition-colors"
+                        >
+                          {item.profileName}
+                        </button>
+                        {item.profileVerified && (
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-500/35 text-emerald-200">
+                            Zweryfikowany
+                          </span>
+                        )}
+                      </div>
+
+                      <p className="text-xs text-cyan-200/70 mt-1">
+                        {item.profileCity || 'Brak miasta'}
+                        {typeof item.profileAge === 'number' ? ` • ${item.profileAge} lat` : ''}
+                      </p>
+
+                      <p className="text-xs text-amber-200/80 mt-1">
+                        Score SI:{' '}
+                        {typeof item.aiScore === 'number'
+                          ? `${Math.round(item.aiScore * 100)} / 100`
+                          : 'brak'}
+                      </p>
+
+                      <p className="text-[11px] text-white/50 mt-1">
+                        {new Date(item.createdAt).toLocaleString('pl-PL')}
+                      </p>
+                    </div>
+                  </div>
+
+                  {item.aiReason && (
+                    <p className="text-xs text-white/70 bg-white/5 rounded-lg px-3 py-2 border border-white/10">
+                      {item.aiReason}
+                    </p>
+                  )}
+
+                  <textarea
+                    rows={2}
+                    value={verificationAdminNotes[item.id] || ''}
+                    onChange={(event) =>
+                      setVerificationAdminNotes((prev) => ({
+                        ...prev,
+                        [item.id]: event.target.value,
+                      }))
+                    }
+                    placeholder="Notatka moderatora (opcjonalnie)..."
+                    className="w-full rounded-lg bg-black/30 border border-white/10 px-3 py-2 text-sm text-white outline-none focus:border-amber-500/50"
+                  />
+
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => void handleReviewVerification(item.id, 'approve')}
+                      disabled={isBusy}
+                      className="flex-1 rounded-lg bg-emerald-500/20 border border-emerald-500/40 text-emerald-100 py-2 text-sm hover:bg-emerald-500/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
+                    >
+                      <Check size={14} />
+                      {isBusy ? 'Zapisywanie...' : 'Akceptuj'}
+                    </button>
+
+                    <button
+                      onClick={() => void handleReviewVerification(item.id, 'reject')}
+                      disabled={isBusy}
+                      className="flex-1 rounded-lg bg-red-500/15 border border-red-500/35 text-red-100 py-2 text-sm hover:bg-red-500/25 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
+                    >
+                      <X size={14} />
+                      {isBusy ? 'Zapisywanie...' : 'Odrzuc'}
+                    </button>
+
+                    <button
+                      onClick={() => handleOpenProfilePreview(item.profileId)}
+                      className="rounded-lg bg-cyan-500/15 border border-cyan-500/35 text-cyan-100 px-3 py-2 text-sm hover:bg-cyan-500/25 transition-colors flex items-center justify-center"
+                      title="Podglad profilu"
+                    >
+                      <Camera size={14} />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );

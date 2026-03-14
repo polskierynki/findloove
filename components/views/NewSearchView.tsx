@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef, type CSSProperties } from 'react';
 import { useRouter } from 'next/navigation';
 import { Heart, ChatCircle, Sparkle, MapPin, Sliders, MagnifyingGlass, X } from '@phosphor-icons/react';
 import { 
@@ -112,6 +112,24 @@ type SearchProfile = {
   sortValue?: number;
 };
 
+type HeartBurstParticle = {
+  x: number;
+  y: number;
+  delayMs: number;
+  sizePx: number;
+};
+
+const HEART_BURST_PARTICLES: HeartBurstParticle[] = [
+  { x: 0, y: -26, delayMs: 0, sizePx: 9 },
+  { x: 16, y: -16, delayMs: 24, sizePx: 10 },
+  { x: 22, y: 0, delayMs: 48, sizePx: 9 },
+  { x: 14, y: 14, delayMs: 72, sizePx: 8 },
+  { x: 0, y: 20, delayMs: 36, sizePx: 8 },
+  { x: -14, y: 14, delayMs: 62, sizePx: 9 },
+  { x: -22, y: 0, delayMs: 46, sizePx: 9 },
+  { x: -16, y: -16, delayMs: 20, sizePx: 10 },
+];
+
 type SearchSort = 'match' | 'closest' | 'newest' | 'ageAsc' | 'ageDesc';
 
 function calculateMatchScore(
@@ -181,6 +199,10 @@ export default function NewSearchView() {
   // Data
   const [profiles, setProfiles] = useState<SearchProfile[]>([]);
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
+  const [likeBurstTicks, setLikeBurstTicks] = useState<Record<string, number>>({});
+  const [likePopTicks, setLikePopTicks] = useState<Record<string, number>>({});
+  const [burstingLikeIds, setBurstingLikeIds] = useState<Set<string>>(new Set());
+  const [poppingLikeIds, setPoppingLikeIds] = useState<Set<string>>(new Set());
   const [viewerProfileId, setViewerProfileId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -190,6 +212,64 @@ export default function NewSearchView() {
   const [geoCoords, setGeoCoords] = useState<GeoCoords | null>(null);
   const [isLocating, setIsLocating] = useState(false);
   const [geoError, setGeoError] = useState<string | null>(null);
+  const likeBurstTimeoutsRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  const likePopTimeoutsRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+
+  const triggerLikeFx = useCallback((profileId: string) => {
+    setLikeBurstTicks((prev) => ({
+      ...prev,
+      [profileId]: (prev[profileId] ?? 0) + 1,
+    }));
+    setLikePopTicks((prev) => ({
+      ...prev,
+      [profileId]: (prev[profileId] ?? 0) + 1,
+    }));
+
+    setBurstingLikeIds((prev) => {
+      const next = new Set(prev);
+      next.add(profileId);
+      return next;
+    });
+    setPoppingLikeIds((prev) => {
+      const next = new Set(prev);
+      next.add(profileId);
+      return next;
+    });
+
+    const existingBurstTimeout = likeBurstTimeoutsRef.current.get(profileId);
+    if (existingBurstTimeout) {
+      clearTimeout(existingBurstTimeout);
+    }
+
+    const existingPopTimeout = likePopTimeoutsRef.current.get(profileId);
+    if (existingPopTimeout) {
+      clearTimeout(existingPopTimeout);
+    }
+
+    likeBurstTimeoutsRef.current.set(
+      profileId,
+      setTimeout(() => {
+        setBurstingLikeIds((prev) => {
+          const next = new Set(prev);
+          next.delete(profileId);
+          return next;
+        });
+        likeBurstTimeoutsRef.current.delete(profileId);
+      }, 700),
+    );
+
+    likePopTimeoutsRef.current.set(
+      profileId,
+      setTimeout(() => {
+        setPoppingLikeIds((prev) => {
+          const next = new Set(prev);
+          next.delete(profileId);
+          return next;
+        });
+        likePopTimeoutsRef.current.delete(profileId);
+      }, 280),
+    );
+  }, []);
 
   const detectMyLocation = useCallback(() => {
     if (typeof window === 'undefined' || !navigator.geolocation) {
@@ -265,6 +345,15 @@ export default function NewSearchView() {
   useEffect(() => {
     detectMyLocation();
   }, [detectMyLocation]);
+
+  useEffect(() => {
+    return () => {
+      likeBurstTimeoutsRef.current.forEach((timeoutId) => clearTimeout(timeoutId));
+      likeBurstTimeoutsRef.current.clear();
+      likePopTimeoutsRef.current.forEach((timeoutId) => clearTimeout(timeoutId));
+      likePopTimeoutsRef.current.clear();
+    };
+  }, []);
 
   const applyDistanceAndSort = useCallback((inputProfiles: SearchProfile[]) => {
     const cityCoords = baseCity ? CITY_COORDS[baseCity] : null;
@@ -511,6 +600,11 @@ export default function NewSearchView() {
   const toggleLike = async (e: React.MouseEvent, profileId: string) => {
     e.stopPropagation();
     const wasLiked = likedIds.has(profileId);
+
+    if (!wasLiked) {
+      triggerLikeFx(profileId);
+    }
+
     setLikedIds((prev) => {
       const s = new Set(prev);
       if (wasLiked) s.delete(profileId); else s.add(profileId);
@@ -775,6 +869,10 @@ export default function NewSearchView() {
               {profiles.map((profile) => {
                 const distFromBase = profile.distanceKm ?? null;
                 const isLiked = likedIds.has(profile.id);
+                const isLikeBursting = burstingLikeIds.has(profile.id);
+                const isLikePopping = poppingLikeIds.has(profile.id);
+                const likeBurstTick = likeBurstTicks[profile.id] ?? 0;
+                const likePopTick = likePopTicks[profile.id] ?? 0;
                 return (
                   <div
                     key={profile.id}
@@ -837,7 +935,32 @@ export default function NewSearchView() {
                                   : 'bg-white/10 border-cyan-500/20 text-white hover:border-red-400/50 hover:text-red-400'
                               }`}
                             >
-                              <Heart size={20} weight={isLiked ? 'fill' : 'regular'} />
+                              <div className="relative inline-flex h-6 w-6 items-center justify-center overflow-visible">
+                                {isLikeBursting && (
+                                  <div key={`search-like-burst-${profile.id}-${likeBurstTick}`} className="like-heart-burst" aria-hidden="true">
+                                    {HEART_BURST_PARTICLES.map((particle, index) => {
+                                      const style: CSSProperties = {
+                                        fontSize: `${particle.sizePx}px`,
+                                        animationDelay: `${particle.delayMs}ms`,
+                                        ['--burst-x' as string]: `${particle.x}px`,
+                                        ['--burst-y' as string]: `${particle.y}px`,
+                                      };
+
+                                      return (
+                                        <span key={`search-particle-${profile.id}-${likeBurstTick}-${index}`} className="like-heart-particle" style={style}>
+                                          ❤
+                                        </span>
+                                      );
+                                    })}
+                                  </div>
+                                )}
+                                <Heart
+                                  key={`search-heart-${profile.id}-${likePopTick}-${isLiked ? 'liked' : 'idle'}`}
+                                  size={20}
+                                  weight={isLiked ? 'fill' : 'regular'}
+                                  className={isLikePopping ? 'like-heart-core-pop' : ''}
+                                />
+                              </div>
                             </button>
                             <button
                               onClick={(e) => {

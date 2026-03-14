@@ -4,7 +4,7 @@ import Webcam from 'react-webcam';
 interface FaceVerificationModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: (photoUrl: string) => void;
+  onSuccess: (photoUrl: string) => Promise<void> | void;
 }
 
 const videoConstraints = {
@@ -28,16 +28,11 @@ export const FaceVerificationModal: React.FC<FaceVerificationModalProps> = ({ is
       return;
     }
     try {
-      // TODO: Wyślij imageSrc do API detekcji twarzy (np. Azure, AWS, Trueface)
-      // Przykład: const result = await verifyFace(imageSrc);
-      // if (result.faceDetected) { ... }
-      // Tymczasowo: symulacja pozytywnej weryfikacji
-      setTimeout(() => {
-        setLoading(false);
-        onSuccess(imageSrc);
-      }, 1500);
+      await onSuccess(imageSrc);
+      onClose();
     } catch (e) {
       setError('Weryfikacja nie powiodła się. Spróbuj ponownie.');
+    } finally {
       setLoading(false);
     }
   };
