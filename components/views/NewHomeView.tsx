@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Heart, ChatCircle, Sparkle, MapPin } from '@phosphor-icons/react';
 import { supabase } from '@/lib/supabase';
 import { resolveProfileIdForAuthUser } from '@/lib/profileAuth';
 import { Profile, SupabaseProfile, filterNonAdminProfiles, getLookingFor, mapSupabaseProfile } from '@/lib/types';
+import { MatchCursor, fetchRankedProfilesPage, isMissingMatchingRpc } from '@/lib/matching';
 import { LOOKING_FOR_OPTIONS } from './constants/profileFormOptions';
 import { useLikes } from '@/lib/hooks/useLikes';
 
@@ -33,6 +34,7 @@ type RankedProfile = {
   sharedInterests: number;
   isNearby: boolean;
   activityTs: number;
+  sortValue?: number;
 };
 
 function normalizeText(value?: string | null): string {
@@ -143,10 +145,15 @@ function rankProfile(currentProfile: Profile | null, candidate: Profile): Ranked
 
 export default function NewHomeView() {
   const router = useRouter();
-  const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [rankedProfiles, setRankedProfiles] = useState<RankedProfile[]>([]);
   const [likedProfiles, setLikedProfiles] = useState<Set<string>>(new Set());
   const [discoveryMode, setDiscoveryMode] = useState<DiscoveryMode>('recommended');
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const [nextCursor, setNextCursor] = useState<MatchCursor | null>(null);
+  const [rpcUnavailable, setRpcUnavailable] = useState(false);
+  const [viewerResolved, setViewerResolved] = useState(false);
   const [currentProfileId, setCurrentProfileId] = useState<string | null>(null);
   const [currentProfile, setCurrentProfile] = useState<Profile | null>(null);
   const { likeProfile, unlikeProfile, getLikedProfileIds } = useLikes();
@@ -154,9 +161,7 @@ export default function NewHomeView() {
   useEffect(() => {
     let active = true;
 
-    const loadProfiles = async () => {
-      setLoading(true);
-
+    const resolveViewerProfile = async () => {
       try {
         const {
           data: { user },
@@ -189,38 +194,20 @@ export default function NewHomeView() {
 
         setCurrentProfileId(resolvedProfileId);
         setCurrentProfile(meProfile);
-
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .limit(80)
-          .order('created_at', { ascending: false });
-
-        if (!active) return;
-
-        if (error) throw error;
-
-        const mappedProfiles = ((data as SupabaseProfile[] | null) || []).map(mapSupabaseProfile);
-        const filteredProfiles = filterNonAdminProfiles(mappedProfiles)
-          .filter((profile) => !isHiddenAdminProfile(profile))
-          .filter((profile) => !resolvedProfileId || profile.id !== resolvedProfileId);
-
-        setProfiles(filteredProfiles);
       } catch (error) {
-        console.error('Error loading profiles:', error);
+        console.error('Error resolving viewer profile:', error);
         if (active) {
-          setProfiles([]);
           setCurrentProfileId(null);
           setCurrentProfile(null);
         }
       } finally {
         if (active) {
-          setLoading(false);
+          setViewerResolved(true);
         }
       }
     };
 
-    void loadProfiles();
+    void resolveViewerProfile();
 
     return () => {
       active = false;
@@ -241,31 +228,136 @@ export default function NewHomeView() {
     void loadLikedProfiles();
   }, [currentProfileId, getLikedProfileIds]);
 
-  const rankedProfiles = useMemo(() => {
-    return profiles.map((profile) => rankProfile(currentProfile, profile));
-  }, [currentProfile, profiles]);
+  const loadFallbackProfiles = useCallback(async () => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .limit(120)
+      .order('created_at', { ascending: false });
 
-  const recommendedProfiles = useMemo(() => {
-    return [...rankedProfiles].sort(
-      (a, b) => b.recommendedScore - a.recommendedScore || b.activityTs - a.activityTs,
-    );
-  }, [rankedProfiles]);
+    if (error) throw error;
 
-  const nearbyProfiles = useMemo(() => {
-    return recommendedProfiles.filter((item) => item.isNearby);
-  }, [recommendedProfiles]);
+    const mappedProfiles = ((data as SupabaseProfile[] | null) || []).map(mapSupabaseProfile);
+    const filteredProfiles = filterNonAdminProfiles(mappedProfiles)
+      .filter((profile) => !isHiddenAdminProfile(profile))
+      .filter((profile) => !currentProfileId || profile.id !== currentProfileId);
 
-  const activeProfiles = useMemo(() => {
-    return [...rankedProfiles].sort(
-      (a, b) => b.activityTs - a.activityTs || b.recommendedScore - a.recommendedScore,
-    );
-  }, [rankedProfiles]);
+    const rankedFallback = filteredProfiles.map((profile) => rankProfile(currentProfile, profile));
+
+    if (discoveryMode === 'active') {
+      rankedFallback.sort((a, b) => b.activityTs - a.activityTs || b.recommendedScore - a.recommendedScore);
+    } else if (discoveryMode === 'nearby') {
+      rankedFallback.sort((a, b) => Number(b.isNearby) - Number(a.isNearby) || b.recommendedScore - a.recommendedScore);
+    } else {
+      rankedFallback.sort((a, b) => b.recommendedScore - a.recommendedScore || b.activityTs - a.activityTs);
+    }
+
+    setRankedProfiles(rankedFallback);
+    setHasMore(false);
+    setNextCursor(null);
+  }, [currentProfile, currentProfileId, discoveryMode]);
+
+  const fetchRankedPage = useCallback(async (cursor: MatchCursor | null) => {
+    const append = Boolean(cursor);
+
+    if (append) {
+      setLoadingMore(true);
+    } else {
+      setLoading(true);
+    }
+
+    try {
+      const sort = discoveryMode === 'nearby'
+        ? 'closest'
+        : discoveryMode === 'active'
+        ? 'active'
+        : 'recommended';
+
+      const result = await fetchRankedProfilesPage({
+        viewerProfileId: currentProfileId,
+        limit: 24,
+        cursor,
+        sort,
+        referenceCity: currentProfile?.city || null,
+      });
+
+      const normalizedItems: RankedProfile[] = result.items.map((item) => ({
+        profile: item.profile,
+        recommendedScore: item.recommendedScore,
+        matchScore: item.matchScore,
+        sharedInterests: item.sharedInterests,
+        isNearby: item.isNearby,
+        activityTs: item.activityTs,
+        sortValue: item.sortValue,
+      }));
+
+      setRpcUnavailable(false);
+      setRankedProfiles((prev) => (append ? [...prev, ...normalizedItems] : normalizedItems));
+      setHasMore(result.hasMore);
+      setNextCursor(result.nextCursor);
+    } catch (error) {
+      console.error('Error loading ranked profiles:', error);
+
+      if (append) {
+        setHasMore(false);
+      } else if (isMissingMatchingRpc(error)) {
+        setRpcUnavailable(true);
+        await loadFallbackProfiles();
+      } else {
+        setRankedProfiles([]);
+        setHasMore(false);
+        setNextCursor(null);
+      }
+    } finally {
+      if (append) {
+        setLoadingMore(false);
+      } else {
+        setLoading(false);
+      }
+    }
+  }, [currentProfile?.city, currentProfileId, discoveryMode, loadFallbackProfiles]);
+
+  useEffect(() => {
+    if (!viewerResolved) return;
+    void fetchRankedPage(null);
+  }, [fetchRankedPage, viewerResolved]);
+
+  useEffect(() => {
+    if (!viewerResolved) return;
+
+    let refreshTimeout: ReturnType<typeof setTimeout> | null = null;
+    const scheduleRefresh = () => {
+      if (refreshTimeout) return;
+
+      refreshTimeout = setTimeout(() => {
+        refreshTimeout = null;
+        void fetchRankedPage(null);
+      }, 900);
+    };
+
+    const channel = supabase
+      .channel(`home-matching-live-${discoveryMode}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'profiles',
+      }, scheduleRefresh)
+      .subscribe();
+
+    return () => {
+      if (refreshTimeout) {
+        clearTimeout(refreshTimeout);
+      }
+      channel.unsubscribe();
+    };
+  }, [discoveryMode, fetchRankedPage, viewerResolved]);
 
   const displayProfiles = useMemo(() => {
-    if (discoveryMode === 'nearby') return nearbyProfiles;
-    if (discoveryMode === 'active') return activeProfiles;
-    return recommendedProfiles;
-  }, [activeProfiles, discoveryMode, nearbyProfiles, recommendedProfiles]);
+    if (discoveryMode === 'nearby') {
+      return rankedProfiles.filter((item) => item.isNearby);
+    }
+    return rankedProfiles;
+  }, [discoveryMode, rankedProfiles]);
 
   const nearbyCityLabel = currentProfile?.city || 'Twoje miasto';
 
@@ -317,6 +409,11 @@ export default function NewHomeView() {
     }
   };
 
+  const handleLoadMore = () => {
+    if (!nextCursor || loadingMore) return;
+    void fetchRankedPage(nextCursor);
+  };
+
   return (
     <div className="relative z-10 pt-28 pb-16 px-6 lg:px-12 max-w-[2200px] mx-auto flex flex-col gap-8">
       {/* Hero Section */}
@@ -328,6 +425,11 @@ export default function NewHomeView() {
           <p className="text-cyan-400/70 font-light text-lg">
             {subtitle}
           </p>
+          {rpcUnavailable && (
+            <p className="text-xs text-amber-300/80 mt-2">
+              Tryb awaryjny: ranking liczony lokalnie (uruchom migracje `supabase/profile_matching_rpc.sql`).
+            </p>
+          )}
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <button
@@ -376,7 +478,7 @@ export default function NewHomeView() {
             Brak wyników dla tej kategorii. Spróbuj innego filtru.
           </div>
         ) : (
-          displayProfiles.slice(0, 12).map((item, idx) => {
+          displayProfiles.map((item, idx) => {
             const profile = item.profile;
             const isLiked = likedProfiles.has(profile.id);
             const matchScore = item.matchScore;
@@ -481,6 +583,18 @@ export default function NewHomeView() {
           })
         )}
       </section>
+
+      {!rpcUnavailable && hasMore && !(discoveryMode === 'nearby' && !currentProfile?.city) && (
+        <div className="flex justify-center mt-2">
+          <button
+            onClick={handleLoadMore}
+            disabled={loadingMore}
+            className="px-6 py-3 rounded-xl bg-cyan-500/15 border border-cyan-400/30 text-cyan-100 hover:bg-cyan-500/25 transition-colors disabled:opacity-50"
+          >
+            {loadingMore ? 'Ladowanie kolejnych profili...' : 'Pokaz kolejne profile'}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

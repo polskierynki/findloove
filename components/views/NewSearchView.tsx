@@ -11,6 +11,8 @@ import {
   POLISH_CITIES,
 } from './constants/profileFormOptions';
 import { supabase } from '@/lib/supabase';
+import { resolveProfileIdForAuthUser } from '@/lib/profileAuth';
+import { MatchCursor, MatchSort, fetchRankedProfilesPage, isMissingMatchingRpc } from '@/lib/matching';
 import { useLikes } from '@/lib/hooks/useLikes';
 
 // Współrzędne geograficzne polskich miast (lat, lon)
@@ -105,6 +107,9 @@ type SearchProfile = {
   email?: string | null;
   distanceKm?: number | null;
   matchScore?: number;
+  recommendedScore?: number;
+  isNearby?: boolean;
+  sortValue?: number;
 };
 
 type SearchSort = 'match' | 'closest' | 'newest' | 'ageAsc' | 'ageDesc';
@@ -176,8 +181,12 @@ export default function NewSearchView() {
   // Data
   const [profiles, setProfiles] = useState<SearchProfile[]>([]);
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [viewerProfileId, setViewerProfileId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const [nextCursor, setNextCursor] = useState<MatchCursor | null>(null);
+  const [rpcUnavailable, setRpcUnavailable] = useState(false);
   const [geoCoords, setGeoCoords] = useState<GeoCoords | null>(null);
   const [isLocating, setIsLocating] = useState(false);
   const [geoError, setGeoError] = useState<string | null>(null);
@@ -208,11 +217,43 @@ export default function NewSearchView() {
     );
   }, []);
 
-  // Load current user
+  // Resolve profile ID bound to current auth user.
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      setCurrentUserId(data.user?.id || null);
-    });
+    let active = true;
+
+    const loadViewerProfile = async () => {
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+
+        if (!active) return;
+        if (!user) {
+          setViewerProfileId(null);
+          return;
+        }
+
+        const resolvedProfileId = await resolveProfileIdForAuthUser({
+          id: user.id,
+          email: user.email,
+          user_metadata: user.user_metadata,
+        });
+
+        if (!active) return;
+        setViewerProfileId(resolvedProfileId || null);
+      } catch (error) {
+        console.error('Blad ustalania profilu zalogowanego uzytkownika:', error);
+        if (active) {
+          setViewerProfileId(null);
+        }
+      }
+    };
+
+    void loadViewerProfile();
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   // Pre-load liked IDs
@@ -225,133 +266,244 @@ export default function NewSearchView() {
     detectMyLocation();
   }, [detectMyLocation]);
 
-  // Fetch real profiles
-  const fetchProfiles = useCallback(async () => {
-    setLoading(true);
-    try {
-      let query = supabase
-        .from('profiles')
-        .select('id, name, age, city, image_url, looking_for, interests, drinking, pets, sexual_orientation, created_at, is_blocked, role, email')
-        .order('created_at', { ascending: false });
+  const applyDistanceAndSort = useCallback((inputProfiles: SearchProfile[]) => {
+    const cityCoords = baseCity ? CITY_COORDS[baseCity] : null;
+    const referencePoint: GeoCoords | null = cityCoords
+      ? { lat: cityCoords[0], lon: cityCoords[1] }
+      : geoCoords;
 
-      if (currentUserId) {
-        query = query.neq('id', currentUserId);
-      }
-      // Age filter
-      query = query.gte('age', ageMin).lte('age', ageMax);
+    let results = inputProfiles.map((profile) => ({
+      ...profile,
+      distanceKm: referencePoint ? distanceFromPointToCity(referencePoint, profile.city) : null,
+    }));
 
-      // Looking for filter
-      if (selectedLookingFor.size > 0) {
-        query = query.in('looking_for', Array.from(selectedLookingFor));
-      }
+    // Distance filter based on selected city or current GPS.
+    if (referencePoint && distance < 500) {
+      results = results.filter((profile) => {
+        if (baseCity && profile.city === baseCity) return true;
+        if (profile.distanceKm === null) return true;
+        return profile.distanceKm <= distance;
+      });
+    }
 
-      // Sexual orientation filter
-      if (selectedOrientation.size > 0) {
-        query = query.in('sexual_orientation', Array.from(selectedOrientation));
-      }
-
-      // Pets filter
-      if (selectedPets.size > 0) {
-        query = query.in('pets', Array.from(selectedPets));
-      }
-
-      // Drinking filter
-      if (selectedDrinking.size > 0) {
-        query = query.in('drinking', Array.from(selectedDrinking));
-      }
-
-      const { data, error } = await query;
-      if (error) throw error;
-
-      const cityCoords = baseCity ? CITY_COORDS[baseCity] : null;
-      const referencePoint: GeoCoords | null = cityCoords
-        ? { lat: cityCoords[0], lon: cityCoords[1] }
-        : geoCoords;
-
-      let results = ((data || []) as SearchProfile[])
-        .filter((profile) => !profile.is_blocked)
-        .filter((profile) => !isHiddenAdminProfile(profile))
-        .map((profile) => ({
-          ...profile,
-          distanceKm: referencePoint ? distanceFromPointToCity(referencePoint, profile.city) : null,
-        }));
-
-      // Distance filter, based on selected city or current GPS
-      if (referencePoint && distance < 500) {
-        results = results.filter((p) => {
-          if (baseCity && p.city === baseCity) return true;
-          if (p.distanceKm === null) return true;
-          return p.distanceKm <= distance;
-        });
-      }
-
-      results = results.map((profile) => ({
-        ...profile,
-        matchScore: calculateMatchScore(profile, {
-          ageMin,
-          ageMax,
-          distanceLimit: distance,
-          selectedLookingFor,
-          selectedOrientation,
-          selectedPets,
-          selectedDrinking,
-        }),
-      }));
-
-      // Sort client-side
-      results.sort((a, b) => {
-        if (sortBy === 'match') {
-          const scoreDiff = (b.matchScore || 0) - (a.matchScore || 0);
-          if (scoreDiff !== 0) return scoreDiff;
-
-          const aDist = a.distanceKm ?? Number.MAX_SAFE_INTEGER;
-          const bDist = b.distanceKm ?? Number.MAX_SAFE_INTEGER;
-          return aDist - bDist;
-        }
-
-        if (sortBy === 'newest') {
-          return Date.parse(b.created_at || '') - Date.parse(a.created_at || '');
-        }
-
-        if (sortBy === 'ageAsc') {
-          return a.age - b.age;
-        }
-
-        if (sortBy === 'ageDesc') {
-          return b.age - a.age;
-        }
+    results.sort((a, b) => {
+      if (sortBy === 'match') {
+        const scoreDiff = (b.matchScore || 0) - (a.matchScore || 0);
+        if (scoreDiff !== 0) return scoreDiff;
 
         const aDist = a.distanceKm ?? Number.MAX_SAFE_INTEGER;
         const bDist = b.distanceKm ?? Number.MAX_SAFE_INTEGER;
         return aDist - bDist;
+      }
+
+      if (sortBy === 'newest') {
+        return Date.parse(b.created_at || '') - Date.parse(a.created_at || '');
+      }
+
+      if (sortBy === 'ageAsc') {
+        return a.age - b.age;
+      }
+
+      if (sortBy === 'ageDesc') {
+        return b.age - a.age;
+      }
+
+      const aDist = a.distanceKm ?? Number.MAX_SAFE_INTEGER;
+      const bDist = b.distanceKm ?? Number.MAX_SAFE_INTEGER;
+      return aDist - bDist;
+    });
+
+    return results;
+  }, [baseCity, distance, geoCoords, sortBy]);
+
+  const loadFallbackProfiles = useCallback(async () => {
+    let query = supabase
+      .from('profiles')
+      .select('id, name, age, city, image_url, looking_for, interests, drinking, pets, sexual_orientation, created_at, is_blocked, role, email')
+      .order('created_at', { ascending: false });
+
+    query = query.gte('age', ageMin).lte('age', ageMax);
+
+    if (viewerProfileId) {
+      query = query.neq('id', viewerProfileId);
+    }
+
+    if (selectedLookingFor.size > 0) {
+      query = query.in('looking_for', Array.from(selectedLookingFor));
+    }
+
+    if (selectedOrientation.size > 0) {
+      query = query.in('sexual_orientation', Array.from(selectedOrientation));
+    }
+
+    if (selectedPets.size > 0) {
+      query = query.in('pets', Array.from(selectedPets));
+    }
+
+    if (selectedDrinking.size > 0) {
+      query = query.in('drinking', Array.from(selectedDrinking));
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    const filtered = ((data || []) as SearchProfile[])
+      .filter((profile) => !profile.is_blocked)
+      .filter((profile) => !isHiddenAdminProfile(profile));
+
+    const scored = filtered.map((profile) => ({
+      ...profile,
+      matchScore: calculateMatchScore(profile, {
+        ageMin,
+        ageMax,
+        distanceLimit: distance,
+        selectedLookingFor,
+        selectedOrientation,
+        selectedPets,
+        selectedDrinking,
+      }),
+    }));
+
+    setProfiles(applyDistanceAndSort(scored));
+    setHasMore(false);
+    setNextCursor(null);
+  }, [
+    ageMin,
+    ageMax,
+    applyDistanceAndSort,
+    distance,
+    selectedDrinking,
+    selectedLookingFor,
+    selectedOrientation,
+    selectedPets,
+    viewerProfileId,
+  ]);
+
+  const fetchProfilesPage = useCallback(async (cursor: MatchCursor | null) => {
+    const append = Boolean(cursor);
+
+    if (append) {
+      setLoadingMore(true);
+    } else {
+      setLoading(true);
+    }
+
+    try {
+      const rpcSort: MatchSort = sortBy;
+      const ranked = await fetchRankedProfilesPage({
+        viewerProfileId,
+        limit: 30,
+        cursor,
+        sort: rpcSort,
+        ageMin,
+        ageMax,
+        lookingFor: selectedLookingFor,
+        orientation: selectedOrientation,
+        pets: selectedPets,
+        drinking: selectedDrinking,
+        referenceCity: baseCity || null,
       });
 
-      setProfiles(results);
-    } catch (err) {
-      console.error('Blad wyszukiwania profili:', err);
+      const fromRpc = ranked.items
+        .map((item) => {
+          const profile = item.profile;
+          return {
+            id: profile.id,
+            name: profile.name,
+            age: profile.age,
+            city: profile.city,
+            image_url: profile.image_url,
+            looking_for: profile.details?.looking_for,
+            interests: profile.interests,
+            drinking: profile.details?.drinking,
+            pets: profile.details?.pets,
+            sexual_orientation: profile.details?.sexual_orientation,
+            created_at: profile.createdAt,
+            matchScore: item.matchScore,
+            recommendedScore: item.recommendedScore,
+            isNearby: item.isNearby,
+            sortValue: item.sortValue,
+          } satisfies SearchProfile;
+        })
+        .filter((profile) => !isHiddenAdminProfile(profile));
+
+      setRpcUnavailable(false);
+      setHasMore(ranked.hasMore);
+      setNextCursor(ranked.nextCursor);
+      setProfiles((prev) => applyDistanceAndSort(append ? [...prev, ...fromRpc] : fromRpc));
+    } catch (error) {
+      console.error('Blad serwerowego matchingu:', error);
+
+      if (append) {
+        setHasMore(false);
+      } else if (isMissingMatchingRpc(error)) {
+        setRpcUnavailable(true);
+        await loadFallbackProfiles();
+      } else {
+        setProfiles([]);
+        setHasMore(false);
+        setNextCursor(null);
+      }
     } finally {
-      setLoading(false);
+      if (append) {
+        setLoadingMore(false);
+      } else {
+        setLoading(false);
+      }
     }
   }, [
     ageMin,
     ageMax,
+    applyDistanceAndSort,
     baseCity,
-    currentUserId,
-    distance,
-    geoCoords,
+    loadFallbackProfiles,
     selectedDrinking,
     selectedLookingFor,
     selectedOrientation,
     selectedPets,
     sortBy,
+    viewerProfileId,
   ]);
 
   useEffect(() => {
-    void fetchProfiles();
-  }, [fetchProfiles]);
+    void fetchProfilesPage(null);
+  }, [fetchProfilesPage]);
+
+  useEffect(() => {
+    let refreshTimeout: ReturnType<typeof setTimeout> | null = null;
+    const scheduleRefresh = () => {
+      if (refreshTimeout) return;
+
+      refreshTimeout = setTimeout(() => {
+        refreshTimeout = null;
+        void fetchProfilesPage(null);
+      }, 900);
+    };
+
+    const channel = supabase
+      .channel(`search-matching-live-${sortBy}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'profiles',
+      }, scheduleRefresh)
+      .subscribe();
+
+    return () => {
+      if (refreshTimeout) {
+        clearTimeout(refreshTimeout);
+      }
+      channel.unsubscribe();
+    };
+  }, [fetchProfilesPage, sortBy]);
 
   const handleApplyFilters = () => {
-    void fetchProfiles();
+    void fetchProfilesPage(null);
+  };
+
+  const handleLoadMore = () => {
+    if (!nextCursor || loadingMore) return;
+    void fetchProfilesPage(nextCursor);
   };
 
   const toggleLike = async (e: React.MouseEvent, profileId: string) => {
@@ -601,6 +753,12 @@ export default function NewSearchView() {
             </select>
           </div>
 
+          {rpcUnavailable && (
+            <p className="mb-4 text-xs text-amber-300/80">
+              Tryb awaryjny: ranking liczony lokalnie (uruchom migracje `supabase/profile_matching_rpc.sql`).
+            </p>
+          )}
+
           {/* Profile Grid */}
           {loading ? (
             <div className="flex items-center justify-center h-64 text-cyan-400 text-lg">Ładowanie...</div>
@@ -695,6 +853,18 @@ export default function NewSearchView() {
                   </div>
                 );
               })}
+            </div>
+          )}
+
+          {!rpcUnavailable && hasMore && !loading && (
+            <div className="mt-8 flex justify-center">
+              <button
+                onClick={handleLoadMore}
+                disabled={loadingMore}
+                className="px-6 py-3 rounded-xl bg-cyan-500/15 border border-cyan-400/30 text-cyan-100 hover:bg-cyan-500/25 transition-colors disabled:opacity-50"
+              >
+                {loadingMore ? 'Ladowanie kolejnych wynikow...' : 'Pokaz kolejne wyniki'}
+              </button>
             </div>
           )}
         </div>
