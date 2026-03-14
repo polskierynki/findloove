@@ -1618,21 +1618,21 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
                 <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
                 <span className="text-xs font-medium text-white tracking-wide">Aktywna teraz</span>
               </div>
-              {profile.isVerified && (
-                <div className="bg-black/40 backdrop-blur-md px-4 py-1.5 rounded-full border border-cyan-500/30 flex items-center gap-2 shadow-[0_0_15px_rgba(0,255,255,0.2)]">
-                  <SealCheck size={16} weight="fill" className="text-cyan-400" />
-                  <span className="text-xs font-medium text-white tracking-wide">Tożsamość zweryfikowana</span>
-                </div>
-              )}
+
             </div>
 
             {/* Profile Info at Bottom */}
             <div className="absolute bottom-0 left-0 w-full p-8 md:p-12 z-30">
               <h1 className="text-5xl md:text-7xl font-light tracking-tight text-white flex items-baseline gap-4 mb-2 drop-shadow-2xl">
-                {profile.name} 
                 {profile.isVerified && (
-                  <SealCheck size={40} weight="fill" className="text-cyan-400 drop-shadow-[0_0_10px_rgba(0,255,255,0.8)]" />
+                  <div className="relative group/verified inline-flex items-center self-center">
+                    <SealCheck size={40} weight="fill" className="text-cyan-400 drop-shadow-[0_0_10px_rgba(0,255,255,0.8)] cursor-default" />
+                    <div className="absolute bottom-full left-0 mb-2 px-2.5 py-1.5 bg-black/90 backdrop-blur-sm text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover/verified:opacity-100 transition-opacity pointer-events-none border border-cyan-500/40 shadow-[0_0_10px_rgba(0,255,255,0.2)] font-normal tracking-normal">
+                      Profil zweryfikowany
+                    </div>
+                  </div>
                 )}
+                {profile.name}
                 <span className="text-3xl md:text-5xl text-white font-extralight opacity-80">• {profile.age}</span>
               </h1>
               <p className="text-xl text-cyan-300 font-light mb-6 drop-shadow-lg flex items-center gap-2">
