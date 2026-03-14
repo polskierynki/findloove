@@ -207,6 +207,23 @@ export function useNotifications({
     setNotifications((prev) => prev.filter((item) => item.id !== notificationId));
   }, [persistDismissedIds]);
 
+  const dismissAllNotifications = useCallback(() => {
+    if (notifications.length === 0) return;
+
+    setDismissedIds((prev) => {
+      const next = new Set(prev);
+
+      for (const notification of notifications) {
+        next.add(notification.id);
+      }
+
+      persistDismissedIds(next);
+      return next;
+    });
+
+    setNotifications([]);
+  }, [notifications, persistDismissedIds]);
+
   const refresh = useCallback(async () => {
     if (profileTargets.length === 0) {
       setNotifications([]);
@@ -551,5 +568,6 @@ export function useNotifications({
     loading,
     refresh,
     dismissNotification,
+    dismissAllNotifications,
   };
 }

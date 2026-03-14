@@ -117,6 +117,7 @@ export default function NewHeader() {
     loading: notificationsLoading,
     refresh: loadNotifications,
     dismissNotification,
+    dismissAllNotifications,
   } = useNotifications({
     userId: user?.id || null,
     targetProfileIds: unreadTargetIds,
@@ -265,6 +266,16 @@ export default function NewHeader() {
     setLastReadAt(now);
     localStorage.setItem('notifications_read_at', String(now));
   }, []);
+
+  const clearAllNotifications = useCallback(() => {
+    if (notifications.length === 0) return;
+
+    dismissAllNotifications();
+
+    const now = Date.now();
+    setLastReadAt(now);
+    localStorage.setItem('notifications_read_at', String(now));
+  }, [dismissAllNotifications, notifications.length]);
 
   const openNotification = useCallback(
     (href: string) => {
@@ -463,11 +474,11 @@ export default function NewHeader() {
                     )}
                   </h3>
                   <button
-                    onClick={markAllNotificationsAsRead}
+                    onClick={clearAllNotifications}
                     disabled={notifications.length === 0}
-                    className="text-xs text-cyan-400 hover:text-cyan-300 transition-colors bg-cyan-500/10 px-3 py-1.5 rounded-full border border-cyan-500/30 disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="inline-flex items-center gap-1.5 text-xs text-red-300 hover:text-red-200 transition-colors bg-red-500/10 px-3 py-1.5 rounded-full border border-red-500/30 disabled:opacity-40 disabled:cursor-not-allowed"
                   >
-                    Oznacz przeczytane
+                    <Trash2 size={12} /> Usun wszystkie
                   </button>
                 </div>
 
