@@ -32,6 +32,7 @@ export const metadata: Metadata = {
 import CookieBanner from '@/components/layout/CookieBanner';
 import NewHeader from '@/components/layout/NewHeader';
 import FloatingParticles from '@/components/layout/FloatingParticles';
+import StandaloneMobileNav from '@/components/layout/StandaloneMobileNav';
 
 export default function RootLayout({
   children,
@@ -60,6 +61,7 @@ export default function RootLayout({
         <main className="relative z-10">
           {children}
         </main>
+        <StandaloneMobileNav />
         <CookieBanner />
       </body>
     </html>

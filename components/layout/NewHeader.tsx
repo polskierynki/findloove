@@ -5,7 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { resolveProfileIdForAuthUser } from '@/lib/profileAuth';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
-import { Bell, MessageCircle, Shield, Menu, X, Gift, Heart, BadgeCheck, LogIn, LogOut, UserPlus, Eye, Users, Check, Trash2, Coins } from 'lucide-react';
+import { Bell, MessageCircle, Shield, X, Gift, Heart, BadgeCheck, LogIn, LogOut, UserPlus, Eye, Users, Check, Trash2, Coins } from 'lucide-react';
 import { useNotifications, type NotificationItem } from '@/lib/hooks/useNotifications';
 import { useFriends } from '@/lib/hooks/useFriends';
 
@@ -52,7 +52,6 @@ export default function NewHeader() {
   const [lastReadAt, setLastReadAt] = useState<number>(0);
   const [unreadMessagesCount, setUnreadMessagesCount] = useState<number>(0);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [friendActionBusyKey, setFriendActionBusyKey] = useState<string | null>(null);
   const { acceptFriendRequest, removeFriendship } = useFriends();
 
@@ -347,7 +346,6 @@ export default function NewHeader() {
     }
 
     setNotificationsOpen(false);
-    setMobileMenuOpen(false);
     router.push('/');
   };
 
@@ -647,10 +645,10 @@ export default function NewHeader() {
 
           <div className="h-8 w-[1px] bg-white/20 mx-1 sm:mx-2 hidden sm:block"></div>
 
-          {/* Desktop auth button (fixed width, dynamic label) */}
+          {/* Auth button (mobile icon + desktop label) */}
           <button
             onClick={handleAuthAction}
-            className={`group relative hidden sm:flex min-w-[132px] items-center justify-center gap-2 px-5 lg:px-6 py-2.5 rounded-full font-medium text-sm text-white transition-all active:scale-95 overflow-hidden ${
+            className={`group relative inline-flex min-w-[44px] sm:min-w-[132px] items-center justify-center gap-2 px-3 sm:px-5 lg:px-6 py-2.5 rounded-full font-medium text-sm text-white transition-all active:scale-95 overflow-hidden ${
               user
                 ? 'bg-gradient-to-r from-slate-700 to-slate-600 hover:from-slate-600 hover:to-slate-500 shadow-[0_0_15px_rgba(148,163,184,0.25)] hover:shadow-[0_0_25px_rgba(148,163,184,0.35)]'
                 : 'bg-gradient-to-r from-fuchsia-600 to-cyan-600 hover:from-fuchsia-500 hover:to-cyan-500 shadow-[0_0_15px_rgba(255,0,255,0.3)] hover:shadow-[0_0_25px_rgba(0,255,255,0.5)]'
@@ -664,142 +662,12 @@ export default function NewHeader() {
             ) : (
               <LogIn size={18} className="relative z-10 group-hover:scale-110 transition-transform" />
             )}
-            <span className="relative z-10">{user ? 'Wyloguj' : 'Zaloguj'}</span>
+            <span className="relative z-10 hidden sm:inline">{user ? 'Wyloguj' : 'Zaloguj'}</span>
 
             <span className="absolute inset-0 rounded-full bg-cyan-400/20 scale-100 group-hover:scale-110 opacity-0 group-hover:opacity-100 blur-md transition-all duration-300"></span>
           </button>
         </div>
-
-        {/* Mobile Menu Button */}
-        <button
-          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="lg:hidden text-cyan-400 hover:text-cyan-300"
-        >
-          {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-        </button>
       </header>
-
-      {/* Mobile Navigation */}
-      {mobileMenuOpen && (
-        <div className="fixed top-20 left-0 right-0 bg-black/90 backdrop-blur-lg border-b border-cyan-500/10 z-40 lg:hidden">
-          <nav className="flex flex-col p-6 gap-4">
-            <button
-              onClick={() => {
-                router.push('/');
-                setMobileMenuOpen(false);
-              }}
-              className={`text-left px-4 py-2 rounded-lg transition-colors ${
-                activeNav === 'home'
-                  ? 'text-cyan-300 bg-cyan-500/10 font-medium'
-                  : 'text-cyan-300/60 hover:text-cyan-300 hover:bg-cyan-500/10'
-              }`}
-            >
-              Odkrywaj
-            </button>
-            <button
-              onClick={() => {
-                router.push('/search');
-                setMobileMenuOpen(false);
-              }}
-              className={`text-left px-4 py-2 rounded-lg transition-colors ${
-                activeNav === 'search'
-                  ? 'text-cyan-300 bg-cyan-500/10 font-medium'
-                  : 'text-cyan-300/60 hover:text-cyan-300 hover:bg-cyan-500/10'
-              }`}
-            >
-              Szukaj
-            </button>
-            <button
-              onClick={() => {
-                router.push('/wallet');
-                setMobileMenuOpen(false);
-              }}
-              className={`text-left px-4 py-2 rounded-lg transition-colors flex items-center gap-2 ${
-                activeNav === 'wallet'
-                  ? 'text-amber-200 bg-amber-500/15 font-medium'
-                  : 'text-amber-200/70 hover:text-amber-200 hover:bg-amber-500/10'
-              }`}
-            >
-              <Coins size={16} className="text-amber-300" />
-              Portfel
-            </button>
-            <button
-              onClick={() => {
-                router.push('/friends');
-                setMobileMenuOpen(false);
-              }}
-              className={`text-left px-4 py-2 rounded-lg transition-colors ${
-                activeNav === 'friends'
-                  ? 'text-cyan-300 bg-cyan-500/10 font-medium'
-                  : 'text-cyan-300/60 hover:text-cyan-300 hover:bg-cyan-500/10'
-              }`}
-            >
-              Znajomi
-            </button>
-            {!isAdmin && (
-              <button
-                onClick={() => {
-                  router.push('/myprofile');
-                  setMobileMenuOpen(false);
-                }}
-                className={`text-left px-4 py-2 rounded-lg transition-colors ${
-                  activeNav === 'profile'
-                    ? 'text-cyan-300 bg-cyan-500/10 font-medium'
-                    : 'text-cyan-300/60 hover:text-cyan-300 hover:bg-cyan-500/10'
-                }`}
-              >
-                Mój profil
-              </button>
-            )}
-            {isAdmin && (
-              <button
-                onClick={() => {
-                  router.push('/admin');
-                  setMobileMenuOpen(false);
-                }}
-                className="text-left px-4 py-2 text-fuchsia-400 hover:text-fuchsia-300 hover:bg-fuchsia-500/10 rounded-lg transition-colors"
-              >
-                Panel Admina
-              </button>
-            )}
-            
-            {/* Mobile auth actions */}
-            <div className="mt-4 pt-4 border-t border-white/10 space-y-2">
-              <button
-                onClick={async () => {
-                  if (!user) {
-                    router.push('/auth');
-                  } else {
-                    await handleAuthAction();
-                  }
-                  setMobileMenuOpen(false);
-                }}
-                className={`w-full flex items-center justify-center gap-2 px-5 py-3 rounded-full font-medium text-white active:scale-95 transition-all ${
-                  user
-                    ? 'bg-gradient-to-r from-slate-700 to-slate-600 hover:from-slate-600 hover:to-slate-500 shadow-[0_0_15px_rgba(148,163,184,0.25)]'
-                    : 'bg-gradient-to-r from-fuchsia-600 to-cyan-600 hover:from-fuchsia-500 hover:to-cyan-500 shadow-[0_0_15px_rgba(255,0,255,0.3)]'
-                }`}
-              >
-                {user ? <LogOut size={18} /> : <LogIn size={18} />}
-                {user ? 'Wyloguj' : 'Zaloguj'}
-              </button>
-
-              {!user && (
-                <button
-                  onClick={() => {
-                    router.push('/register');
-                    setMobileMenuOpen(false);
-                  }}
-                  className="w-full flex items-center justify-center gap-2 border border-cyan-500/40 bg-cyan-500/10 px-5 py-3 rounded-full font-medium text-cyan-200 hover:bg-cyan-500/20 transition-all"
-                >
-                  <UserPlus size={18} />
-                  Załóż konto
-                </button>
-              )}
-            </div>
-          </nav>
-        </div>
-      )}
 
     </>
   );

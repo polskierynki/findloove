@@ -783,55 +783,55 @@ export default function NewAdminView() {
   }
 
   return (
-    <div className="relative z-10 pt-28 pb-16 px-6 lg:px-12 max-w-[2200px] mx-auto">
-      <h1 className="text-4xl font-light text-white mb-8 flex items-center gap-3">
+    <div className="relative z-10 pt-24 md:pt-28 pb-24 md:pb-16 px-4 md:px-6 lg:px-12 max-w-[2200px] mx-auto">
+      <h1 className="text-3xl md:text-4xl font-light text-white mb-6 md:mb-8 flex items-center gap-3">
         Panel Administratora <div className="h-px flex-1 bg-gradient-to-r from-white/20 to-transparent"></div>
       </h1>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-6 mb-8">
-        <div className="glass rounded-2xl p-6 border border-cyan-500/20">
+      <div className="grid grid-cols-2 md:grid-cols-2 xl:grid-cols-5 gap-3 md:gap-6 mb-8">
+        <div className="glass rounded-2xl p-4 md:p-6 border border-cyan-500/20">
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-cyan-400 text-sm font-medium uppercase tracking-wider">Użytkownicy</h3>
             <Users className="text-cyan-400" size={24} />
           </div>
-          <p className="text-4xl font-light text-white">{stats.totalUsers}</p>
+          <p className="text-2xl md:text-4xl font-light text-white">{stats.totalUsers}</p>
           <p className="text-xs text-cyan-400/60 mt-1">Łącznie</p>
         </div>
 
-        <div className="glass rounded-2xl p-6 border border-green-500/20">
+        <div className="glass rounded-2xl p-4 md:p-6 border border-green-500/20">
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-green-400 text-sm font-medium uppercase tracking-wider">Aktywni teraz</h3>
             <Activity className="text-green-400" size={24} />
           </div>
-          <p className="text-4xl font-light text-white">{stats.activeNow}</p>
+          <p className="text-2xl md:text-4xl font-light text-white">{stats.activeNow}</p>
           <p className="text-xs text-green-400/60 mt-1">Online</p>
         </div>
 
-        <div className="glass rounded-2xl p-6 border border-red-500/20">
+        <div className="glass rounded-2xl p-4 md:p-6 border border-red-500/20">
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-red-400 text-sm font-medium uppercase tracking-wider">Zgłoszenia</h3>
             <AlertTriangle className="text-red-400" size={24} />
           </div>
-          <p className="text-4xl font-light text-white">{stats.newReports}</p>
+          <p className="text-2xl md:text-4xl font-light text-white">{stats.newReports}</p>
           <p className="text-xs text-red-400/60 mt-1">Nowe</p>
         </div>
 
-        <div className="glass rounded-2xl p-6 border border-amber-500/20">
+        <div className="glass rounded-2xl p-4 md:p-6 border border-amber-500/20">
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-amber-400 text-sm font-medium uppercase tracking-wider">Selfie</h3>
             <BadgeCheck className="text-amber-400" size={24} />
           </div>
-          <p className="text-4xl font-light text-white">{stats.pendingVerifications}</p>
+          <p className="text-2xl md:text-4xl font-light text-white">{stats.pendingVerifications}</p>
           <p className="text-xs text-amber-400/60 mt-1">Do akceptacji</p>
         </div>
 
-        <div className="glass rounded-2xl p-6 border border-amber-500/20">
+        <div className="glass rounded-2xl p-4 md:p-6 border border-amber-500/20 col-span-2 md:col-span-2 xl:col-span-1">
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-amber-400 text-sm font-medium uppercase tracking-wider">Przychody 24h</h3>
             <TrendingUp className="text-amber-400" size={24} />
           </div>
-          <p className="text-4xl font-light text-white">{stats.revenue24h.toLocaleString()} zł</p>
+          <p className="text-2xl md:text-4xl font-light text-white">{stats.revenue24h.toLocaleString()} zł</p>
           <p className="text-xs text-amber-400/60 mt-1">Ostatnia doba</p>
         </div>
       </div>
@@ -844,7 +844,100 @@ export default function NewAdminView() {
             <div className="h-px flex-1 bg-gradient-to-r from-white/20 to-transparent"></div>
           </h2>
 
-          <div className="overflow-x-auto">
+          <div className="md:hidden space-y-3 mb-4">
+            {users.map((user) => (
+              <div key={user.id} className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                <div className="flex items-start gap-3">
+                  <img
+                    src={user.image_url || 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&q=80'}
+                    alt={user.name}
+                    className={`w-11 h-11 rounded-full object-cover border border-white/10 ${user.isBanned ? 'grayscale' : ''}`}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className={`text-white text-sm font-medium truncate ${user.isBanned ? 'line-through opacity-60' : ''}`}>
+                      {user.name || 'Bez nazwy'}
+                    </p>
+                    <p className="text-xs text-cyan-400/60 truncate">{user.city || 'Brak'} • {new Date(user.created_at).toLocaleDateString('pl-PL')}</p>
+                    <div className="mt-2 flex items-center gap-1.5">
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${user.isBanned ? 'bg-red-500/20 text-red-300 border border-red-500/35' : 'bg-green-500/20 text-green-300 border border-green-500/35'}`}>
+                        {user.isBanned ? 'Zbanowany' : 'Aktywny'}
+                      </span>
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${user.strikes >= 3 ? 'bg-red-500/20 text-red-300 border border-red-500/35' : user.strikes > 0 ? 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/35' : 'bg-white/10 text-white/60 border border-white/15'}`}>
+                        Strajki: {user.strikes}/3
+                      </span>
+                      {user.verificationPending && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-yellow-500/20 text-yellow-200 border border-yellow-500/35">
+                          Selfie pending
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-3 grid grid-cols-4 gap-2">
+                  <button
+                    title="Wiadomość"
+                    onClick={() => handleSendMessageToUser(user.id)}
+                    className="h-9 rounded-lg bg-white/10 hover:bg-cyan-500/20 border border-white/10 text-cyan-300 transition-colors flex items-center justify-center"
+                  >
+                    <MessageCircle size={15} />
+                  </button>
+                  <button
+                    title="Profil"
+                    onClick={() => handleOpenProfilePreview(user.id)}
+                    className="h-9 rounded-lg bg-white/10 hover:bg-blue-500/20 border border-white/10 text-blue-300 transition-colors flex items-center justify-center"
+                  >
+                    <Eye size={15} />
+                  </button>
+                  <button
+                    title={user.isPopularOverride ? 'Wyłącz popularność' : 'Włącz popularność'}
+                    onClick={() => void handleTogglePopularOverride(user.id)}
+                    className={`h-9 rounded-lg border transition-colors flex items-center justify-center ${
+                      user.isPopularOverride
+                        ? 'bg-yellow-400/25 border-yellow-400/50 text-yellow-300'
+                        : 'bg-white/10 border-white/10 text-white/40 hover:text-yellow-300 hover:border-yellow-400/40'
+                    }`}
+                  >
+                    <Zap size={14} fill={user.isPopularOverride ? 'currentColor' : 'none'} />
+                  </button>
+                  <button
+                    title={user.isBanned ? 'Odbanuj' : 'Zbanuj'}
+                    onClick={() => void handleToggleUserBan(user)}
+                    disabled={busyUserId === user.id}
+                    className={`h-9 rounded-lg border transition-colors flex items-center justify-center disabled:opacity-50 ${
+                      user.isBanned
+                        ? 'bg-green-500/20 border-green-500/40 text-green-300'
+                        : 'bg-red-500/20 border-red-500/40 text-red-300'
+                    }`}
+                  >
+                    {user.isBanned ? <Check size={15} /> : <Ban size={15} />}
+                  </button>
+                </div>
+
+                <div className="mt-2 flex items-center justify-center gap-2">
+                  <button
+                    title="-1 strike"
+                    onClick={() => handleAdjustStrikes(user.id, -1)}
+                    disabled={user.strikes === 0}
+                    className="w-7 h-7 rounded-md bg-white/5 border border-white/10 text-white/50 hover:text-green-300 hover:border-green-500/40 disabled:opacity-30"
+                  >
+                    <Minus size={12} className="mx-auto" />
+                  </button>
+                  <span className="text-xs text-white/60 min-w-[58px] text-center">{user.strikes}/3</span>
+                  <button
+                    title="+1 strike"
+                    onClick={() => handleAdjustStrikes(user.id, 1)}
+                    disabled={user.strikes >= 3}
+                    className="w-7 h-7 rounded-md bg-white/5 border border-white/10 text-white/50 hover:text-red-300 hover:border-red-500/40 disabled:opacity-30"
+                  >
+                    <Plus size={12} className="mx-auto" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full table-fixed">
               <thead>
                 <tr className="border-b border-white/10">
