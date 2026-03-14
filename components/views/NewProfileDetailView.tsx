@@ -136,6 +136,7 @@ type CompatibilityProfile = {
   createdAt?: string | null;
   isVerified?: boolean | null;
   is_verified?: boolean | null;
+  role?: string | null;
 };
 
 type CompatibilityResult = {
@@ -185,6 +186,7 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
   const [giftNotice, setGiftNotice] = useState<string | null>(null);
   const [receivedGifts, setReceivedGifts] = useState<ReceivedGift[]>([]);
   const [receivedGiftsLoading, setReceivedGiftsLoading] = useState(false);
+  const [deletingGiftId, setDeletingGiftId] = useState<string | null>(null);
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
   const [isSubmittingPhotoComment, setIsSubmittingPhotoComment] = useState(false);
   const [deletingWallCommentId, setDeletingWallCommentId] = useState<string | null>(null);
@@ -280,6 +282,16 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
 
     return `${compatibility.sharedTraits} ${suffix}`;
   }, [compatibility.sharedTraits, compatibilityLoading, viewerProfile]);
+
+  const normalizedViewerRole = (viewerProfile?.role || '').trim().toLowerCase();
+  const isViewerAdmin = normalizedViewerRole === 'admin' || normalizedViewerRole === 'super_admin';
+  const isViewingOwnProfile = Boolean(authorProfileId && authorProfileId === profileId);
+
+  const canDeleteGift = useCallback((gift: ReceivedGift) => {
+    if (isViewerAdmin) return true;
+    if (!isViewingOwnProfile) return false;
+    return Boolean(gift.message && gift.message.trim());
+  }, [isViewerAdmin, isViewingOwnProfile]);
 
   const loadGeneralComments = useCallback(async () => {
     const { data: commentsData, error: commentsError } = await supabase
@@ -636,6 +648,53 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
     }
   }, [giftBalance, loadReceivedGifts, profileId, resolveCurrentAuthorProfileId]);
 
+  const handleDeleteGift = useCallback(async (gift: ReceivedGift) => {
+    if (!canDeleteGift(gift) || deletingGiftId) return;
+
+    const confirmationMessage = isViewerAdmin
+      ? 'Usunac ten prezent jako administrator?'
+      : 'Usunac ten prezent z niestosownym komentarzem?';
+
+    const shouldDelete = window.confirm(confirmationMessage);
+    if (!shouldDelete) return;
+
+    setGiftError(null);
+    setGiftNotice(null);
+    setDeletingGiftId(gift.id);
+
+    try {
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError || !sessionData.session?.access_token) {
+        setGiftError('Brak aktywnej sesji. Zaloguj sie ponownie.');
+        return;
+      }
+
+      const response = await fetch('/api/gifts/delete', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${sessionData.session.access_token}`,
+        },
+        body: JSON.stringify({ giftId: gift.id }),
+      });
+
+      const payload = await response.json().catch(() => null) as { error?: string; message?: string } | null;
+
+      if (!response.ok) {
+        setGiftError(payload?.error || 'Nie udalo sie usunac prezentu.');
+        return;
+      }
+
+      setGiftNotice(payload?.message || 'Prezent zostal usuniety.');
+      await loadReceivedGifts();
+    } catch (error) {
+      console.error('Blad usuwania prezentu:', error);
+      setGiftError('Nie udalo sie usunac prezentu. Sprobuj ponownie.');
+    } finally {
+      setDeletingGiftId(null);
+    }
+  }, [canDeleteGift, deletingGiftId, isViewerAdmin, loadReceivedGifts]);
+
   const handleAddGeneralComment = useCallback(async () => {
     const content = commentText.trim();
     if (!content || isSubmittingComment) return;
@@ -941,13 +1000,16 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
       .on(
         'postgres_changes',
         {
-          event: 'INSERT',
+          event: '*',
           schema: 'public',
           table: 'profile_interactions',
         },
         (payload) => {
-          const row = payload.new as { to_profile_id?: string; kind?: string };
-          if (row.to_profile_id !== profileId || row.kind !== 'gift') return;
+          const rowNew = payload.new as { to_profile_id?: string; kind?: string } | null;
+          const rowOld = payload.old as { to_profile_id?: string; kind?: string } | null;
+          const affectsProfile = rowNew?.to_profile_id === profileId || rowOld?.to_profile_id === profileId;
+          const isGiftRow = rowNew?.kind === 'gift' || rowOld?.kind === 'gift';
+          if (!affectsProfile || !isGiftRow) return;
           void loadReceivedGifts();
         },
       )
@@ -1706,22 +1768,39 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
               <div className="text-sm text-cyan-300/70">Brak otrzymanych prezentow.</div>
             ) : (
               <div className="relative grid grid-cols-4 gap-4 overflow-visible">
-                {receivedGifts.map((gift) => (
-                  <div
-                    key={gift.id}
-                    className="relative z-0 group glass rounded-2xl aspect-square flex items-center justify-center text-4xl cursor-pointer border border-white/5 transition-transform hover:scale-105 hover:z-20 hover:border-amber-500/30"
-                  >
-                    <span>{gift.emoji}</span>
-                    <div className="absolute -top-2 left-1/2 z-[70] -translate-x-1/2 -translate-y-full rounded-lg border border-amber-500/20 bg-black/90 px-3 py-2 text-xs whitespace-nowrap text-white opacity-0 shadow-[0_8px_20px_rgba(0,0,0,0.35)] backdrop-blur-md transition-opacity pointer-events-none group-hover:opacity-100">
-                      <div className="font-medium">{gift.fromName}</div>
-                      <div className="text-amber-400 text-[10px]">{gift.label} • {gift.tokenCost} monet</div>
-                      {gift.message && (
-                        <div className="text-[10px] text-cyan-200/80 mt-1 max-w-[180px] whitespace-normal">"{gift.message}"</div>
+                {receivedGifts.map((gift) => {
+                  const canModerateGift = canDeleteGift(gift);
+                  const deletingThisGift = deletingGiftId === gift.id;
+
+                  return (
+                    <div
+                      key={gift.id}
+                      className="relative z-0 group glass rounded-2xl aspect-square flex items-center justify-center text-4xl cursor-pointer border border-white/5 transition-transform hover:scale-105 hover:z-20 hover:border-amber-500/30"
+                    >
+                      <span>{gift.emoji}</span>
+
+                      {canModerateGift && (
+                        <button
+                          onClick={() => void handleDeleteGift(gift)}
+                          disabled={deletingThisGift}
+                          className="absolute top-1 right-1 z-[80] inline-flex items-center justify-center min-w-6 h-6 rounded-full border border-red-400/40 bg-red-500/15 px-1.5 text-[10px] text-red-100 hover:bg-red-500/25 transition-colors disabled:opacity-55 disabled:cursor-not-allowed"
+                          title={isViewerAdmin ? 'Usun prezent (admin)' : 'Usun prezent z niestosownym komentarzem'}
+                        >
+                          {deletingThisGift ? '...' : 'Usun'}
+                        </button>
                       )}
-                      <div className="text-[10px] text-white/45 mt-1">{formatCommentDateTime(gift.createdAt)}</div>
+
+                      <div className="absolute -top-2 left-1/2 z-[70] -translate-x-1/2 -translate-y-full rounded-lg border border-amber-500/20 bg-black/90 px-3 py-2 text-xs whitespace-nowrap text-white opacity-0 shadow-[0_8px_20px_rgba(0,0,0,0.35)] backdrop-blur-md transition-opacity pointer-events-none group-hover:opacity-100">
+                        <div className="font-medium">{gift.fromName}</div>
+                        <div className="text-amber-400 text-[10px]">{gift.label} • {gift.tokenCost} monet</div>
+                        {gift.message && (
+                          <div className="text-[10px] text-cyan-200/80 mt-1 max-w-[180px] whitespace-normal">"{gift.message}"</div>
+                        )}
+                        <div className="text-[10px] text-white/45 mt-1">{formatCommentDateTime(gift.createdAt)}</div>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
