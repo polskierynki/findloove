@@ -557,6 +557,12 @@ body.photo-modal-open nav[data-app-nav='bottom'] {
   height: calc(100vh - 180px); 
 }
 
+@media (max-width: 767px) {
+  .chat-height {
+    height: calc(100svh - 96px);
+  }
+}
+
 .chat-bubble-me {
   background: linear-gradient(135deg, rgba(255,0,255,0.2) 0%, rgba(255,0,255,0.05) 100%);
   border: 1px solid rgba(255,0,255,0.3);

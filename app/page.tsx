@@ -142,7 +142,10 @@ function getPathForView(view: AppView, profileId?: string | null): string {
 
 export default function App() {
   const router = useRouter();
-  const [view, setView] = useState<AppView>('home');
+  const [view, setView] = useState<AppView>(() => {
+    if (typeof window === 'undefined') return 'home';
+    return getViewFromPathname(window.location.pathname) ?? 'home';
+  });
   const [showAdminDashboard, setShowAdminDashboard] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   // Premium i limity randek

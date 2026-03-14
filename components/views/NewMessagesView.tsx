@@ -760,12 +760,12 @@ export default function NewMessagesView() {
   }
 
   return (
-    <div className="relative z-10 pt-24 pb-6 px-6 lg:px-12 max-w-[1800px] mx-auto">
-      <div className="glass rounded-[2rem] w-full chat-height flex overflow-hidden border border-white/10 shadow-[0_0_40px_rgba(0,0,0,0.5)]">
+    <div className="relative z-10 pt-24 pb-0 px-0 md:pb-6 md:px-6 lg:px-12 max-w-[1800px] mx-auto">
+      <div className="glass rounded-none md:rounded-[2rem] w-full chat-height flex overflow-hidden border-y md:border border-white/10 shadow-[0_0_40px_rgba(0,0,0,0.5)]">
         {/* Left Column: Contacts */}
         <div className={`${selectedProfile ? 'hidden md:flex' : 'flex'} w-full md:w-80 lg:w-96 border-r border-white/5 bg-black/20 flex-col`}>
-          <div className="p-6 border-b border-white/5">
-            <h2 className="text-2xl font-light mb-4">Wiadomości</h2>
+          <div className="p-4 md:p-6 border-b border-white/5">
+            <h2 className="text-xl md:text-2xl font-light mb-3 md:mb-4">Wiadomości</h2>
             <div className="relative group">
               <MagnifyingGlass className="absolute left-4 top-1/2 -translate-y-1/2 text-cyan-400" size={16} weight="bold" />
               <input
@@ -787,7 +787,7 @@ export default function NewMessagesView() {
                 <div
                   key={conv.id}
                   onClick={() => setSelectedProfile(conv)}
-                  className={`flex items-center gap-4 p-3 rounded-2xl cursor-pointer transition-all ${
+                  className={`flex items-center gap-3 p-3 rounded-2xl cursor-pointer transition-all ${
                     selectedProfile?.id === conv.id
                       ? 'bg-white/10 border border-cyan-500/30 shadow-[inset_0_0_15px_rgba(0,255,255,0.05)]'
                       : 'hover:bg-cyan-500/10'
@@ -824,7 +824,7 @@ export default function NewMessagesView() {
           {selectedProfile ? (
             <>
               {/* Chat Header with Action Icons */}
-              <div className="h-20 border-b border-white/5 flex items-center justify-between px-8 bg-black/20 backdrop-blur-sm z-10">
+              <div className="h-14 md:h-20 border-b border-white/5 flex items-center justify-between px-4 md:px-8 bg-black/20 backdrop-blur-sm z-10">
                 <div className="flex items-center gap-4">
                   <button
                     onClick={() => setSelectedProfile(null)}
@@ -833,7 +833,7 @@ export default function NewMessagesView() {
                   >
                     <ArrowLeft size={18} weight="bold" />
                   </button>
-                  <div className="relative w-10 h-10 rounded-full overflow-hidden border border-cyan-500/20">
+                  <div className="relative w-9 h-9 md:w-10 md:h-10 rounded-full overflow-hidden border border-cyan-500/20 shrink-0">
                     <Image
                       src={selectedProfile.image_url || MESSAGE_AVATAR_FALLBACK}
                       alt={selectedProfile.name}
@@ -843,39 +843,39 @@ export default function NewMessagesView() {
                     />
                   </div>
                   <div>
-                    <h3 className="text-lg font-medium text-white">{selectedProfile.name}</h3>
-                    <p className="text-xs text-cyan-500/60">Konwersacja</p>
+                    <h3 className="text-base md:text-lg font-medium text-white leading-tight">{selectedProfile.name}</h3>
+                    <p className="text-xs text-cyan-500/60 hidden md:block">Konwersacja</p>
                   </div>
                 </div>
 
                 {/* Action Icons */}
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1 md:gap-2">
                   <button
                     onClick={handleReportUser}
                     title="Zgłoś użytkownika"
-                    className="p-2.5 rounded-xl bg-white/5 hover:bg-amber-500/20 border border-white/10 hover:border-amber-500/40 text-amber-400 hover:text-amber-300 transition-all group"
+                    className="p-2 md:p-2.5 rounded-xl bg-white/5 hover:bg-amber-500/20 border border-white/10 hover:border-amber-500/40 text-amber-400 hover:text-amber-300 transition-all group"
                   >
-                    <Flag size={20} weight="duotone" className="group-hover:scale-110 transition-transform" />
+                    <Flag size={18} weight="duotone" className="group-hover:scale-110 transition-transform" />
                   </button>
                   <button
                     onClick={handleDeleteMessages}
                     title="Usuń wszystkie wiadomości"
-                    className="p-2.5 rounded-xl bg-white/5 hover:bg-red-500/20 border border-white/10 hover:border-red-500/40 text-red-400 hover:text-red-300 transition-all group"
+                    className="p-2 md:p-2.5 rounded-xl bg-white/5 hover:bg-red-500/20 border border-white/10 hover:border-red-500/40 text-red-400 hover:text-red-300 transition-all group"
                   >
-                    <Trash size={20} weight="duotone" className="group-hover:scale-110 transition-transform" />
+                    <Trash size={18} weight="duotone" className="group-hover:scale-110 transition-transform" />
                   </button>
                   <button
                     onClick={handleBlockUser}
                     title="Zablokuj użytkownika"
-                    className="p-2.5 rounded-xl bg-white/5 hover:bg-fuchsia-500/20 border border-white/10 hover:border-fuchsia-500/40 text-fuchsia-400 hover:text-fuchsia-300 transition-all group"
+                    className="p-2 md:p-2.5 rounded-xl bg-white/5 hover:bg-fuchsia-500/20 border border-white/10 hover:border-fuchsia-500/40 text-fuchsia-400 hover:text-fuchsia-300 transition-all group"
                   >
-                    <Prohibit size={20} weight="duotone" className="group-hover:scale-110 transition-transform" />
+                    <Prohibit size={18} weight="duotone" className="group-hover:scale-110 transition-transform" />
                   </button>
                 </div>
               </div>
 
               {/* Messages */}
-              <div ref={messagesContainerRef} className="flex-1 overflow-y-auto custom-scrollbar p-8 space-y-6">
+              <div ref={messagesContainerRef} className="flex-1 overflow-y-auto custom-scrollbar p-3 md:p-8 space-y-2 md:space-y-6">
                 {messages.length === 0 ? (
                   <div className="flex items-center justify-center h-full text-cyan-400/60">
                     <p>Brak wiadomości - napisz coś!</p>
@@ -890,9 +890,9 @@ export default function NewMessagesView() {
 
                     return (
                       <div key={msg.id} className={`flex ${isFromMe ? 'justify-end' : 'justify-start'}`}>
-                        <div className={`max-w-[70%] p-4 rounded-3xl text-sm ${isFromMe ? 'chat-bubble-me' : 'chat-bubble-them'} shadow-lg`}>
-                          <p className="text-white">{msg.content}</p>
-                          <p className={`text-xs mt-1 ${isFromMe ? 'text-cyan-200/60' : 'text-white/60'}`}>
+                        <div className={`max-w-[85%] md:max-w-[70%] px-3 py-2 md:p-4 rounded-2xl md:rounded-3xl text-sm ${isFromMe ? 'chat-bubble-me' : 'chat-bubble-them'} shadow-lg`}>
+                          <p className="text-white leading-relaxed">{msg.content}</p>
+                          <p className={`text-[10px] md:text-xs mt-1 ${isFromMe ? 'text-cyan-200/60' : 'text-white/60'}`}>
                             {msgTime}
                           </p>
                         </div>
@@ -904,7 +904,7 @@ export default function NewMessagesView() {
               </div>
 
               {/* Chat Input */}
-              <div className="p-6 border-t border-white/5 bg-black/20 backdrop-blur-sm">
+              <div className="p-3 md:p-6 border-t border-white/5 bg-black/20 backdrop-blur-sm pb-safe">
                 {chatError && (
                   <p className="mb-3 text-sm text-red-300">{chatError}</p>
                 )}
