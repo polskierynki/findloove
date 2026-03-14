@@ -935,7 +935,7 @@ export default function NewSearchView() {
                               {profile.is_verified && (
                                 <div className="relative group/verified">
                                   <SealCheck size={22} weight="fill" className="text-cyan-400 drop-shadow-[0_0_6px_rgba(0,255,255,0.8)] flex-shrink-0 cursor-default" />
-                                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2.5 py-1.5 bg-black/90 backdrop-blur-sm text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover/verified:opacity-100 transition-opacity pointer-events-none border border-cyan-500/40 shadow-[0_0_10px_rgba(0,255,255,0.2)]">
+                                  <div className="absolute bottom-full right-0 mb-2 px-2.5 py-1.5 bg-black/90 backdrop-blur-sm text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover/verified:opacity-100 transition-opacity pointer-events-none border border-cyan-500/40 shadow-[0_0_10px_rgba(0,255,255,0.2)]">
                                     Profil zweryfikowany
                                   </div>
                                 </div>
