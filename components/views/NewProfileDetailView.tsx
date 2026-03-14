@@ -31,7 +31,8 @@ import {
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { resolveProfileIdForAuthUser } from '@/lib/profileAuth';
-import { Profile, getLookingFor } from '@/lib/types';
+import { computeUnifiedCompatibility } from '@/lib/matching';
+import { Profile } from '@/lib/types';
 import { useLikes } from '@/lib/hooks/useLikes';
 import { useFriends, type FriendshipStatus, type Friend } from '@/lib/hooks/useFriends';
 import { ALL_INTERESTS } from './constants/profileFormOptions';
@@ -143,144 +144,13 @@ type CompatibilityResult = {
   sharedInterests: number;
 };
 
-function normalizeText(value?: string | null): string {
-  return (value || '').trim().toLowerCase();
-}
-
-function toTimestamp(value?: string | null): number {
-  if (!value) return 0;
-  const ts = Date.parse(value);
-  return Number.isNaN(ts) ? 0 : ts;
-}
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.max(min, Math.min(max, value));
-}
-
-function getProfileField(profile: CompatibilityProfile | null, field: 'looking_for' | 'zodiac' | 'smoking' | 'drinking' | 'pets' | 'children'): string {
-  if (!profile) return '';
-
-  const nested = normalizeText(profile.details?.[field]);
-  if (nested) return nested;
-
-  return normalizeText(profile[field]);
-}
-
-function getProfileLookingFor(profile: CompatibilityProfile | null): string {
-  const direct = getProfileField(profile, 'looking_for');
-  if (direct) return direct;
-
-  const inferred = getLookingFor(profile?.status || '');
-  return inferred ? normalizeText(inferred) : '';
-}
-
-function isAgeWithinRange(age: number, min?: number | null, max?: number | null): boolean {
-  if (!Number.isFinite(age)) return false;
-  if (typeof min === 'number' && age < min) return false;
-  if (typeof max === 'number' && age > max) return false;
-  return true;
-}
-
-function getActivityBonus(activityTs: number): number {
-  if (!activityTs) return 0;
-  const hoursAgo = (Date.now() - activityTs) / 3600000;
-  if (hoursAgo <= 2) return 12;
-  if (hoursAgo <= 24) return 8;
-  if (hoursAgo <= 72) return 5;
-  if (hoursAgo <= 168) return 2;
-  return 0;
-}
-
 function computeCompatibility(viewer: CompatibilityProfile | null, target: CompatibilityProfile | null): CompatibilityResult {
-  if (!target) {
-    return {
-      matchScore: 0,
-      sharedTraits: 0,
-      sharedInterests: 0,
-    };
-  }
-
-  if (!viewer) {
-    return {
-      matchScore: 0,
-      sharedTraits: 0,
-      sharedInterests: 0,
-    };
-  }
-
-  const myInterests = new Set((viewer.interests || []).map((interest) => normalizeText(interest)));
-  const targetInterests = (target.interests || []).map((interest) => normalizeText(interest));
-  const sharedInterests = targetInterests.filter((interest) => interest && myInterests.has(interest)).length;
-
-  const sameCity = normalizeText(viewer.city) !== '' && normalizeText(viewer.city) === normalizeText(target.city);
-  const lookingForMatch = Boolean(getProfileLookingFor(viewer) && getProfileLookingFor(viewer) === getProfileLookingFor(target));
-
-  const lifestyleFields: Array<'zodiac' | 'smoking' | 'drinking' | 'pets' | 'children'> = [
-    'zodiac',
-    'smoking',
-    'drinking',
-    'pets',
-    'children',
-  ];
-
-  const sharedLifestyleTraits = lifestyleFields.reduce((count, field) => {
-    const mine = getProfileField(viewer, field);
-    const theirs = getProfileField(target, field);
-    if (!mine || !theirs) return count;
-    return mine === theirs ? count + 1 : count;
-  }, 0);
-
-  const ageCompatibility = isAgeWithinRange(
-    Number(target.age || 0),
-    viewer.seeking_age_min,
-    viewer.seeking_age_max,
-  ) && isAgeWithinRange(
-    Number(viewer.age || 0),
-    target.seeking_age_min,
-    target.seeking_age_max,
-  );
-
-  const genderCompatibility =
-    (!viewer.seeking_gender || !target.gender || normalizeText(viewer.seeking_gender) === normalizeText(target.gender))
-    && (!target.seeking_gender || !viewer.gender || normalizeText(target.seeking_gender) === normalizeText(viewer.gender));
-
-  const activityTs = toTimestamp(target.lastActive || target.last_active || target.createdAt || target.created_at);
-  const activityBonus = getActivityBonus(activityTs);
-
-  const matchScore = clamp(
-    48
-      + sharedInterests * 11
-      + sharedLifestyleTraits * 5
-      + (sameCity ? 8 : 0)
-      + (lookingForMatch ? 9 : 0)
-      + (ageCompatibility ? 6 : 0)
-      + (genderCompatibility ? 4 : -6)
-      + Math.min(10, activityBonus)
-      + (target.isVerified || target.is_verified ? 3 : 0),
-    45,
-    99,
-  );
-
-  const sharedTraits =
-    sharedInterests
-    + sharedLifestyleTraits
-    + (sameCity ? 1 : 0)
-    + (lookingForMatch ? 1 : 0)
-    + (ageCompatibility ? 1 : 0)
-    + (genderCompatibility ? 1 : 0);
-
-  if (viewer.id && target.id && viewer.id === target.id) {
-    return {
-      matchScore: 100,
-      sharedTraits: Math.max(sharedTraits, 1),
-      sharedInterests,
-    };
-  }
+  const unified = computeUnifiedCompatibility(viewer, target);
 
   return {
-    matchScore,
-    sharedTraits,
-    sharedInterests,
+    matchScore: unified.matchScore,
+    sharedTraits: unified.sharedTraits,
+    sharedInterests: unified.sharedInterests,
   };
 }
 
