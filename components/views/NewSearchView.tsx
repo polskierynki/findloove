@@ -413,6 +413,8 @@ export default function NewSearchView() {
             age: profile.age,
             city: profile.city,
             image_url: profile.image_url,
+            role: profile.role ?? null,
+            email: profile.email ?? null,
             looking_for: profile.details?.looking_for,
             interests: profile.interests,
             drinking: profile.details?.drinking,
