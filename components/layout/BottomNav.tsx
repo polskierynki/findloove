@@ -207,7 +207,7 @@ export default function BottomNav({ currentView, onNavigate, isLoggedIn = false,
               title={isProfileTab ? 'Moj profil' : item.label}
               className={`flex flex-col items-center gap-0.5 cursor-pointer transition-all px-1.5 py-1 rounded-xl active:scale-95 min-w-[44px] md:min-w-[52px] touch-manipulation ${
                 active
-                  ? 'text-cyan-400 shadow-[0_0_10px_rgba(0,255,255,0.3)]'
+                  ? 'text-cyan-400'
                   : 'text-white/60 hover:text-white hover:bg-white/5'
               }`}
             >
@@ -220,12 +220,12 @@ export default function BottomNav({ currentView, onNavigate, isLoggedIn = false,
               >
                 {item.icon}
                 {item.id === 'messages' && unreadMessagesCount > 0 && (
-                  <span className="absolute -top-1.5 -right-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-cyan-400 px-1 text-[10px] font-bold text-black shadow-[0_0_10px_rgba(34,211,238,0.6)] border border-[#110a22]">
+                  <span className="absolute -top-1.5 -right-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-cyan-400 px-1 text-[10px] font-bold text-black border border-[#110a22]">
                     {unreadMessagesCount > 99 ? '99+' : unreadMessagesCount}
                   </span>
                 )}
                 {isProfileTab && isLoggedIn && (
-                  <span className="absolute -top-1.5 -right-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-fuchsia-500 px-1 text-[10px] font-bold text-white shadow-[0_0_10px_rgba(255,0,255,0.5)]">
+                  <span className="absolute -top-1.5 -right-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-fuchsia-500 px-1 text-[10px] font-bold text-white">
                     i
                   </span>
                 )}
