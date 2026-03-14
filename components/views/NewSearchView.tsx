@@ -911,13 +911,20 @@ export default function NewSearchView() {
                           <Sparkle className="text-fuchsia-400" size={14} weight="fill" />
                           <span className="text-xs font-semibold text-white">{profile.matchScore || 0}% Match</span>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1.5">
                           {isPopular && (
                             <div className="popular-bolt-badge" title="Popularny profil">
                               <Lightning size={13} weight="fill" className="popular-bolt-icon" />
                             </div>
                           )}
-
+                          {profile.is_verified && (
+                            <div className="relative group/verified w-[26px] h-[26px] rounded-full border border-cyan-400/50 bg-black/40 backdrop-blur-md inline-flex items-center justify-center cursor-default flex-shrink-0">
+                              <SealCheck size={13} weight="fill" className="text-cyan-400" />
+                              <div className="absolute top-full right-0 mt-2 px-2.5 py-1.5 bg-black/90 backdrop-blur-sm text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover/verified:opacity-100 transition-opacity pointer-events-none border border-cyan-500/40 font-normal">
+                                Profil zweryfikowany
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </div>
 
@@ -925,17 +932,8 @@ export default function NewSearchView() {
                       <div className="absolute bottom-0 left-0 w-full pb-1 px-5 pt-2 z-10 transform transition-transform duration-300 ease-out group-hover:-translate-y-6">
                         <div className="card-meta flex flex-col gap-2.5 relative z-10">
                           <div>
-                            <h2 className="text-3xl font-medium text-white flex items-center gap-1">
-                              <span className="truncate min-w-0">{profile.name}</span>
-                              {profile.is_verified && (
-                                <div className="relative group/verified flex-shrink-0 inline-flex items-center">
-                                  <SealCheck size={15} weight="fill" className="text-cyan-400 drop-shadow-[0_0_5px_rgba(0,255,255,0.8)] cursor-default" />
-                                  <div className="absolute bottom-full right-0 mb-2 px-2.5 py-1.5 bg-black/90 backdrop-blur-sm text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover/verified:opacity-100 transition-opacity pointer-events-none border border-cyan-500/40 shadow-[0_0_10px_rgba(0,255,255,0.2)] font-normal">
-                                    Profil zweryfikowany
-                                  </div>
-                                </div>
-                              )}
-                              <span className="flex-shrink-0">,&nbsp;{profile.age} lat</span>
+                            <h2 className="text-2xl font-medium text-white leading-snug">
+                              {profile.name}, {profile.age} lat
                             </h2>
                             <div className="flex items-center gap-1.5 text-cyan-300/70 text-sm font-light">
                               <MapPin size={14} weight="fill" className="text-cyan-400" />
