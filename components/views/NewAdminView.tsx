@@ -37,6 +37,8 @@ interface CommentReport {
   author_name: string;
   author_image: string;
   author_strikes: number;
+  target_profile_id: string | null;
+  target_photo_index: number | null;
 }
 
 interface VerificationQueueItem {
@@ -243,6 +245,53 @@ export default function NewAdminView() {
 
       const rawReports = reportsData || [];
 
+      // Resolve report target locations so admin can jump directly to problematic place
+      const wallCommentIds = Array.from(
+        new Set(
+          rawReports
+            .map((r: any) => (r.comment_type === 'wall' ? r.comment_id : null))
+            .filter(Boolean),
+        ),
+      ) as string[];
+
+      const photoCommentIds = Array.from(
+        new Set(
+          rawReports
+            .map((r: any) => (r.comment_type === 'photo' ? r.photo_comment_id : null))
+            .filter(Boolean),
+        ),
+      ) as string[];
+
+      let wallCommentMap = new Map<string, { profile_id: string }>();
+      if (wallCommentIds.length > 0) {
+        const { data: wallCommentsData } = await supabase
+          .from('profile_comments')
+          .select('id, profile_id')
+          .in('id', wallCommentIds);
+
+        wallCommentMap = new Map(
+          (wallCommentsData || []).map((item: any) => [
+            item.id,
+            { profile_id: item.profile_id },
+          ]),
+        );
+      }
+
+      let photoCommentMap = new Map<string, { profile_id: string; photo_index: number }>();
+      if (photoCommentIds.length > 0) {
+        const { data: photoCommentsData } = await supabase
+          .from('profile_photo_comments')
+          .select('id, profile_id, photo_index')
+          .in('id', photoCommentIds);
+
+        photoCommentMap = new Map(
+          (photoCommentsData || []).map((item: any) => [
+            item.id,
+            { profile_id: item.profile_id, photo_index: item.photo_index },
+          ]),
+        );
+      }
+
       // Collect unique profile ids to fetch names/images
       const profileIds = Array.from(
         new Set([
@@ -265,6 +314,25 @@ export default function NewAdminView() {
       const mappedReports: CommentReport[] = rawReports.map((r: any) => {
         const reporter = profileMap.get(r.reporter_id);
         const author = profileMap.get(r.comment_author_id);
+        const wallTarget = r.comment_id ? wallCommentMap.get(r.comment_id) : undefined;
+        const photoTarget = r.photo_comment_id ? photoCommentMap.get(r.photo_comment_id) : undefined;
+
+        const snapshotMatch = String(r.comment_content || '').match(/zdjecie\s*nr\s*(\d+)/i);
+        const parsedPhotoIndex = snapshotMatch ? Number.parseInt(snapshotMatch[1], 10) - 1 : NaN;
+        const fallbackPhotoIndex = Number.isFinite(parsedPhotoIndex) && parsedPhotoIndex >= 0
+          ? parsedPhotoIndex
+          : null;
+
+        const targetProfileId =
+          wallTarget?.profile_id
+          || photoTarget?.profile_id
+          || (r.comment_type === 'photo' && !r.photo_comment_id ? r.comment_author_id : null);
+
+        const targetPhotoIndex =
+          typeof photoTarget?.photo_index === 'number'
+            ? photoTarget.photo_index
+            : fallbackPhotoIndex;
+
         return {
           id: r.id,
           comment_id: r.comment_id,
@@ -281,6 +349,8 @@ export default function NewAdminView() {
           author_name: author?.name || 'Nieznany',
           author_image: author?.image_url || '',
           author_strikes: author?.strikes ?? 0,
+          target_profile_id: targetProfileId || null,
+          target_photo_index: targetPhotoIndex,
         };
       });
 
@@ -486,6 +556,31 @@ export default function NewAdminView() {
     } catch (err) {
       console.error('Error dismissing report:', err);
     }
+  };
+
+  const handleOpenReportDetails = (report: CommentReport) => {
+    if (!report.target_profile_id) {
+      alert('Nie udało się ustalić miejsca zgłoszenia. Komentarz lub zdjęcie mogły zostać już usunięte.');
+      return;
+    }
+
+    const encodedProfileId = encodeURIComponent(report.target_profile_id);
+
+    if (report.comment_type === 'wall') {
+      const wallCommentParam = report.comment_id ? `?wallComment=${encodeURIComponent(report.comment_id)}` : '';
+      router.push(`/profile/${encodedProfileId}${wallCommentParam}`);
+      return;
+    }
+
+    const params = new URLSearchParams();
+    params.set('comments', '1');
+    params.set('photo', String(typeof report.target_photo_index === 'number' ? report.target_photo_index : 0));
+
+    if (report.photo_comment_id) {
+      params.set('photoComment', report.photo_comment_id);
+    }
+
+    router.push(`/profile/${encodedProfileId}?${params.toString()}`);
   };
 
   if (loading) {
@@ -733,7 +828,7 @@ export default function NewAdminView() {
         <div className="glass rounded-2xl p-6">
           <h2 className="text-2xl font-light text-white mb-6 flex items-center gap-2">
             <AlertTriangle size={20} className="text-red-400" />
-            Zgłoszenia komentarzy
+            Zgłodszenia
           </h2>
 
           <div className="space-y-4 max-h-[600px] overflow-y-auto pr-1">
@@ -780,11 +875,19 @@ export default function NewAdminView() {
                   </p>
 
                   {/* Actions */}
-                  <div className="flex gap-2">
+                  <div className="grid grid-cols-3 gap-2">
+                    <button
+                      title="Przejdź do miejsca zgłoszenia"
+                      onClick={() => handleOpenReportDetails(report)}
+                      className="bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/35 text-cyan-300 text-xs py-2 rounded-lg transition-colors flex items-center justify-center gap-1.5"
+                    >
+                      <Eye size={13} />
+                      Szczegóły
+                    </button>
                     <button
                       title="Usuń komentarz i daj strike autorowi (3 strike = ban permanentny)"
                       onClick={() => void handleStrikeAndDelete(report)}
-                      className="flex-1 bg-red-500/20 hover:bg-red-500/35 border border-red-500/40 text-red-400 text-xs py-2 rounded-lg transition-colors flex items-center justify-center gap-1.5"
+                      className="bg-red-500/20 hover:bg-red-500/35 border border-red-500/40 text-red-400 text-xs py-2 rounded-lg transition-colors flex items-center justify-center gap-1.5"
                     >
                       <Trash2 size={13} />
                       Usuń + Strike
@@ -792,7 +895,7 @@ export default function NewAdminView() {
                     <button
                       title="Odrzuć zgłoszenie bez konsekwencji"
                       onClick={() => void handleDismissReport(report.id)}
-                      className="flex-1 bg-white/5 hover:bg-white/10 border border-white/15 text-white/60 text-xs py-2 rounded-lg transition-colors flex items-center justify-center gap-1.5"
+                      className="bg-white/5 hover:bg-white/10 border border-white/15 text-white/60 text-xs py-2 rounded-lg transition-colors flex items-center justify-center gap-1.5"
                     >
                       <X size={13} />
                       Odrzuć
