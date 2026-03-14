@@ -234,6 +234,10 @@ html, body {
   animation: popular-frame-electric 2.8s ease-in-out infinite;
 }
 
+.popular-profile-frame--detail {
+  border-radius: 2.8rem;
+}
+
 .popular-profile-sheen {
   border-radius: 2rem;
   overflow: hidden;

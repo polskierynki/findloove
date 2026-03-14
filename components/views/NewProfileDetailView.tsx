@@ -1681,9 +1681,9 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
               className="w-full h-full object-cover rounded-[2.8rem] shadow-inner relative z-10 transform transition-transform duration-1000 group-hover:scale-105"
               onClick={() => openPhotoCommentModal(0)}
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-[#07050f] via-transparent to-transparent rounded-[3rem] z-20 pointer-events-none opacity-90 transition-opacity group-hover:opacity-70"></div>
+            <div className="absolute inset-1 bg-gradient-to-t from-[#07050f] via-transparent to-transparent rounded-[2.8rem] z-20 pointer-events-none opacity-90 transition-opacity group-hover:opacity-70"></div>
             {isDetailPopular && (
-              <div className="popular-profile-frame absolute inset-0 rounded-[2.8rem] pointer-events-none z-[25]"></div>
+              <div className="popular-profile-frame popular-profile-frame--detail absolute inset-1 pointer-events-none z-[25]"></div>
             )}
 
             {/* Float Tags */}
