@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { MagnifyingGlass, Prohibit, Trash, Flag, PaperPlaneRight, ArrowLeft, Smiley } from '@phosphor-icons/react';
+import { MagnifyingGlass, Prohibit, Trash, Flag, PaperPlaneRight, ArrowLeft, Smiley, DotsThreeVertical } from '@phosphor-icons/react';
 import { supabase } from '@/lib/supabase';
 import { resolveProfileIdForAuthUser } from '@/lib/profileAuth';
 import {
@@ -55,10 +55,13 @@ export default function NewMessagesView() {
   const [loading, setLoading] = useState(true);
   const [chatError, setChatError] = useState<string | null>(null);
   const [showMessageEmojiPicker, setShowMessageEmojiPicker] = useState(false);
+  const [showMobileActionsMenu, setShowMobileActionsMenu] = useState(false);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messageInputRef = useRef<HTMLInputElement>(null);
   const messageEmojiButtonRef = useRef<HTMLButtonElement>(null);
+  const mobileActionsMenuRef = useRef<HTMLDivElement>(null);
+  const mobileActionsButtonRef = useRef<HTMLButtonElement>(null);
 
   const identityIds = useMemo(
     () => Array.from(new Set([authUserId, currentUserId].filter(Boolean))) as string[],
@@ -106,48 +109,83 @@ export default function NewMessagesView() {
     };
   }, []);
 
-    // Lock background scroll on mobile while conversation panel is open.
-    useEffect(() => {
-      if (!isMobileChatOpen) return;
-      if (typeof window === 'undefined') return;
-      if (!window.matchMedia('(max-width: 767px)').matches) return;
+  // Lock background scroll on mobile while conversation panel is open.
+  useEffect(() => {
+    if (!isMobileChatOpen) return;
+    if (typeof window === 'undefined') return;
+    if (!window.matchMedia('(max-width: 767px)').matches) return;
 
-      const html = document.documentElement;
-      const body = document.body;
-      const scrollY = window.scrollY;
+    const html = document.documentElement;
+    const body = document.body;
+    const scrollY = window.scrollY;
 
-      const prevHtmlOverflow = html.style.overflow;
-      const prevBodyOverflow = body.style.overflow;
-      const prevBodyPosition = body.style.position;
-      const prevBodyTop = body.style.top;
-      const prevBodyLeft = body.style.left;
-      const prevBodyRight = body.style.right;
-      const prevBodyWidth = body.style.width;
-      const prevBodyOverscroll = body.style.overscrollBehavior;
+    const prevHtmlOverflow = html.style.overflow;
+    const prevBodyOverflow = body.style.overflow;
+    const prevBodyPosition = body.style.position;
+    const prevBodyTop = body.style.top;
+    const prevBodyLeft = body.style.left;
+    const prevBodyRight = body.style.right;
+    const prevBodyWidth = body.style.width;
+    const prevBodyOverscroll = body.style.overscrollBehavior;
 
-      html.classList.add('mobile-chat-open');
-      html.style.overflow = 'hidden';
-      body.style.overflow = 'hidden';
-      body.style.position = 'fixed';
-      body.style.top = `-${scrollY}px`;
-      body.style.left = '0';
-      body.style.right = '0';
-      body.style.width = '100%';
-      body.style.overscrollBehavior = 'none';
+    html.classList.add('mobile-chat-open');
+    html.style.overflow = 'hidden';
+    body.style.overflow = 'hidden';
+    body.style.position = 'fixed';
+    body.style.top = `-${scrollY}px`;
+    body.style.left = '0';
+    body.style.right = '0';
+    body.style.width = '100%';
+    body.style.overscrollBehavior = 'none';
 
-      return () => {
-        html.classList.remove('mobile-chat-open');
-        html.style.overflow = prevHtmlOverflow;
-        body.style.overflow = prevBodyOverflow;
-        body.style.position = prevBodyPosition;
-        body.style.top = prevBodyTop;
-        body.style.left = prevBodyLeft;
-        body.style.right = prevBodyRight;
-        body.style.width = prevBodyWidth;
-        body.style.overscrollBehavior = prevBodyOverscroll;
-        window.scrollTo(0, scrollY);
-      };
-    }, [isMobileChatOpen]);
+    return () => {
+      html.classList.remove('mobile-chat-open');
+      html.style.overflow = prevHtmlOverflow;
+      body.style.overflow = prevBodyOverflow;
+      body.style.position = prevBodyPosition;
+      body.style.top = prevBodyTop;
+      body.style.left = prevBodyLeft;
+      body.style.right = prevBodyRight;
+      body.style.width = prevBodyWidth;
+      body.style.overscrollBehavior = prevBodyOverscroll;
+      window.scrollTo(0, scrollY);
+    };
+  }, [isMobileChatOpen]);
+
+  useEffect(() => {
+    if (!selectedProfile) {
+      setShowMobileActionsMenu(false);
+    }
+  }, [selectedProfile]);
+
+  useEffect(() => {
+    if (!showMobileActionsMenu) return;
+
+    const closeMenuOnOutsidePress = (event: MouseEvent | TouchEvent) => {
+      const target = event.target as Node | null;
+      if (!target) return;
+
+      if (mobileActionsMenuRef.current?.contains(target)) return;
+      if (mobileActionsButtonRef.current?.contains(target)) return;
+      setShowMobileActionsMenu(false);
+    };
+
+    const closeMenuOnEsc = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setShowMobileActionsMenu(false);
+      }
+    };
+
+    document.addEventListener('mousedown', closeMenuOnOutsidePress);
+    document.addEventListener('touchstart', closeMenuOnOutsidePress, { passive: true });
+    document.addEventListener('keydown', closeMenuOnEsc);
+
+    return () => {
+      document.removeEventListener('mousedown', closeMenuOnOutsidePress);
+      document.removeEventListener('touchstart', closeMenuOnOutsidePress);
+      document.removeEventListener('keydown', closeMenuOnEsc);
+    };
+  }, [showMobileActionsMenu]);
 
   // Get current user
   useEffect(() => {
@@ -872,7 +910,7 @@ export default function NewMessagesView() {
           {selectedProfile ? (
             <>
               {/* Chat Header with Action Icons */}
-              <div className="h-14 md:h-20 shrink-0 pt-safe md:pt-0 border-b border-white/5 flex items-center justify-between px-4 md:px-8 bg-black/20 backdrop-blur-sm z-10">
+              <div className="h-14 md:h-20 shrink-0 pt-safe md:pt-0 border-b border-white/5 flex items-center justify-between px-4 md:px-8 bg-black/20 backdrop-blur-sm z-20">
                 <div className="flex items-center gap-3 md:gap-4 min-w-0">
                   <button
                     onClick={() => setSelectedProfile(null)}
@@ -896,8 +934,8 @@ export default function NewMessagesView() {
                   </div>
                 </div>
 
-                {/* Action Icons */}
-                <div className="flex items-center gap-1 md:gap-2 shrink-0">
+                {/* Desktop action icons */}
+                <div className="hidden md:flex items-center gap-1 md:gap-2 shrink-0">
                   <button
                     onClick={handleReportUser}
                     title="Zgłoś użytkownika"
@@ -919,6 +957,59 @@ export default function NewMessagesView() {
                   >
                     <Prohibit size={18} weight="duotone" className="group-hover:scale-110 transition-transform" />
                   </button>
+                </div>
+
+                {/* Mobile action menu */}
+                <div className="relative md:hidden shrink-0">
+                  <button
+                    ref={mobileActionsButtonRef}
+                    onClick={() => setShowMobileActionsMenu((prev) => !prev)}
+                    title="Więcej opcji"
+                    className="p-2 rounded-xl bg-white/5 border border-white/10 text-cyan-300 hover:bg-white/10"
+                    aria-expanded={showMobileActionsMenu}
+                    aria-controls="chat-mobile-actions-menu"
+                  >
+                    <DotsThreeVertical size={20} weight="bold" />
+                  </button>
+
+                  {showMobileActionsMenu && (
+                    <div
+                      id="chat-mobile-actions-menu"
+                      ref={mobileActionsMenuRef}
+                      className="absolute right-0 top-[calc(100%+0.5rem)] w-56 rounded-2xl border border-white/10 bg-[#070d1e]/95 backdrop-blur-xl p-2 shadow-[0_12px_40px_rgba(0,0,0,0.45)]"
+                    >
+                      <button
+                        onClick={() => {
+                          setShowMobileActionsMenu(false);
+                          void handleReportUser();
+                        }}
+                        className="w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm text-amber-300 hover:bg-amber-500/15"
+                      >
+                        <Flag size={18} weight="duotone" />
+                        <span>Zgłoś użytkownika</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowMobileActionsMenu(false);
+                          void handleDeleteMessages();
+                        }}
+                        className="w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm text-red-300 hover:bg-red-500/15"
+                      >
+                        <Trash size={18} weight="duotone" />
+                        <span>Usuń wiadomości</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowMobileActionsMenu(false);
+                          void handleBlockUser();
+                        }}
+                        className="w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm text-fuchsia-300 hover:bg-fuchsia-500/15"
+                      >
+                        <Prohibit size={18} weight="duotone" />
+                        <span>Zablokuj użytkownika</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -952,11 +1043,11 @@ export default function NewMessagesView() {
               </div>
 
               {/* Chat Input */}
-              <div className="shrink-0 p-3 md:p-6 border-t border-white/5 bg-black/20 backdrop-blur-sm pb-safe">
+              <div className="shrink-0 px-3 pt-2 pb-safe md:p-6 border-t border-white/5 bg-black/20 backdrop-blur-sm">
                 {chatError && (
                   <p className="mb-3 text-sm text-red-300">{chatError}</p>
                 )}
-                <div className="relative flex items-center bg-black/40 border border-cyan-500/20 rounded-full px-2 py-2 border-glow-magenta transition-all focus-within:bg-black/60">
+                <div className="relative flex items-center bg-black/40 border border-cyan-500/20 rounded-[1.35rem] md:rounded-full px-2 py-2.5 md:py-2 border-glow-magenta transition-all focus-within:bg-black/60">
                   <EmojiKeywordSuggestions
                     suggestions={messageSuggestions}
                     onSelect={handlePickMessageSuggestion}
@@ -988,14 +1079,14 @@ export default function NewMessagesView() {
                         });
                       }, 140);
                     }}
-                    className="flex-1 bg-transparent border-none text-white text-sm px-4 outline-none"
+                    className="flex-1 bg-transparent border-none text-white text-[15px] md:text-sm px-4 py-1 outline-none"
                   />
                   <HoverHintIconButton
                     ref={messageEmojiButtonRef}
                     onClick={() => setShowMessageEmojiPicker((prev) => !prev)}
                     tooltip="Wstaw emoji"
-                    regularIcon={<Smiley size={18} weight="regular" />}
-                    filledIcon={<Smiley size={18} weight="fill" />}
+                    regularIcon={<Smiley size={20} weight="regular" />}
+                    filledIcon={<Smiley size={20} weight="fill" />}
                     variant="cyan"
                     wrapperClassName="mr-1"
                   />
@@ -1003,8 +1094,8 @@ export default function NewMessagesView() {
                     onClick={sendMessage}
                     disabled={!messageText.trim() || !currentUserId}
                     tooltip="Wyślij wiadomość"
-                    regularIcon={<PaperPlaneRight size={18} weight="regular" />}
-                    filledIcon={<PaperPlaneRight size={18} weight="fill" />}
+                    regularIcon={<PaperPlaneRight size={20} weight="regular" />}
+                    filledIcon={<PaperPlaneRight size={20} weight="fill" />}
                     variant="cyan"
                     wrapperClassName="mr-1"
                   />
