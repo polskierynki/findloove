@@ -1383,6 +1383,45 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
     return <div className="pt-28 text-center text-cyan-400">Profil nie znaleziony</div>;
   }
 
+  const normalizedLookingFor = (profile.details?.looking_for || '').trim().toLowerCase();
+  const lookingForLabel =
+    normalizedLookingFor === 'miłość' || normalizedLookingFor === 'milosc'
+      ? 'Miłość'
+      : normalizedLookingFor === 'przyjaźń' || normalizedLookingFor === 'przyjazn'
+      ? 'Przyjaźń'
+      : normalizedLookingFor === 'przygoda'
+      ? 'Przygoda'
+      : 'Nie podano';
+
+  const occupationLabel = (profile.details?.occupation || '').trim();
+  const normalizedOrientation = (profile.details?.sexual_orientation || '').trim().toLowerCase();
+  const orientationLabel =
+    normalizedOrientation === 'hetero'
+      ? 'Heteroseksualna/y'
+      : normalizedOrientation === 'homo'
+      ? 'Homoseksualna/y'
+      : normalizedOrientation === 'bi'
+      ? 'Biseksualna/y'
+      : normalizedOrientation === 'pan'
+      ? 'Panseksualna/y'
+      : normalizedOrientation === 'other'
+      ? 'Inna'
+      : (profile.details?.sexual_orientation || '').trim();
+
+  const genderLabel =
+    profile.gender === 'K'
+      ? 'Kobieta'
+      : profile.gender === 'M'
+      ? 'Mężczyzna'
+      : '';
+
+  const seekingGenderLabel =
+    profile.seeking_gender === 'K'
+      ? 'Kobiety'
+      : profile.seeking_gender === 'M'
+      ? 'Mężczyźni'
+      : '';
+
   return (
     <>
     <div className="relative z-10 pt-28 pb-16 px-6 lg:px-12 max-w-[2200px] mx-auto">
@@ -1758,11 +1797,16 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
                   <span className="text-3xl md:text-5xl text-white font-extralight opacity-80">• {profile.age}</span>
                 </h1>
               <p className="text-xl text-cyan-300 font-light mb-6 drop-shadow-lg flex items-center gap-2">
-                <Briefcase size={20} weight="duotone" className="text-cyan-400" /> {profile.details?.occupation || 'Brak informacji'} <MapPin size={18} weight="duotone" className="text-fuchsia-400" /> {profile.city}
+                <HeartStraight size={20} weight="fill" className="text-pink-400" /> Szuka: {lookingForLabel} <MapPin size={18} weight="duotone" className="text-fuchsia-400" /> {profile.city}
               </p>
 
               {/* Info Pills */}
               <div className="flex flex-wrap gap-3">
+                {occupationLabel && (
+                  <span className="glass px-4 py-2 rounded-xl text-sm font-medium text-white flex items-center gap-2 border-white/20 backdrop-blur-lg">
+                    <Briefcase size={16} weight="duotone" className="text-cyan-400" /> {occupationLabel}
+                  </span>
+                )}
                 {profile.details?.zodiac && (
                   <span className="glass px-4 py-2 rounded-xl text-sm font-medium text-white flex items-center gap-2 border-white/20 backdrop-blur-lg">
                     <Star size={16} weight="fill" className="text-yellow-400" /> {profile.details.zodiac}
@@ -1783,9 +1827,24 @@ export default function NewProfileDetailView({ profileId }: { profileId: string 
                     <PawPrint size={16} weight="fill" className="text-amber-400" /> {profile.details.pets}
                   </span>
                 )}
-                {profile.details?.sexual_orientation && (
+                {orientationLabel && (
                   <span className="glass px-4 py-2 rounded-xl text-sm font-medium text-white flex items-center gap-2 border-white/20 backdrop-blur-lg">
-                    <GenderIntersex size={16} weight="duotone" className="text-purple-400" /> {profile.details.sexual_orientation}
+                    <GenderIntersex size={16} weight="duotone" className="text-purple-400" /> Orientacja: {orientationLabel}
+                  </span>
+                )}
+                {genderLabel && (
+                  <span className="glass px-4 py-2 rounded-xl text-sm font-medium text-white flex items-center gap-2 border-white/20 backdrop-blur-lg">
+                    <GenderIntersex size={16} weight="duotone" className="text-cyan-300" /> Płeć: {genderLabel}
+                  </span>
+                )}
+                {seekingGenderLabel && (
+                  <span className="glass px-4 py-2 rounded-xl text-sm font-medium text-white flex items-center gap-2 border-white/20 backdrop-blur-lg">
+                    <HeartStraight size={16} weight="fill" className="text-fuchsia-400" /> Szuka: {seekingGenderLabel}
+                  </span>
+                )}
+                {typeof profile.seeking_age_min === 'number' && typeof profile.seeking_age_max === 'number' && (
+                  <span className="glass px-4 py-2 rounded-xl text-sm font-medium text-white flex items-center gap-2 border-white/20 backdrop-blur-lg">
+                    <UserPlus size={16} weight="duotone" className="text-green-300" /> Wiek: {profile.seeking_age_min} - {profile.seeking_age_max}
                   </span>
                 )}
                 {profile.details?.looking_for && (
