@@ -754,9 +754,45 @@ export default function App() {
         ) : (
           <>
             {loading && (
-              <div className="flex items-center justify-center h-64 text-slate-400 text-2xl">
-                Ładowanie profili...
-              </div>
+              view === 'home' ? (
+                <div className="animate-pulse space-y-8 min-h-[1100px]">
+                  <section className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+                    <div className="space-y-3">
+                      <div className="h-12 w-72 max-w-full rounded-3xl bg-white/8" />
+                      <div className="h-6 w-96 max-w-full rounded-2xl bg-white/6" />
+                    </div>
+                    <div className="flex flex-wrap items-center gap-3">
+                      {Array.from({ length: 3 }).map((_, index) => (
+                        <div key={`home-chip-skeleton-${index}`} className="h-11 w-32 rounded-full border border-white/10 bg-white/6" />
+                      ))}
+                    </div>
+                  </section>
+                  <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6 lg:gap-8 mt-8">
+                    {Array.from({ length: 10 }).map((_, index) => (
+                      <div key={`home-card-skeleton-${index}`} className="glass rounded-[2rem] overflow-hidden border border-white/10">
+                        <div className="aspect-[3/4] w-full relative bg-white/5">
+                          <div className="absolute inset-x-4 top-4 flex items-center justify-between">
+                            <div className="h-7 w-24 rounded-full bg-white/10" />
+                            <div className="h-7 w-7 rounded-full bg-white/10" />
+                          </div>
+                          <div className="absolute inset-x-5 bottom-5 space-y-3">
+                            <div className="h-8 w-2/3 rounded-2xl bg-white/10" />
+                            <div className="h-4 w-1/2 rounded-full bg-white/10" />
+                            <div className="grid grid-cols-2 gap-3 pt-3">
+                              <div className="h-11 rounded-xl bg-white/10" />
+                              <div className="h-11 rounded-xl bg-white/10" />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </section>
+                </div>
+              ) : (
+                <div className="flex min-h-[70vh] items-center justify-center text-slate-400 text-2xl">
+                  Ładowanie profili...
+                </div>
+              )
             )}
             {!loading && view === 'admin' && isAdmin && (
               <AdminDashboard />

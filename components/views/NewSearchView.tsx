@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef, type CSSProperties } from 'react';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { Heart, ChatCircle, Sparkle, MapPin, Lightning, Sliders, MagnifyingGlass, X, SealCheck } from '@phosphor-icons/react';
 import { 
@@ -135,6 +136,8 @@ const HEART_BURST_PARTICLES: HeartBurstParticle[] = [
 
 type SearchSort = 'match' | 'closest' | 'newest' | 'ageAsc' | 'ageDesc';
 
+const SEARCH_CARD_IMAGE_SIZES = '(max-width: 639px) calc(100vw - 3rem), (max-width: 1279px) calc(50vw - 2.5rem), calc(33vw - 3rem)';
+
 function calculateMatchScore(
   profile: SearchProfile,
   params: {
@@ -202,6 +205,7 @@ export default function NewSearchView() {
   // Data
   const [profiles, setProfiles] = useState<SearchProfile[]>([]);
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
+  const [expandedCardId, setExpandedCardId] = useState<string | null>(null);
   const [likeBurstTicks, setLikeBurstTicks] = useState<Record<string, number>>({});
   const [likePopTicks, setLikePopTicks] = useState<Record<string, number>>({});
   const [burstingLikeIds, setBurstingLikeIds] = useState<Set<string>>(new Set());
@@ -614,6 +618,17 @@ export default function NewSearchView() {
     void fetchProfilesPage(nextCursor);
   };
 
+  const handleCardSelect = useCallback((profileId: string) => {
+    const isMobileViewport = typeof window !== 'undefined' && window.innerWidth < 768;
+
+    if (isMobileViewport && expandedCardId !== profileId) {
+      setExpandedCardId(profileId);
+      return;
+    }
+
+    router.push(`/profile/${profileId}`);
+  }, [expandedCardId, router]);
+
   const toggleLike = async (e: React.MouseEvent, profileId: string) => {
     e.stopPropagation();
     const wasLiked = likedIds.has(profileId);
@@ -874,7 +889,26 @@ export default function NewSearchView() {
 
           {/* Profile Grid */}
           {loading ? (
-            <div className="flex items-center justify-center h-64 text-cyan-400 text-lg">Ładowanie...</div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+              {Array.from({ length: 6 }).map((_, index) => (
+                <div key={`search-skeleton-${index}`} className="glass rounded-[2rem] overflow-hidden border border-white/10 animate-pulse">
+                  <div className="aspect-[3/4] w-full relative bg-white/5">
+                    <div className="absolute inset-x-4 top-4 flex items-center justify-between">
+                      <div className="h-7 w-24 rounded-full bg-white/10" />
+                      <div className="h-7 w-7 rounded-full bg-white/10" />
+                    </div>
+                    <div className="absolute inset-x-5 bottom-5 space-y-3">
+                      <div className="h-8 w-2/3 rounded-2xl bg-white/10" />
+                      <div className="h-4 w-1/2 rounded-full bg-white/10" />
+                      <div className="grid grid-cols-2 gap-3 pt-3">
+                        <div className="h-11 rounded-xl bg-white/10" />
+                        <div className="h-11 rounded-xl bg-white/10" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           ) : profiles.length === 0 ? (
             <div className="glass rounded-[2rem] p-16 text-center space-y-4 border border-white/10">
               <MagnifyingGlass size={48} className="mx-auto text-cyan-400 opacity-40" />
@@ -883,9 +917,10 @@ export default function NewSearchView() {
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
-              {profiles.map((profile) => {
+              {profiles.map((profile, index) => {
                 const distFromBase = profile.distanceKm ?? null;
                 const isLiked = likedIds.has(profile.id);
+                const isExpanded = expandedCardId === profile.id;
                 const isPopular = overrideSet.has(profile.id);
                 const isRecentlyActive = Boolean(profile.last_active) && Date.now() - Date.parse(profile.last_active!) <= 15 * 60 * 1000;
                 const popularTooltip = 'Popularny profil • Ranking: min. 70/100, 5 polubien, 2 znajomych lub reczne oznaczenie';
@@ -896,14 +931,19 @@ export default function NewSearchView() {
                 return (
                   <div
                     key={profile.id}
-                    onClick={() => router.push(`/profile/${profile.id}`)}
+                    onClick={() => handleCardSelect(profile.id)}
                     className={`profile-card glass rounded-[2rem] overflow-hidden relative group cursor-pointer ${isPopular ? 'popular-profile-card' : ''}`}
+                    data-mobile-expanded={isExpanded ? 'true' : 'false'}
                   >
                     <div className="aspect-[3/4] w-full relative">
-                      <img
+                      <Image
                         src={profile.image_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.name)}&background=0d0d1a&color=00ffff&size=400`}
                         alt={profile.name}
-                        className="w-full h-full object-cover"
+                        fill
+                        priority={index === 0}
+                        fetchPriority={index === 0 ? 'high' : undefined}
+                        sizes={SEARCH_CARD_IMAGE_SIZES}
+                        className="object-cover"
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-[#07050f] via-[#07050f]/40 to-transparent"></div>
                       {isPopular && (
@@ -942,8 +982,12 @@ export default function NewSearchView() {
                       </div>
 
                       {/* Profile Info - slides up on hover */}
-                      <div className="absolute bottom-0 left-0 w-full pb-1 px-5 pt-2 z-10 transform transition-transform duration-300 ease-out group-hover:-translate-y-6">
-                        <div className="card-meta flex flex-col gap-2.5 relative z-10">
+                      <div className={`absolute bottom-0 left-0 w-full px-5 pt-2 pb-1 z-10 transform transition-transform duration-300 ease-out ${
+                        isExpanded ? '-translate-y-6' : 'translate-y-0'
+                      } md:translate-y-0 md:group-hover:-translate-y-6`}>
+                        <div className={`flex flex-col gap-2.5 relative z-10 transform transition-transform duration-300 ease-out ${
+                          isExpanded ? '-translate-y-0.5' : 'translate-y-4'
+                        } md:translate-y-4 md:group-hover:-translate-y-0.5`}>
                           <div>
                             <h2 className="text-2xl font-medium text-white leading-snug">
                               {profile.name}, {profile.age} lat
@@ -961,7 +1005,9 @@ export default function NewSearchView() {
                           </div>
 
                           {/* Actions - hidden until hover */}
-                          <div className="card-actions flex gap-3 relative z-30 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                          <div className={`flex gap-3 relative z-30 transition-all duration-300 ${
+                            isExpanded ? 'opacity-100 translate-y-1 pointer-events-auto' : 'opacity-0 translate-y-4 pointer-events-none'
+                          } md:pointer-events-none md:opacity-0 md:translate-y-4 md:group-hover:pointer-events-auto md:group-hover:opacity-100 md:group-hover:translate-y-1`}>
                             <button
                               onClick={(e) => void toggleLike(e, profile.id)}
                               className="pointer-events-auto flex-1 bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 py-2.5 rounded-xl flex items-center justify-center gap-2 text-white transition-all hover:border-red-400/50 hover:text-red-400 group/btn"

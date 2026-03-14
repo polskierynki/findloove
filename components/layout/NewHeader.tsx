@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { resolveProfileIdForAuthUser } from '@/lib/profileAuth';
@@ -53,6 +53,11 @@ export default function NewHeader() {
   const [unreadMessagesCount, setUnreadMessagesCount] = useState<number>(0);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [friendActionBusyKey, setFriendActionBusyKey] = useState<string | null>(null);
+  const [mobileHeaderHidden, setMobileHeaderHidden] = useState(false);
+  const lastScrollYRef = useRef(0);
+  const downScrollAccumRef = useRef(0);
+  const upScrollAccumRef = useRef(0);
+  const mobileHeaderHiddenRef = useRef(false);
   const { acceptFriendRequest, removeFriendship } = useFriends();
 
   const unreadTargetIds = useMemo(
@@ -72,6 +77,11 @@ export default function NewHeader() {
   };
   
   const activeNav = getActiveNav(pathname);
+
+  const setMobileHeaderVisibility = useCallback((hidden: boolean) => {
+    mobileHeaderHiddenRef.current = hidden;
+    setMobileHeaderHidden((prev) => (prev === hidden ? prev : hidden));
+  }, []);
 
   const loadProfile = useCallback(async (resolvedProfileId: string) => {
     const { data } = await supabase
@@ -255,6 +265,147 @@ export default function NewHeader() {
     }
   }, [pathname]);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const resetTimer = window.setTimeout(() => {
+      downScrollAccumRef.current = 0;
+      upScrollAccumRef.current = 0;
+      lastScrollYRef.current = window.scrollY;
+      setMobileHeaderVisibility(false);
+    }, 0);
+
+    return () => {
+      window.clearTimeout(resetTimer);
+    };
+  }, [pathname, setMobileHeaderVisibility]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const isMobileViewport = () => window.innerWidth < 1024;
+
+    const revealHeader = () => {
+      downScrollAccumRef.current = 0;
+      upScrollAccumRef.current = 0;
+      setMobileHeaderVisibility(false);
+    };
+
+    const hideHeader = () => {
+      setMobileHeaderVisibility(true);
+    };
+
+    const revealFromTopZone = (clientY: number) => {
+      if (!isMobileViewport()) return;
+      if (!mobileHeaderHiddenRef.current) return;
+      if (clientY <= 92) {
+        revealHeader();
+      }
+    };
+
+    let ticking = false;
+
+    const processScroll = () => {
+      ticking = false;
+
+      if (!isMobileViewport()) {
+        lastScrollYRef.current = window.scrollY;
+        if (mobileHeaderHiddenRef.current) {
+          revealHeader();
+        }
+        return;
+      }
+
+      if (notificationsOpen) {
+        lastScrollYRef.current = window.scrollY;
+        if (mobileHeaderHiddenRef.current) {
+          revealHeader();
+        }
+        return;
+      }
+
+      const currentY = Math.max(window.scrollY, 0);
+      const delta = currentY - lastScrollYRef.current;
+      const absDelta = Math.abs(delta);
+
+      lastScrollYRef.current = currentY;
+
+      if (currentY <= 40) {
+        if (mobileHeaderHiddenRef.current) {
+          revealHeader();
+        }
+        return;
+      }
+
+      if (absDelta < 4) return;
+
+      if (delta > 0) {
+        downScrollAccumRef.current += delta;
+        upScrollAccumRef.current = 0;
+
+        if (!mobileHeaderHiddenRef.current && downScrollAccumRef.current >= 36 && currentY > 72) {
+          hideHeader();
+        }
+
+        return;
+      }
+
+      upScrollAccumRef.current += absDelta;
+      downScrollAccumRef.current = 0;
+
+      if (mobileHeaderHiddenRef.current && (upScrollAccumRef.current >= 88 || currentY <= 72)) {
+        revealHeader();
+      }
+    };
+
+    const handleScroll = () => {
+      if (ticking) return;
+      ticking = true;
+      window.requestAnimationFrame(processScroll);
+    };
+
+    const handleTouchStart = (event: TouchEvent) => {
+      const touch = event.touches[0];
+      if (touch) {
+        revealFromTopZone(touch.clientY);
+      }
+    };
+
+    const handleTouchMove = (event: TouchEvent) => {
+      const touch = event.touches[0];
+      if (touch) {
+        revealFromTopZone(touch.clientY);
+      }
+    };
+
+    const handlePointerMove = (event: PointerEvent) => {
+      if (event.pointerType !== 'touch') return;
+      revealFromTopZone(event.clientY);
+    };
+
+    const handleResize = () => {
+      if (!isMobileViewport() && mobileHeaderHiddenRef.current) {
+        revealHeader();
+      }
+    };
+
+    lastScrollYRef.current = window.scrollY;
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    window.addEventListener('touchstart', handleTouchStart, { passive: true });
+    window.addEventListener('touchmove', handleTouchMove, { passive: true });
+    window.addEventListener('pointermove', handlePointerMove, { passive: true });
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('touchstart', handleTouchStart);
+      window.removeEventListener('touchmove', handleTouchMove);
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [notificationsOpen, setMobileHeaderVisibility]);
+
   const unreadNotificationsCount = useMemo(() => {
     if (!lastReadAt) return notifications.length;
 
@@ -329,9 +480,10 @@ export default function NewHeader() {
     setNotificationsOpen(nextOpenState);
 
     if (nextOpenState) {
+      setMobileHeaderVisibility(false);
       markAllNotificationsAsRead();
     }
-  }, [markAllNotificationsAsRead, notificationsOpen]);
+  }, [markAllNotificationsAsRead, notificationsOpen, setMobileHeaderVisibility]);
 
   const handleAuthAction = async () => {
     if (!user) {
@@ -352,13 +504,19 @@ export default function NewHeader() {
   return (
     <>
       {/* Fixed Top Header */}
-      <header id="main-header" className="fixed top-0 w-full h-20 glass-panel z-50 flex items-center justify-between px-4 lg:px-8 xl:px-16 transition-all duration-300 gap-4 border-b border-white/5">
+      <header
+        id="main-header"
+        className={`fixed top-0 w-full glass-panel z-50 border-b border-white/5 px-2 sm:px-4 lg:px-8 xl:px-16 pt-safe transition-all duration-300 will-change-transform ${
+          mobileHeaderHidden ? '-translate-y-full opacity-0 pointer-events-none lg:translate-y-0 lg:opacity-100 lg:pointer-events-auto' : 'translate-y-0 opacity-100'
+        } h-[calc(env(safe-area-inset-top,0px)+56px)] lg:h-20`}
+      >
+        <div className="flex h-14 lg:h-20 items-center justify-between gap-2 lg:gap-4">
         {/* Logo */}
         <div
           className="flex-shrink-0 flex items-center gap-2 cursor-pointer group z-10"
           onClick={() => router.push('/')}
         >
-          <span className="text-xl md:text-2xl lg:text-3xl font-semibold tracking-wide bg-clip-text text-transparent bg-gradient-to-r from-fuchsia-400 to-cyan-400 group-hover:text-glow-magenta transition-all duration-300">
+          <span className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-semibold tracking-wide bg-clip-text text-transparent bg-gradient-to-r from-fuchsia-400 to-cyan-400 group-hover:text-glow-magenta transition-all duration-300">
             findloove.pl
           </span>
         </div>
@@ -412,15 +570,15 @@ export default function NewHeader() {
         </nav>
 
         {/* Right Side Icons & Avatar/Login */}
-        <div className="flex-shrink-0 flex items-center justify-end gap-2 sm:gap-4 z-10">
+        <div className="flex-shrink-0 flex items-center justify-end gap-1 sm:gap-2 lg:gap-4 z-10">
           {/* Admin Panel */}
           {isAdmin && (
             <button
               onClick={() => router.push('/admin')}
               title="Panel Administratora"
-              className="relative text-red-500 hover:text-white hover:bg-red-500 transition-all duration-300 flex items-center justify-center drop-shadow-[0_0_8px_rgba(239,68,68,0.5)] bg-red-500/10 w-10 h-10 rounded-full border border-red-500/30 group"
+              className="group relative flex h-11 w-11 items-center justify-center rounded-xl border border-red-500/30 bg-red-500/10 text-red-500 transition-all duration-300 touch-manipulation active:scale-95 hover:bg-red-500 hover:text-white lg:h-10 lg:w-10 lg:rounded-full drop-shadow-[0_0_8px_rgba(239,68,68,0.5)]"
             >
-              <Shield size={20} className="group-hover:scale-110 transition-transform" />
+              <Shield className="h-5 w-5 group-hover:scale-110 transition-transform" />
             </button>
           )}
 
@@ -429,11 +587,11 @@ export default function NewHeader() {
             <button
               onClick={() => router.push('/messages')}
               title="Wiadomości"
-              className="relative text-cyan-400 hover:text-cyan-300 transition-all hover:scale-110 duration-300 w-10 h-10 flex items-center justify-center rounded-full hover:shadow-[0_0_15px_rgba(0,255,255,0.6)]"
+              className="relative flex h-11 w-11 items-center justify-center rounded-xl text-cyan-400 transition-all duration-300 touch-manipulation active:scale-95 hover:text-cyan-300 hover:shadow-[0_0_15px_rgba(0,255,255,0.6)] lg:h-10 lg:w-10 lg:rounded-full lg:hover:scale-110"
             >
-              <MessageCircle size={26} />
+              <MessageCircle className="h-[22px] w-[22px] lg:h-[26px] lg:w-[26px]" />
               {unreadMessagesCount > 0 && (
-                <span className="absolute top-1 right-0 min-w-[18px] h-[18px] px-1 bg-cyan-500 rounded-full text-[10px] font-bold flex items-center justify-center shadow-[0_0_8px_rgba(0,255,255,0.8)] text-black border-2 border-[#110a22]">
+                <span className="absolute right-0.5 top-1 min-w-[18px] h-[18px] px-1 bg-cyan-500 rounded-full text-[10px] font-bold flex items-center justify-center shadow-[0_0_8px_rgba(0,255,255,0.8)] text-black border-2 border-[#110a22] lg:right-0 lg:top-1">
                   {unreadMessagesCount > 99 ? '99+' : unreadMessagesCount}
                 </span>
               )}
@@ -448,10 +606,10 @@ export default function NewHeader() {
             <button
               onClick={toggleNotifications}
               title="Powiadomienia"
-              className="relative text-cyan-400 hover:text-cyan-300 transition-all hover:scale-110 duration-300 w-10 h-10 flex items-center justify-center rounded-full hover:shadow-[0_0_15px_rgba(0,255,255,0.6)]"
+              className="relative flex h-11 w-11 items-center justify-center rounded-xl text-cyan-400 transition-all duration-300 touch-manipulation active:scale-95 hover:text-cyan-300 hover:shadow-[0_0_15px_rgba(0,255,255,0.6)] lg:h-10 lg:w-10 lg:rounded-full lg:hover:scale-110"
               id="bell-btn"
             >
-              <Bell size={26} />
+              <Bell className="h-[22px] w-[22px] lg:h-[26px] lg:w-[26px]" />
               {unreadNotificationsCount > 0 && (
                 <span className="absolute top-2 right-1.5 w-2.5 h-2.5 bg-fuchsia-500 rounded-full shadow-[0_0_8px_rgba(255,0,255,0.8)] border-2 border-[#110a22]"></span>
               )}
@@ -643,12 +801,12 @@ export default function NewHeader() {
             )}
           </div>
 
-          <div className="h-8 w-[1px] bg-white/20 mx-1 sm:mx-2 hidden sm:block"></div>
+          <div className="hidden h-8 w-[1px] bg-white/20 mx-1 sm:mx-2 lg:block"></div>
 
           {/* Auth button (mobile icon + desktop label) */}
           <button
             onClick={handleAuthAction}
-            className={`group relative inline-flex min-w-[44px] sm:min-w-[132px] items-center justify-center gap-2 px-3 sm:px-5 lg:px-6 py-2.5 rounded-full font-medium text-sm text-white transition-all active:scale-95 overflow-hidden ${
+            className={`group relative inline-flex h-11 w-11 items-center justify-center gap-2 overflow-hidden rounded-xl px-0 font-medium text-sm text-white transition-all touch-manipulation active:scale-95 lg:h-auto lg:min-w-[132px] lg:w-auto lg:rounded-full lg:px-6 lg:py-2.5 ${
               user
                 ? 'bg-gradient-to-r from-slate-700 to-slate-600 hover:from-slate-600 hover:to-slate-500 shadow-[0_0_15px_rgba(148,163,184,0.25)] hover:shadow-[0_0_25px_rgba(148,163,184,0.35)]'
                 : 'bg-gradient-to-r from-fuchsia-600 to-cyan-600 hover:from-fuchsia-500 hover:to-cyan-500 shadow-[0_0_15px_rgba(255,0,255,0.3)] hover:shadow-[0_0_25px_rgba(0,255,255,0.5)]'
@@ -658,14 +816,15 @@ export default function NewHeader() {
             <div className="absolute inset-0 bg-gradient-to-r from-cyan-400 to-fuchsia-400 opacity-0 group-hover:opacity-20 transition-opacity"></div>
 
             {user ? (
-              <LogOut size={18} className="relative z-10 group-hover:scale-110 transition-transform" />
+              <LogOut className="relative z-10 h-5 w-5 group-hover:scale-110 transition-transform" />
             ) : (
-              <LogIn size={18} className="relative z-10 group-hover:scale-110 transition-transform" />
+              <LogIn className="relative z-10 h-5 w-5 group-hover:scale-110 transition-transform" />
             )}
-            <span className="relative z-10 hidden sm:inline">{user ? 'Wyloguj' : 'Zaloguj'}</span>
+            <span className="relative z-10 hidden lg:inline">{user ? 'Wyloguj' : 'Zaloguj'}</span>
 
             <span className="absolute inset-0 rounded-full bg-cyan-400/20 scale-100 group-hover:scale-110 opacity-0 group-hover:opacity-100 blur-md transition-all duration-300"></span>
           </button>
+        </div>
         </div>
       </header>
 

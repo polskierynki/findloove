@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { Heart, ChatCircle, Sparkle, MapPin, Lightning, SealCheck } from '@phosphor-icons/react';
 import { supabase } from '@/lib/supabase';
@@ -79,6 +80,7 @@ const POPULARITY_WINDOW_DAYS = 45;
 const POPULARITY_SCORE_THRESHOLD = 70;
 const POPULARITY_MIN_LIKES = 5;
 const POPULARITY_MIN_ACCEPTED_FRIENDSHIPS = 2;
+const PROFILE_CARD_IMAGE_SIZES = '(max-width: 639px) calc(100vw - 3rem), (max-width: 1023px) calc(50vw - 2.5rem), (max-width: 1279px) calc(33vw - 2.75rem), (max-width: 1535px) calc(25vw - 3rem), 18vw';
 
 function normalizeText(value?: string | null): string {
   return (value || '').trim().toLowerCase();
@@ -215,6 +217,7 @@ export default function NewHomeView() {
   const [rankedProfiles, setRankedProfiles] = useState<RankedProfile[]>([]);
   const [likedProfiles, setLikedProfiles] = useState<Set<string>>(new Set());
   const [popularityByProfileId, setPopularityByProfileId] = useState<Record<string, PopularityMetrics>>({});
+  const [expandedCardId, setExpandedCardId] = useState<string | null>(null);
   const [likeBurstTicks, setLikeBurstTicks] = useState<Record<string, number>>({});
   const [likePopTicks, setLikePopTicks] = useState<Record<string, number>>({});
   const [burstingLikeIds, setBurstingLikeIds] = useState<Set<string>>(new Set());
@@ -662,6 +665,17 @@ export default function NewHomeView() {
     void fetchRankedPage(nextCursor);
   };
 
+  const handleCardSelect = useCallback((profileId: string) => {
+    const isMobileViewport = typeof window !== 'undefined' && window.innerWidth < 768;
+
+    if (isMobileViewport && expandedCardId !== profileId) {
+      setExpandedCardId(profileId);
+      return;
+    }
+
+    router.push(`/profile/${profileId}`);
+  }, [expandedCardId, router]);
+
   return (
     <div className="relative z-10 pt-28 pb-16 px-6 lg:px-12 max-w-[2200px] mx-auto flex flex-col gap-8">
       {/* Hero Section */}
@@ -716,7 +730,24 @@ export default function NewHomeView() {
       {/* Profile Cards Grid */}
       <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6 lg:gap-8 mt-8">
         {loading ? (
-          <div className="col-span-full text-center text-cyan-400">Ładowanie profili...</div>
+          Array.from({ length: 10 }).map((_, index) => (
+            <div key={`home-skeleton-${index}`} className="glass rounded-[2rem] overflow-hidden border border-white/10 animate-pulse">
+              <div className="aspect-[3/4] w-full relative bg-white/5">
+                <div className="absolute inset-x-4 top-4 flex items-center justify-between">
+                  <div className="h-7 w-24 rounded-full bg-white/10" />
+                  <div className="h-7 w-7 rounded-full bg-white/10" />
+                </div>
+                <div className="absolute inset-x-5 bottom-5 space-y-3">
+                  <div className="h-8 w-2/3 rounded-2xl bg-white/10" />
+                  <div className="h-4 w-1/2 rounded-full bg-white/10" />
+                  <div className="grid grid-cols-2 gap-3 pt-3">
+                    <div className="h-11 rounded-xl bg-white/10" />
+                    <div className="h-11 rounded-xl bg-white/10" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))
         ) : discoveryMode === 'nearby' && !currentProfile?.city ? (
           <div className="col-span-full text-center text-cyan-300/80 glass rounded-2xl border border-cyan-500/20 p-10">
             Uzupełnij miasto w profilu, aby lista „W pobliżu” działała precyzyjnie.
@@ -730,6 +761,7 @@ export default function NewHomeView() {
             const profile = item.profile;
             const isLiked = likedProfiles.has(profile.id);
             const popularity = popularityByProfileId[profile.id];
+            const isExpanded = expandedCardId === profile.id;
             const isPopular = Boolean(popularity?.isPopular);
             const isLikeBursting = burstingLikeIds.has(profile.id);
             const isLikePopping = poppingLikeIds.has(profile.id);
@@ -742,19 +774,24 @@ export default function NewHomeView() {
             return (
               <div
                 key={profile.id}
-                onClick={() => router.push(`/profile/${profile.id}`)}
+                onClick={() => handleCardSelect(profile.id)}
                 className={`profile-card glass rounded-[2rem] overflow-hidden relative group cursor-pointer ${
                   isPopular ? 'popular-profile-card' : ''
                 }`}
+                data-mobile-expanded={isExpanded ? 'true' : 'false'}
               >
                 <div className="aspect-[3/4] w-full relative">
-                  <img
+                  <Image
                     src={
                       profile.image_url ||
                       `https://images.unsplash.com/photo-${1515372039744 + idx}?ixlib=rb-4.0.3&w=800&q=80`
                     }
                     alt={profile.name}
-                    className="w-full h-full object-cover"
+                    fill
+                    priority={idx === 0}
+                    fetchPriority={idx === 0 ? 'high' : undefined}
+                    sizes={PROFILE_CARD_IMAGE_SIZES}
+                    className="object-cover"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-[#07050f] via-[#07050f]/40 to-transparent"></div>
                   {isPopular && (
@@ -798,8 +835,12 @@ export default function NewHomeView() {
                   </div>
 
                   {/* Profile Info - Always visible, slides up on hover */}
-                  <div className="absolute bottom-0 left-0 w-full pb-1 px-5 pt-2 z-10 transform transition-transform duration-300 ease-out group-hover:-translate-y-6">
-                    <div className="card-meta flex flex-col gap-2.5 relative z-10">
+                  <div className={`absolute bottom-0 left-0 w-full px-5 pt-2 pb-1 z-10 transform transition-transform duration-300 ease-out ${
+                    isExpanded ? '-translate-y-6' : 'translate-y-0'
+                  } md:translate-y-0 md:group-hover:-translate-y-6`}>
+                    <div className={`flex flex-col gap-2.5 relative z-10 transform transition-transform duration-300 ease-out ${
+                      isExpanded ? '-translate-y-0.5' : 'translate-y-4'
+                    } md:translate-y-4 md:group-hover:-translate-y-0.5`}>
                       <div>
                         <h2 className="text-2xl font-medium text-white leading-snug">
                           {profile.name || 'User'}, {typeof profile.age === 'number' ? `${profile.age} lat` : '? lat'}
@@ -811,7 +852,9 @@ export default function NewHomeView() {
                       </div>
 
                       {/* Action Buttons - Hidden by default, visible on hover */}
-                      <div className="card-actions flex gap-3 relative z-30 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                      <div className={`flex gap-3 relative z-30 transition-all duration-300 ${
+                        isExpanded ? 'opacity-100 translate-y-1 pointer-events-auto' : 'opacity-0 translate-y-4 pointer-events-none'
+                      } md:pointer-events-none md:opacity-0 md:translate-y-4 md:group-hover:pointer-events-auto md:group-hover:opacity-100 md:group-hover:translate-y-1`}>
                         <button
                           onClick={(e) => {
                             e.stopPropagation();

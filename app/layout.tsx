@@ -1,16 +1,24 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Outfit } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const outfit = Outfit({
+  variable: "--font-outfit",
   subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700"],
+  display: "swap",
+  fallback: ["sans-serif"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+function readOriginFromEnv(value?: string): string | null {
+  if (!value) return null;
+
+  try {
+    return new URL(value).origin;
+  } catch {
+    return null;
+  }
+}
 
 export const metadata: Metadata = {
   title: "findloove.pl – Portal Randkowy",
@@ -34,6 +42,8 @@ import NewHeader from '@/components/layout/NewHeader';
 import FloatingParticles from '@/components/layout/FloatingParticles';
 import StandaloneMobileNav from '@/components/layout/StandaloneMobileNav';
 
+const supabaseOrigin = readOriginFromEnv(process.env.NEXT_PUBLIC_SUPABASE_URL);
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -42,10 +52,10 @@ export default function RootLayout({
   return (
     <html lang="pl">
       <head>
-        <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="preload" as="style" />
-        <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+        {supabaseOrigin && <link rel="preconnect" href={supabaseOrigin} crossOrigin="anonymous" />}
+        {supabaseOrigin && <link rel="dns-prefetch" href={supabaseOrigin} />}
       </head>
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased selection:bg-fuchsia-500/30 selection:text-fuchsia-100`}>
+      <body className={`${outfit.variable} antialiased selection:bg-fuchsia-500/30 selection:text-fuchsia-100`}>
         {/* Animowane tło z "bombelkami" */}
         <FloatingParticles />
         

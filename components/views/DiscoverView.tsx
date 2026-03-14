@@ -1,8 +1,11 @@
 'use client';
 
+import Image from 'next/image';
 import { Crown, Heart, RefreshCw, Sparkles } from 'lucide-react';
 import { ChatCircle } from '@phosphor-icons/react';
 import { Profile } from '@/lib/types';
+
+const DISCOVER_IMAGE_SIZES = '(max-width: 767px) 100vw, 50vw';
 
 interface DiscoverViewProps {
   profiles: Profile[];
@@ -47,10 +50,14 @@ export default function DiscoverView({
       <div className="glass rounded-[2rem] overflow-hidden border border-white/10">
         <div className="grid md:grid-cols-2">
           <div className="relative min-h-[420px]">
-            <img
+            <Image
               src={profile.image_url || 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=900&q=80'}
               alt={profile.name}
-              className="w-full h-full object-cover"
+              fill
+              priority
+              fetchPriority="high"
+              sizes={DISCOVER_IMAGE_SIZES}
+              className="object-cover"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-[#07050f] via-transparent to-transparent" />
             <div className="absolute bottom-4 left-4 right-4">

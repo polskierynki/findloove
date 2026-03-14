@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Home, MessageCircle, HeartHandshake, User, Search, Users, Coins } from 'lucide-react';
+import { Home, MessageCircle, User, Search, Users, Coins } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { resolveProfileIdForAuthUser } from '@/lib/profileAuth';
@@ -16,7 +16,6 @@ interface BottomNavProps {
 
 const NAV_ITEMS: { id: ViewType | 'myprofile'; icon: React.ReactNode; label: string; path: string }[] = [
   { id: 'home', icon: <Home size={20} />, label: 'Start', path: '/' },
-  { id: 'discover', icon: <HeartHandshake size={22} />, label: 'Randki', path: '/discover' },
   { id: 'search', icon: <Search size={20} />, label: 'Szukaj', path: '/search' },
   { id: 'messages', icon: <MessageCircle size={22} />, label: 'Poczta', path: '/messages' },
   { id: 'wallet', icon: <Coins size={20} />, label: 'Portfel', path: '/wallet' },
@@ -190,7 +189,6 @@ export default function BottomNav({ currentView, onNavigate, isLoggedIn = false,
       <div className="max-w-2xl mx-auto flex justify-around items-center px-2 py-1 md:py-2 min-h-[56px] md:min-h-0">
         {visibleNavItems.map((item) => {
           const active = activeItem === item.id;
-          const isSpeedDating = item.id === 'discover';
           const isProfileTab = item.id === 'myprofile';
           
           const handleClick = () => {
@@ -208,22 +206,14 @@ export default function BottomNav({ currentView, onNavigate, isLoggedIn = false,
               onClick={handleClick}
               title={isProfileTab ? 'Moj profil' : item.label}
               className={`flex flex-col items-center gap-0.5 cursor-pointer transition-all px-1.5 py-1 rounded-xl active:scale-95 min-w-[44px] md:min-w-[52px] touch-manipulation ${
-                isSpeedDating
-                  ? active
-                    ? 'text-amber-400 shadow-[0_0_10px_rgba(245,158,11,0.35)]'
-                    : 'text-white/60 hover:text-amber-300 hover:bg-amber-500/10'
-                  : active
+                active
                   ? 'text-cyan-400 shadow-[0_0_10px_rgba(0,255,255,0.3)]'
                   : 'text-white/60 hover:text-white hover:bg-white/5'
               }`}
             >
               <div
                 className={`relative transition-all ${
-                  isSpeedDating
-                    ? active
-                      ? 'bg-amber-500/20 p-1.5 md:p-2 rounded-xl scale-105 border border-amber-400/40'
-                      : 'p-1.5 md:p-1.5'
-                    : active
+                  active
                     ? 'bg-cyan-500/20 p-1.5 md:p-2 rounded-xl scale-105 border border-cyan-400/40'
                     : 'p-1.5 md:p-1.5'
                 }`}
