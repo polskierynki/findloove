@@ -9,6 +9,7 @@ import {
   ListDashes,
   GameController,
   Camera,
+  Eye,
   X,
   Plus,
   CheckCircle,
@@ -57,6 +58,7 @@ type VerificationSnapshot = {
   aiScore: number | null;
   aiReason: string | null;
   adminNote: string | null;
+  selfiePreviewUrl?: string | null;
   createdAt: string;
   reviewedAt: string | null;
 };
@@ -100,6 +102,7 @@ export default function NewMyProfileView() {
   const [verificationError, setVerificationError] = useState<string | null>(null);
   const [verificationSetupMessage, setVerificationSetupMessage] = useState<string | null>(null);
   const [verificationSnapshot, setVerificationSnapshot] = useState<VerificationSnapshot | null>(null);
+  const [selectedVerificationSelfie, setSelectedVerificationSelfie] = useState<string | null>(null);
 
   useEffect(() => {
     void loadProfile();
@@ -140,6 +143,7 @@ export default function NewMyProfileView() {
           aiScore: number | null;
           aiReason: string | null;
           adminNote: string | null;
+          selfiePreviewUrl?: string | null;
           createdAt: string;
           reviewedAt: string | null;
         } | null;
@@ -1377,6 +1381,29 @@ export default function NewMyProfileView() {
           </div>
         </div>
 
+        {verificationSnapshot?.selfiePreviewUrl && (
+          <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-3">
+            <p className="text-white/55 text-sm mb-3">Wysłane selfie</p>
+            <button
+              type="button"
+              onClick={() => setSelectedVerificationSelfie(verificationSnapshot.selfiePreviewUrl || null)}
+              className="relative overflow-hidden rounded-xl border border-amber-500/30 group"
+            >
+              <img
+                src={verificationSnapshot.selfiePreviewUrl}
+                alt="Selfie wysłane do weryfikacji"
+                className="w-28 h-28 object-cover transition-transform duration-300 group-hover:scale-105"
+              />
+              <div className="absolute inset-0 flex items-center justify-center bg-black/15 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+                <span className="rounded-full bg-black/70 px-2.5 py-1 text-[11px] text-white flex items-center gap-1.5">
+                  <Eye size={14} weight="fill" />
+                  Powiększ
+                </span>
+              </div>
+            </button>
+          </div>
+        )}
+
         {verificationSnapshot?.aiReason && (
           <p className="text-xs text-amber-100/80 rounded-xl border border-amber-500/25 bg-amber-500/10 px-3 py-2">
             Ocena SI: {verificationSnapshot.aiReason}
@@ -1521,6 +1548,35 @@ export default function NewMyProfileView() {
           setVerificationModalOpen(false);
         }}
       />
+
+      {selectedVerificationSelfie && (
+        <div
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-black/85 backdrop-blur-sm p-4"
+          onClick={() => setSelectedVerificationSelfie(null)}
+        >
+          <div
+            className="relative w-full max-w-4xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setSelectedVerificationSelfie(null)}
+              className="absolute right-3 top-3 z-10 rounded-full border border-white/15 bg-black/55 p-2 text-white hover:bg-black/75 transition-colors"
+              aria-label="Zamknij podglad selfie"
+            >
+              <X size={18} weight="bold" />
+            </button>
+
+            <div className="overflow-hidden rounded-[2rem] border border-white/10 bg-black/70 shadow-[0_20px_80px_rgba(0,0,0,0.45)]">
+              <img
+                src={selectedVerificationSelfie}
+                alt="Powiekszone selfie do weryfikacji"
+                className="w-full max-h-[85vh] object-contain bg-black"
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

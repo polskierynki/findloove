@@ -55,6 +55,10 @@ export default function NewAdminView() {
   const [users, setUsers] = useState<User[]>([]);
   const [reports, setReports] = useState<CommentReport[]>([]);
   const [verificationQueue, setVerificationQueue] = useState<VerificationQueueItem[]>([]);
+  const [selectedSelfiePreview, setSelectedSelfiePreview] = useState<{
+    src: string;
+    profileName: string;
+  } | null>(null);
   const [loading, setLoading] = useState(true);
   const [busyUserId, setBusyUserId] = useState<string | null>(null);
   const [verificationBusyId, setVerificationBusyId] = useState<string | null>(null);
@@ -73,6 +77,19 @@ export default function NewAdminView() {
   useEffect(() => {
     void loadData();
   }, []);
+
+  useEffect(() => {
+    if (!selectedSelfiePreview) return;
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setSelectedSelfiePreview(null);
+      }
+    };
+
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, [selectedSelfiePreview]);
 
   const getAdminAccessToken = async (): Promise<string | null> => {
     const {
@@ -749,6 +766,10 @@ export default function NewAdminView() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {verificationQueue.map((item) => {
               const isBusy = verificationBusyId === item.id;
+              const selfieSrc =
+                item.selfiePreviewUrl
+                || item.profileImage
+                || 'https://ui-avatars.com/api/?name=Selfie&background=111827&color=e5e7eb&size=200';
 
               return (
                 <div
@@ -756,11 +777,25 @@ export default function NewAdminView() {
                   className="rounded-xl border border-amber-500/20 bg-black/20 p-4 flex flex-col gap-3"
                 >
                   <div className="flex items-start gap-3">
-                    <img
-                      src={item.selfiePreviewUrl || item.profileImage || 'https://ui-avatars.com/api/?name=Selfie&background=111827&color=e5e7eb&size=200'}
-                      alt={`Selfie ${item.profileName}`}
-                      className="w-20 h-20 rounded-xl object-cover border border-amber-500/30"
-                    />
+                    <button
+                      type="button"
+                      onClick={() => setSelectedSelfiePreview({ src: selfieSrc, profileName: item.profileName })}
+                      className="relative shrink-0 overflow-hidden rounded-xl border border-amber-500/30 group/selfie"
+                      title="Kliknij, aby powiekszyc selfie"
+                      aria-label={`Powieksz selfie ${item.profileName}`}
+                    >
+                      <img
+                        src={selfieSrc}
+                        alt={`Selfie ${item.profileName}`}
+                        className="w-20 h-20 object-cover transition-transform duration-300 group-hover/selfie:scale-105"
+                      />
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/10 opacity-0 transition-opacity duration-300 group-hover/selfie:opacity-100">
+                        <span className="rounded-full bg-black/70 px-2 py-1 text-[10px] text-white flex items-center gap-1">
+                          <Eye size={12} />
+                          Powieksz
+                        </span>
+                      </div>
+                    </button>
 
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
@@ -847,6 +882,39 @@ export default function NewAdminView() {
           </div>
         )}
       </div>
+
+      {selectedSelfiePreview && (
+        <div
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-black/85 backdrop-blur-sm p-4"
+          onClick={() => setSelectedSelfiePreview(null)}
+        >
+          <div
+            className="relative w-full max-w-4xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setSelectedSelfiePreview(null)}
+              className="absolute right-3 top-3 z-10 rounded-full border border-white/15 bg-black/55 p-2 text-white hover:bg-black/75 transition-colors"
+              aria-label="Zamknij podglad selfie"
+            >
+              <X size={18} />
+            </button>
+
+            <div className="overflow-hidden rounded-[2rem] border border-white/10 bg-black/70 shadow-[0_20px_80px_rgba(0,0,0,0.45)]">
+              <img
+                src={selectedSelfiePreview.src}
+                alt={`Selfie ${selectedSelfiePreview.profileName}`}
+                className="w-full max-h-[85vh] object-contain bg-black"
+              />
+            </div>
+
+            <p className="mt-3 text-center text-sm text-white/75">
+              Selfie do weryfikacji: {selectedSelfiePreview.profileName}
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
