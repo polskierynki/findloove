@@ -15,6 +15,8 @@ interface User {
   strikes: number;
   isBanned: boolean;
   isPopularOverride: boolean;
+  isVerified: boolean;
+  isNew: boolean;
 }
 
 interface CommentReport {
@@ -191,23 +193,39 @@ export default function NewAdminView() {
 
   const loadData = async () => {
     try {
-      // Fetch users
-      const { data: usersData } = await supabase
+      // Fetch users — try full select first, fall back without is_popular_override if column missing
+      let { data: usersData, error: usersError } = await supabase
         .from('profiles')
-        .select('id, name, image_url, created_at, status, city, strikes, is_popular_override')
+        .select('id, name, image_url, created_at, status, city, strikes, is_popular_override, is_verified, verification_pending')
         .order('created_at', { ascending: false })
-        .limit(20);
+        .limit(200);
 
-      const mappedUsers: User[] = (usersData || []).map((u) => ({
-        id: u.id,
-        name: u.name,
-        image_url: u.image_url,
-        created_at: u.created_at,
-        status: u.status,
-        city: u.city,
-        strikes: u.strikes ?? 0,
+      if (usersError) {
+        // Likely missing column (migration not run) — retry without optional columns
+        const fallback = await supabase
+          .from('profiles')
+          .select('id, name, image_url, created_at, status, city, strikes, is_verified, verification_pending')
+          .order('created_at', { ascending: false })
+          .limit(200);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        usersData = fallback.data as any;
+      }
+
+      const now = Date.now();
+      const NEW_ACCOUNT_MS = 7 * 24 * 3600 * 1000; // 7 days
+
+      const mappedUsers: User[] = ((usersData || []) as Record<string, unknown>[]).map((u) => ({
+        id: u.id as string,
+        name: u.name as string,
+        image_url: u.image_url as string,
+        created_at: u.created_at as string,
+        status: u.status as string,
+        city: u.city as string,
+        strikes: (u.strikes as number) ?? 0,
         isBanned: u.status === 'banned',
-        isPopularOverride: Boolean((u as { is_popular_override?: boolean | null }).is_popular_override),
+        isPopularOverride: Boolean(u.is_popular_override),
+        isVerified: Boolean(u.is_verified),
+        isNew: now - Date.parse(u.created_at as string) < NEW_ACCOUNT_MS,
       }));
 
       setUsers(mappedUsers);
@@ -565,7 +583,7 @@ export default function NewAdminView() {
                       </div>
                     </td>
                     <td className="py-3 px-2 text-center">
-                      <div className="flex justify-center">
+                      <div className="flex flex-col items-center gap-1">
                         {user.isBanned ? (
                           <span className="inline-flex items-center gap-1 bg-red-500/20 border border-red-500/40 text-red-400 text-xs px-2 py-1 rounded-full">
                             Zbanowany
@@ -573,6 +591,17 @@ export default function NewAdminView() {
                         ) : (
                           <span className="inline-flex items-center gap-1 bg-green-500/20 border border-green-500/40 text-green-400 text-xs px-2 py-1 rounded-full">
                             Aktywny
+                          </span>
+                        )}
+                        {user.isVerified && (
+                          <span className="inline-flex items-center gap-1 bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[10px] px-2 py-0.5 rounded-full">
+                            <BadgeCheck size={10} />
+                            Zweryfikowany
+                          </span>
+                        )}
+                        {user.isNew && (
+                          <span className="inline-flex items-center gap-1 bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 text-[10px] px-2 py-0.5 rounded-full">
+                            Nowe konto
                           </span>
                         )}
                       </div>
@@ -885,7 +914,7 @@ export default function NewAdminView() {
 
       {selectedSelfiePreview && (
         <div
-          className="fixed inset-0 z-[70] flex items-center justify-center bg-black/85 backdrop-blur-sm p-4"
+          className="fixed inset-0 z-[150] flex items-center justify-center bg-black/85 backdrop-blur-sm p-4"
           onClick={() => setSelectedSelfiePreview(null)}
         >
           <div
